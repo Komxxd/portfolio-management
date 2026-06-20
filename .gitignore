@@ -1,1 +1,3 @@
 supabase_setup.sql
+server/node_modules
+client/node_modules
