@@ -125,8 +125,8 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId }: AddStoc
           <X className="w-4 h-4" />
         </button>
         
-        <h2 className="text-xl font-semibold mb-1 text-zinc-900 tracking-tight">Add New Asset</h2>
-        <p className="text-sm text-gray-500 mb-6">Search and enter the asset details.</p>
+        <h2 className="text-xl font-semibold mb-1 text-zinc-900 tracking-tight">Buy New Asset</h2>
+        <p className="text-sm text-gray-500 mb-6">Search and enter the asset buy details.</p>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
