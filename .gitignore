@@ -16,6 +16,8 @@ client/node_modules
 dist
 dist-ssr
 build/
+.vercel
+
 
 # Env files
 .env

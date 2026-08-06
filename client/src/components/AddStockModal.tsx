@@ -54,7 +54,8 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId }: AddStoc
 
       setIsSearching(true);
       try {
-        const response = await fetch(`http://localhost:5001/api/search?q=${encodeURIComponent(searchQuery)}`);
+        const apiBase = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${apiBase}/api/search?q=${encodeURIComponent(searchQuery)}`);
         if (!response.ok) throw new Error('Search failed');
         const data = await response.json();
         setSearchResults(data);

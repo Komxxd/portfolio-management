@@ -158,7 +158,8 @@ function App() {
       }
       setPricesLoading(true);
       try {
-        const response = await fetch(`http://localhost:5001/api/prices?symbols=${activeStockSymbols}`);
+        const apiBase = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${apiBase}/api/prices?symbols=${activeStockSymbols}`);
         if (response.ok) {
           const prices = await response.json();
           setLivePrices(prev => ({ ...prev, ...prices }));

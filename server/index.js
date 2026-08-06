@@ -70,6 +70,10 @@ app.get("/api/prices", async (req, res) => {
 
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
-    console.log(`Server running on ${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Server running on ${PORT}`);
+    });
+}
+
+module.exports = app;
