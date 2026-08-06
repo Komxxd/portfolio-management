@@ -2,8 +2,12 @@
   "name": "portfolio-management",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
-    "build": "npm run build --prefix client",
+    "build": "cd client && npm install && npm run build",
     "dev:client": "npm run dev --prefix client",
     "dev:server": "npm run dev --prefix server",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\""
