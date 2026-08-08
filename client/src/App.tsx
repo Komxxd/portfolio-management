@@ -151,12 +151,12 @@ function App() {
   const activeStockSymbols = [...new Set(activeStocks.map(s => s.symbol))].sort().join(',');
 
   useEffect(() => {
-    const fetchLivePrices = async () => {
+    const fetchLivePrices = async (showLoading = false) => {
       if (!activeStockSymbols) {
-        setPricesLoading(false);
+        if (showLoading) setPricesLoading(false);
         return;
       }
-      setPricesLoading(true);
+      if (showLoading) setPricesLoading(true);
       try {
         const apiBase = import.meta.env.VITE_API_URL || '';
         const response = await fetch(`${apiBase}/api/prices?symbols=${activeStockSymbols}`);
@@ -167,10 +167,19 @@ function App() {
       } catch (err) {
         console.error('Failed to fetch live prices', err);
       } finally {
-        setPricesLoading(false);
+        if (showLoading) setPricesLoading(false);
       }
     };
-    fetchLivePrices();
+
+    // Initial fetch
+    fetchLivePrices(true);
+
+    // Poll every minute
+    const intervalId = setInterval(() => {
+      fetchLivePrices(false);
+    }, 60000);
+
+    return () => clearInterval(intervalId);
   }, [activeStockSymbols]);
 
   const toggleSymbol = (symbol: string) => {
@@ -392,10 +401,17 @@ function App() {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
         <header className="h-16 bg-white border-b border-gray-200 px-8 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-zinc-900">
-              {activePortfolio ? activePortfolio.name : 'Portfolios'}
-            </h2>
+          <div className="flex flex-col justify-center">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold text-zinc-900">
+                {activePortfolio ? activePortfolio.name : 'Portfolios'}
+              </h2>
+            </div>
+            {activePortfolio && (
+              <span className="text-[10px] text-gray-400 font-medium tracking-wide">
+                Prices auto-update every minute
+              </span>
+            )}
           </div>
         </header>
 
