@@ -1236,7 +1236,7 @@ function App() {
                                                       </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-50">
-                                                      {lot.matchedSells.map(sellAlloc => {
+                                                      {lot.matchedSells.map((sellAlloc: any) => {
                                                         const realPnlPct = lot.entryPrice > 0 ? ((sellAlloc.exit_price - lot.entryPrice) / lot.entryPrice) * 100 : 0;
                                                         return (
                                                           <tr key={`alloc-${sellAlloc.sellId}`} className="hover:bg-red-50/40 transition-colors">
