@@ -7,15 +7,17 @@ interface CorporateActionModalProps {
   onClose: () => void;
   type: 'bonus' | 'split' | 'dividend' | null;
   portfolioId: string | null;
-  ownedSymbols?: string[];
+  ownedSymbols: string[];
+  symbolGroups: any[];
   onSuccess?: () => void;
 }
 
-export function CorporateActionModal({ isOpen, onClose, type, portfolioId, ownedSymbols = [], onSuccess }: CorporateActionModalProps) {
+export function CorporateActionModal({ isOpen, onClose, type, portfolioId, ownedSymbols, symbolGroups, onSuccess }: CorporateActionModalProps) {
   const [symbol, setSymbol] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [qty, setQty] = useState('');
   const [splitFactor, setSplitFactor] = useState('');
+  const [dividend, setDividend] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -44,6 +46,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
       setDate(new Date().toISOString().split('T')[0]);
       setQty('');
       setSplitFactor('');
+      setDividend('');
       setError(null);
       setSubmitting(false);
     }
@@ -53,8 +56,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (type !== 'bonus' && type !== 'split') {
-      // Dividend not implemented yet
+    if (type !== 'bonus' && type !== 'split' && type !== 'dividend') {
       return;
     }
 
@@ -73,11 +75,16 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
       return;
     }
 
+    if (type === 'dividend' && (!dividend || Number(dividend) <= 0)) {
+      setError('Please enter a valid dividend amount');
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError(null);
 
-      if (type === 'bonus' || type === 'split') {
+      if (type === 'bonus' || type === 'split' || type === 'dividend') {
         const { data: buyData, error: buyError } = await supabase
           .from('stocks')
           .select('entry_date')
@@ -98,20 +105,45 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
         const actionDate = new Date(date).getTime();
 
         if (actionDate < firstBuyDate) {
-          setError(`${type === 'bonus' ? 'Bonus' : 'Split'} date cannot be before the first buy date (${new Date(buyData[0].entry_date).toLocaleDateString()})`);
+          setError(`${type.charAt(0).toUpperCase() + type.slice(1)} date cannot be before the first buy date (${new Date(buyData[0].entry_date).toLocaleDateString()})`);
           setSubmitting(false);
           return;
         }
+        
+        // Validate that we hold shares on exactly this date
+        const group = symbolGroups.find(g => g.symbol === symbol.toUpperCase());
+        if (group && group.events) {
+          let openQty = 0;
+          for (const ev of group.events) {
+             if (ev.date > actionDate) break; // Only consider events up to the action date
+             
+             if (ev.type === 'BUY') {
+                openQty += Number(ev.raw.quantity);
+             } else if (ev.type === 'SELL') {
+                openQty -= Number(ev.raw.quantity);
+             } else if (ev.type === 'BONUS') {
+                if (openQty > 0) openQty += Number(ev.raw.quantity);
+             } else if (ev.type === 'SPLIT') {
+                if (openQty > 0) openQty *= Number(ev.raw.quantity);
+             }
+          }
+          
+          if (openQty <= 0) {
+             setError(`You do not hold any shares of ${symbol.toUpperCase()} on this date. You cannot add a ${type}.`);
+             setSubmitting(false);
+             return;
+          }
+        }
       }
 
-      // Bonus = 0 cost, Split = -1 cost marker
+      // Bonus = 0 cost, Split = -1 cost marker, Dividend = -2 cost marker
       const { error: insertError } = await supabase
         .from('stocks')
         .insert({
           portfolio_id: portfolioId,
           symbol: symbol.toUpperCase(),
-          quantity: type === 'bonus' ? Number(qty) : Number(splitFactor),
-          entry_price: type === 'bonus' ? 0 : -1,
+          quantity: type === 'bonus' ? Number(qty) : type === 'split' ? Number(splitFactor) : Number(dividend),
+          entry_price: type === 'bonus' ? 0 : type === 'split' ? -1 : -2,
           entry_date: date,
           brokerage: 0,
           govt_tax: 0
@@ -157,7 +189,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
               </div>
             )}
 
-            {type === 'bonus' || type === 'split' ? (
+            {type === 'bonus' || type === 'split' || type === 'dividend' ? (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -207,7 +239,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {type === 'bonus' ? 'Entry Date' : 'Split Date'}
+                    {type === 'bonus' ? 'Entry Date' : type === 'split' ? 'Split Date' : 'Dividend Date'}
                   </label>
                   <input
                     type="date"
@@ -234,7 +266,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
                       required
                     />
                   </div>
-                ) : (
+                ) : type === 'split' ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Split Factor <span className="text-xs text-gray-400 font-normal ml-1">(Multiplier, e.g. 2 for 1:2 split)</span>
@@ -246,6 +278,22 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
                       className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
                       placeholder="e.g. 2"
                       min="0.0001"
+                      step="any"
+                      required
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Dividend Per Share (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={dividend}
+                      onChange={(e) => setDividend(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
+                      placeholder="e.g. 5.50"
+                      min="0.01"
                       step="any"
                       required
                     />
@@ -271,7 +319,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
             </button>
             <button
               type="submit"
-              disabled={submitting || (type !== 'bonus' && type !== 'split')}
+              disabled={submitting || (type !== 'bonus' && type !== 'split' && type !== 'dividend')}
               className="px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
             >
               {submitting ? 'Processing...' : 'Submit'}

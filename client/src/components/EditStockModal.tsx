@@ -43,7 +43,8 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
 
   const isBonus = stock.entry_price === 0;
   const isSplit = stock.entry_price === -1;
-  const isCorporateAction = isBonus || isSplit;
+  const isDividend = stock.entry_price === -2;
+  const isCorporateAction = isBonus || isSplit || isDividend;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,8 +84,8 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
           <X className="w-4 h-4" />
         </button>
         
-        <h2 className="text-xl font-semibold mb-1 text-zinc-900 tracking-tight">{isBonus ? 'Edit Bonus' : isSplit ? 'Edit Split' : 'Edit Asset'}: {stock.symbol}</h2>
-        <p className="text-sm text-gray-500 mb-6">Update the details for this {isBonus ? 'bonus issue' : isSplit ? 'stock split' : 'asset'}.</p>
+        <h2 className="text-xl font-semibold mb-1 text-zinc-900 tracking-tight">{isBonus ? 'Edit Bonus' : isSplit ? 'Edit Split' : isDividend ? 'Edit Dividend' : 'Edit Asset'}: {stock.symbol}</h2>
+        <p className="text-sm text-gray-500 mb-6">Update the details for this {isBonus ? 'bonus issue' : isSplit ? 'stock split' : isDividend ? 'dividend' : 'asset'}.</p>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -115,7 +116,7 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
             
             <div>
               <label htmlFor="editQuantity" className="block text-sm font-medium text-gray-700 mb-1">
-                {isSplit ? 'Split Multiplier' : 'Quantity'}
+                {isSplit ? 'Split Multiplier' : isDividend ? 'Dividend Per Share (₹)' : 'Quantity'}
               </label>
               <input
                 type="number"
@@ -124,7 +125,7 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
                 onChange={(e) => setQuantity(e.target.value)}
                 className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                 step="any"
-                min={isSplit ? "0.0001" : "0"}
+                min={isSplit || isDividend ? "0.0001" : "0"}
               />
             </div>
 

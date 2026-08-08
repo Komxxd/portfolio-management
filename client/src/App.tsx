@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Briefcase, Search, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown } from 'lucide-react'
+import { Plus, Briefcase, Search, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, GripVertical } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { CreatePortfolioModal } from './components/CreatePortfolioModal'
 import { AddStockModal } from './components/AddStockModal'
@@ -8,6 +8,20 @@ import { EditStockModal } from './components/EditStockModal'
 import { EditSoldStockModal } from './components/EditSoldStockModal'
 import { RenamePortfolioModal } from './components/RenamePortfolioModal'
 import { CorporateActionModal } from './components/CorporateActionModal'
+import { AssetSearch } from './components/AssetSearch'
+
+const ALL_COLUMNS = [
+  { id: 'symbol', label: 'Symbol' },
+  { id: 'netQty', label: 'Net Qty' },
+  { id: 'avgBuyPrice', label: 'Avg Buy' },
+  { id: 'netCostBasis', label: 'Invested' },
+  { id: 'livePrice', label: 'Live Price' },
+  { id: 'currentValue', label: 'Current Value' },
+  { id: 'unrealizedPnL', label: 'Unrealized PnL' },
+  { id: 'realizedPnL', label: 'Realized PnL' },
+  { id: 'totalPnL', label: 'Total PnL' },
+  { id: 'xirr', label: 'XIRR' }
+];
 
 interface Portfolio {
   id: string;
@@ -93,11 +107,199 @@ function App() {
   const [editSoldStockId, setEditSoldStockId] = useState<string | null>(null);
   const [renamePortfolioId, setRenamePortfolioId] = useState<string | null>(null);
   const [corporateActionType, setCorporateActionType] = useState<'bonus' | 'split' | 'dividend' | null>(null);
-  const [filterType, setFilterType] = useState<'all' | 'open' | 'closed'>('all');
-  const [sortField, setSortField] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [portfolioFilters, setPortfolioFilters] = useState<Record<string, { filterType: 'open' | 'closed' | 'all'; searchSelectedSymbols: string[]; sortField: string | null; sortDirection: 'asc' | 'desc' }>>({});
+
+  const currentFilters = activePortfolioId && portfolioFilters[activePortfolioId] 
+    ? portfolioFilters[activePortfolioId] 
+    : { filterType: 'open' as const, searchSelectedSymbols: [] as string[], sortField: null as string | null, sortDirection: 'desc' as const };
+
+  const filterType = currentFilters.filterType;
+  const searchSelectedSymbols = currentFilters.searchSelectedSymbols;
+  const sortField = currentFilters.sortField;
+  const sortDirection = currentFilters.sortDirection;
+
+  const setFilterType = (val: 'open' | 'closed' | 'all') => {
+    if (!activePortfolioId) return;
+    setPortfolioFilters(prev => ({ ...prev, [activePortfolioId]: { ...(prev[activePortfolioId] || { filterType: 'open', searchSelectedSymbols: [], sortField: null, sortDirection: 'desc' }), filterType: val } }));
+  };
+
+  const setSearchSelectedSymbols = (val: string[] | ((prev: string[]) => string[])) => {
+    if (!activePortfolioId) return;
+    setPortfolioFilters(prev => {
+      const current = prev[activePortfolioId] || { filterType: 'open', searchSelectedSymbols: [], sortField: null, sortDirection: 'desc' };
+      const nextVal = typeof val === 'function' ? val(current.searchSelectedSymbols) : val;
+      return { ...prev, [activePortfolioId]: { ...current, searchSelectedSymbols: nextVal } };
+    });
+  };
+
+  const setSortField = (val: string | null | ((prev: string | null) => string | null)) => {
+    if (!activePortfolioId) return;
+    setPortfolioFilters(prev => {
+      const current = prev[activePortfolioId] || { filterType: 'open', searchSelectedSymbols: [], sortField: null, sortDirection: 'desc' };
+      const nextVal = typeof val === 'function' ? val(current.sortField) : val;
+      return { ...prev, [activePortfolioId]: { ...current, sortField: nextVal } };
+    });
+  };
+
+  const setSortDirection = (val: 'asc' | 'desc' | ((prev: 'asc' | 'desc') => 'asc' | 'desc')) => {
+    if (!activePortfolioId) return;
+    setPortfolioFilters(prev => {
+      const current = prev[activePortfolioId] || { filterType: 'open', searchSelectedSymbols: [], sortField: null, sortDirection: 'desc' };
+      const nextVal = typeof val === 'function' ? val(current.sortDirection) : val;
+      return { ...prev, [activePortfolioId]: { ...current, sortDirection: nextVal } };
+    });
+  };
   const [loading, setLoading] = useState(true);
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
+
+  const [isColumnsDropdownOpen, setIsColumnsDropdownOpen] = useState(false);
+  
+  const [portfolioVisibleColumns, setPortfolioVisibleColumns] = useState<Record<string, Set<string>>>(() => {
+    const saved = localStorage.getItem('portfolioVisibleColumns');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const result: Record<string, Set<string>> = {};
+        for (const key in parsed) {
+          result[key] = new Set(parsed[key]);
+        }
+        return result;
+      } catch (e) {}
+    }
+    return {};
+  });
+
+  const [portfolioColumnOrder, setPortfolioColumnOrder] = useState<Record<string, string[]>>(() => {
+    const saved = localStorage.getItem('portfolioColumnOrder');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {};
+  });
+
+  const [portfolioColumnWidths, setPortfolioColumnWidths] = useState<Record<string, Record<string, number>>>(() => {
+    const saved = localStorage.getItem('portfolioColumnWidths');
+    if (saved) {
+      try { return JSON.parse(saved); } catch(e) {}
+    }
+    return {};
+  });
+
+  const [resizingCol, setResizingCol] = useState<{ id: string, startX: number, startWidth: number } | null>(null);
+
+  useEffect(() => {
+    if (!resizingCol || !activePortfolioId) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - resizingCol.startX;
+      const newWidth = Math.max(50, resizingCol.startWidth + deltaX);
+      setPortfolioColumnWidths(prev => ({
+        ...prev,
+        [activePortfolioId]: {
+          ...(prev[activePortfolioId] || {}),
+          [resizingCol.id]: newWidth
+        }
+      }));
+    };
+
+    const handleMouseUp = () => {
+      setResizingCol(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingCol, activePortfolioId]);
+
+  useEffect(() => {
+    localStorage.setItem('portfolioColumnWidths', JSON.stringify(portfolioColumnWidths));
+  }, [portfolioColumnWidths]);
+
+  const [draggedColId, setDraggedColId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const toSave: Record<string, string[]> = {};
+    for (const key in portfolioVisibleColumns) {
+      toSave[key] = Array.from(portfolioVisibleColumns[key]);
+    }
+    localStorage.setItem('portfolioVisibleColumns', JSON.stringify(toSave));
+  }, [portfolioVisibleColumns]);
+
+  useEffect(() => {
+    localStorage.setItem('portfolioColumnOrder', JSON.stringify(portfolioColumnOrder));
+  }, [portfolioColumnOrder]);
+
+  const visibleColumns = (activePortfolioId && portfolioVisibleColumns[activePortfolioId]) 
+    ? portfolioVisibleColumns[activePortfolioId] 
+    : new Set(ALL_COLUMNS.map(c => c.id));
+
+  const activeColumnOrder = (activePortfolioId && portfolioColumnOrder[activePortfolioId])
+    ? portfolioColumnOrder[activePortfolioId]
+    : ALL_COLUMNS.map(c => c.id);
+
+  const toggleColumn = (colId: string) => {
+    if (!activePortfolioId) return;
+    setPortfolioVisibleColumns(prev => {
+      const current = prev[activePortfolioId] || new Set(ALL_COLUMNS.map(c => c.id));
+      const next = new Set(current);
+      if (next.has(colId)) next.delete(colId);
+      else next.add(colId);
+      return { ...prev, [activePortfolioId]: next };
+    });
+  };
+
+  const resetColumns = () => {
+    if (!activePortfolioId) return;
+    setPortfolioColumnOrder(prev => {
+      const next = { ...prev };
+      delete next[activePortfolioId];
+      return next;
+    });
+    setPortfolioVisibleColumns(prev => {
+      const next = { ...prev };
+      delete next[activePortfolioId];
+      return next;
+    });
+    setPortfolioColumnWidths(prev => {
+      const next = { ...prev };
+      delete next[activePortfolioId];
+      return next;
+    });
+  };
+
+  const handleColumnDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedColId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleColumnDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleColumnDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedColId || draggedColId === targetId || !activePortfolioId) return;
+
+    setPortfolioColumnOrder(prev => {
+      const currentOrder = prev[activePortfolioId] || ALL_COLUMNS.map(c => c.id);
+      const draggedIdx = currentOrder.indexOf(draggedColId);
+      const targetIdx = currentOrder.indexOf(targetId);
+      
+      const newOrder = [...currentOrder];
+      newOrder.splice(draggedIdx, 1);
+      newOrder.splice(targetIdx, 0, draggedColId);
+      
+      return { ...prev, [activePortfolioId]: newOrder };
+    });
+    setDraggedColId(null);
+  };
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     const saved = localStorage.getItem('isSidebarOpen');
     return saved !== null ? saved === 'true' : true;
@@ -169,7 +371,49 @@ function App() {
     fetchData();
   }, []);
 
+  const executeDeleteAsset = async (symbol: string) => {
+    if (!activePortfolio) return;
+    try {
+      const { error: e1 } = await supabase
+        .from('stocks')
+        .delete()
+        .eq('portfolio_id', activePortfolio.id)
+        .eq('symbol', symbol);
+      
+      if (e1) throw e1;
+
+      const { error: e2 } = await supabase
+        .from('sold_stocks')
+        .delete()
+        .eq('portfolio_id', activePortfolio.id)
+        .eq('symbol', symbol);
+
+      if (e2) throw e2;
+
+      setStocks(prev => prev.filter(s => s.symbol !== symbol));
+      setSoldStocks(prev => prev.filter(s => s.symbol !== symbol));
+    } catch (err: any) {
+      console.error('Error deleting asset:', err.message);
+      alert(`Failed to delete ${symbol}. Please try again.`);
+    }
+  };
+
   const handleDeleteStock = async (stockId: string) => {
+    const stockToDelete = stocks.find(s => s.id === stockId);
+    if (stockToDelete && stockToDelete.entry_price > 0) {
+      const otherBuys = stocks.filter(s => s.symbol === stockToDelete.symbol && s.id !== stockId && s.entry_price > 0);
+      if (otherBuys.length === 0) {
+        const hasOtherEntries = stocks.some(s => s.symbol === stockToDelete.symbol && s.id !== stockId) || 
+                                soldStocks.some(s => s.symbol === stockToDelete.symbol);
+        if (hasOtherEntries) {
+           const confirm = window.confirm(`Deleting the last Buy entry for ${stockToDelete.symbol} will also delete all associated Sells and Corporate Actions. Continue?`);
+           if (!confirm) return;
+        }
+        await executeDeleteAsset(stockToDelete.symbol);
+        return;
+      }
+    }
+
     try {
       const { error } = await supabase
         .from('stocks')
@@ -199,6 +443,12 @@ function App() {
       console.error('Error deleting sold stock:', err.message);
       alert('Failed to delete sold asset. Please try again.');
     }
+  };
+
+  const handleDeleteAsset = async (symbol: string) => {
+    const confirmDelete = window.confirm(`Are you sure you want to delete ALL records for ${symbol}? This cannot be undone.`);
+    if (!confirmDelete) return;
+    await executeDeleteAsset(symbol);
   };
 
   const handleDeletePortfolio = async (id: string) => {
@@ -328,26 +578,29 @@ function App() {
     const buys = activeStocks.filter(s => s.symbol === symbol);
     const sells = activeSoldStocks.filter(s => s.symbol === symbol);
 
-    const totalBoughtQty = buys.reduce((sum, b) => sum + Number(b.quantity), 0);
+    const totalBoughtQty = buys.reduce((sum, b) => Number(b.entry_price) > 0 ? sum + Number(b.quantity) : sum, 0);
     const totalSoldQty = sells.reduce((sum, s) => sum + Number(s.quantity), 0);
-    const netQty = totalBoughtQty - totalSoldQty;
 
     // ── Chronological Event Processing & FIFO ────────────────────────────
     type HistoryEvent = {
       id?: string;
-      type: 'BUY' | 'BONUS' | 'SPLIT';
+      type: 'BUY' | 'BONUS' | 'SPLIT' | 'DIVIDEND';
       date: string;
       qty: number;
       price?: number;
+      brokerage?: number;
+      govtTax?: number;
     };
 
-    const events: { type: 'BUY' | 'BONUS' | 'SPLIT' | 'SELL'; date: number; raw: any }[] = [];
+    const events: { type: 'BUY' | 'BONUS' | 'SPLIT' | 'DIVIDEND' | 'SELL'; date: number; raw: any }[] = [];
     
     buys.forEach(b => {
       if (Number(b.entry_price) === 0) {
         events.push({ type: 'BONUS', date: new Date(b.entry_date).getTime(), raw: b });
       } else if (Number(b.entry_price) === -1) {
         events.push({ type: 'SPLIT', date: new Date(b.entry_date).getTime(), raw: b });
+      } else if (Number(b.entry_price) === -2) {
+        events.push({ type: 'DIVIDEND', date: new Date(b.entry_date).getTime(), raw: b });
       } else {
         events.push({ type: 'BUY', date: new Date(b.entry_date).getTime(), raw: b });
       }
@@ -359,6 +612,7 @@ function App() {
     events.sort((a, b) => a.date - b.date);
 
     const openLots: any[] = [];
+    const stockCashFlows: { date: number; amount: number }[] = [];
     
     events.forEach(ev => {
       if (ev.type === 'BUY') {
@@ -373,17 +627,27 @@ function App() {
           originalPrice: price,
           buyQty: qty,
           entryPrice: price,
-          cost: qty * price + Number(b.brokerage || 0) + Number(b.govt_tax || 0),
+          cost: qty * price,
           remainingQty: qty,
           soldQty: 0,
           realizedPnL: 0,
-          history: [{ id: b.id, type: 'BUY', date: b.entry_date, qty, price }] as HistoryEvent[],
+          history: [{ id: b.id, type: 'BUY', date: b.entry_date, qty, price, brokerage: Number(b.brokerage || 0), govtTax: Number(b.govt_tax || 0) }] as HistoryEvent[],
           matchedSells: []
+        });
+
+        stockCashFlows.push({
+          date: new Date(b.entry_date).getTime(),
+          amount: -((qty * price) + Number(b.brokerage || 0) + Number(b.govt_tax || 0))
         });
       } else if (ev.type === 'SELL') {
         const s = ev.raw as SoldStock;
         let needed = Number(s.quantity);
         const exitPrice = Number(s.exit_price);
+        
+        stockCashFlows.push({
+          date: new Date(s.exit_date).getTime(),
+          amount: (needed * exitPrice) - Number(s.brokerage || 0) - Number(s.govt_tax || 0)
+        });
         
         for (const lot of openLots) {
           if (needed <= 0) break;
@@ -391,6 +655,10 @@ function App() {
           
           const takeQty = Math.min(needed, lot.remainingQty);
           const proceeds = takeQty * exitPrice;
+          
+          const allocatedBrokerage = (takeQty / Number(s.quantity)) * Number(s.brokerage || 0);
+          const allocatedGovtTax = (takeQty / Number(s.quantity)) * Number(s.govt_tax || 0);
+
           const realPnL = takeQty * (exitPrice - lot.entryPrice);
           
           lot.matchedSells.push({
@@ -399,7 +667,9 @@ function App() {
             quantity: takeQty,
             exit_price: exitPrice,
             proceeds,
-            realizedPnL: realPnL
+            realizedPnL: realPnL,
+            brokerage: allocatedBrokerage,
+            govtTax: allocatedGovtTax
           });
           
           lot.soldQty += takeQty;
@@ -446,6 +716,44 @@ function App() {
             });
           }
         });
+      } else if (ev.type === 'DIVIDEND') {
+        const b = ev.raw as Stock;
+        const dividendPerShare = Number(b.quantity);
+        
+        let totalDividendReceived = 0;
+        
+        openLots.forEach(lot => {
+          if (lot.remainingQty > 0) {
+            const dividendAmount = lot.remainingQty * dividendPerShare;
+            totalDividendReceived += dividendAmount;
+            lot.realizedPnL += dividendAmount;
+            
+            lot.history.push({
+              id: b.id,
+              type: 'DIVIDEND',
+              date: b.entry_date,
+              qty: dividendPerShare,
+              price: dividendAmount
+            });
+            
+            lot.matchedSells.push({
+              sellId: b.id,
+              type: 'DIVIDEND',
+              exit_date: b.entry_date,
+              quantity: lot.remainingQty,
+              exit_price: dividendPerShare,
+              proceeds: dividendAmount,
+              realizedPnL: dividendAmount
+            });
+          }
+        });
+        
+        if (totalDividendReceived > 0) {
+          stockCashFlows.push({
+            date: new Date(b.entry_date).getTime(),
+            amount: totalDividendReceived
+          });
+        }
       }
     });
 
@@ -468,6 +776,7 @@ function App() {
     });
 
     // Held cost basis = sum of cost of remaining open shares
+    const netQty = fifoBuyLots.reduce((sum, lot) => sum + lot.remainingQty, 0);
     const netCostBasis = fifoBuyLots.reduce((sum, lot) => sum + (lot.remainingQty * lot.entryPrice), 0);
     // Avg buy price for currently held shares
     const avgBuyPrice = netQty > 0 ? netCostBasis / netQty : 0;
@@ -480,9 +789,18 @@ function App() {
     const unrealizedPct = netCostBasis > 0 ? (unrealizedPnL / netCostBasis) * 100 : 0;
     const fifoRealizedPnL = fifoBuyLots.reduce((sum, lot) => sum + lot.realizedPnL, 0);
 
-    const totalBuyCost = buys.reduce((sum, b) => sum + Number(b.quantity) * Number(b.entry_price), 0);
+    const totalBuyCost = buys.reduce((sum, b) => Number(b.entry_price) > 0 ? sum + (Number(b.quantity) * Number(b.entry_price)) : sum, 0);
     const totalBrokerage = buys.reduce((sum, b) => sum + Number(b.brokerage || 0), 0) + sells.reduce((sum, s) => sum + Number(s.brokerage || 0), 0);
     const totalGovtTax = buys.reduce((sum, b) => sum + Number(b.govt_tax || 0), 0) + sells.reduce((sum, s) => sum + Number(s.govt_tax || 0), 0);
+
+    const xirrCashFlows = [...stockCashFlows];
+    if (currentValue > 0 || xirrCashFlows.length > 0) {
+      xirrCashFlows.push({
+        date: Date.now(),
+        amount: currentValue
+      });
+    }
+    const xirr = calculateXIRR(xirrCashFlows);
 
     return {
       symbol,
@@ -503,6 +821,10 @@ function App() {
       totalBrokerage,
       totalGovtTax,
       fifoBuyLots,
+      events,
+      openLots: fifoBuyLots,
+      stockCashFlows,
+      xirr
     };
   });
 
@@ -513,10 +835,16 @@ function App() {
     filteredSymbolGroups = symbolGroups.filter(g => g.netQty === 0 && g.totalBoughtQty > 0);
   }
 
+  if (searchSelectedSymbols.length > 0) {
+    filteredSymbolGroups = filteredSymbolGroups.filter(g => searchSelectedSymbols.includes(g.symbol));
+  }
+
   let totalInvestment = 0;
   let totalCurrentValue = 0;
   let totalUnrealizedPnL = 0;
   let totalRealizedPnL = 0;
+  let portfolioTotalBrokerage = 0;
+  let portfolioTotalGovtTax = 0;
 
   const allTransactions: { date: number; amount: number }[] = [];
 
@@ -525,17 +853,13 @@ function App() {
     totalCurrentValue += g.currentValue;
     totalUnrealizedPnL += g.unrealizedPnL;
     totalRealizedPnL += g.realizedPnL;
+    portfolioTotalBrokerage += g.totalBrokerage;
+    portfolioTotalGovtTax += g.totalGovtTax;
     
-    g.buys.forEach(buy => {
+    g.stockCashFlows.forEach(cf => {
       allTransactions.push({
-        date: new Date(buy.entry_date).getTime(),
-        amount: (Number(buy.quantity) * Number(buy.entry_price)) + Number(buy.brokerage || 0) + Number(buy.govt_tax || 0)
-      });
-    });
-    g.sells.forEach(sell => {
-      allTransactions.push({
-        date: new Date(sell.exit_date).getTime(),
-        amount: -((Number(sell.quantity) * Number(sell.exit_price)) - Number(sell.brokerage || 0) - Number(sell.govt_tax || 0))
+        date: cf.date,
+        amount: -cf.amount
       });
     });
   });
@@ -587,21 +911,37 @@ function App() {
     }
   };
 
-  const SortHeader = ({ field, label }: { field: string, label: string }) => (
-    <th 
-      className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        {sortField === field ? (
-          sortDirection === 'asc' ? <ChevronUp className="w-3 h-3 text-zinc-900" /> : <ChevronDown className="w-3 h-3 text-zinc-900" />
-        ) : (
-          <ArrowUpDown className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors" />
-        )}
-      </div>
-    </th>
-  );
+  const activeColumnWidths = activePortfolioId && portfolioColumnWidths[activePortfolioId] ? portfolioColumnWidths[activePortfolioId] : {};
+
+  const handleResizeStart = (e: React.MouseEvent, id: string, currentWidth: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setResizingCol({ id, startX: e.clientX, startWidth: currentWidth });
+  };
+
+  const SortHeader = ({ field, label }: { field: string, label: string }) => {
+    const width = activeColumnWidths[field] || (field === 'symbol' ? 180 : 100);
+    return (
+      <th 
+        className={`px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500 cursor-pointer hover:bg-gray-100 transition-colors select-none group relative ${resizingCol?.id === field ? 'bg-gray-100' : ''}`}
+        style={{ width, minWidth: width, maxWidth: width }}
+        onClick={() => handleSort(field)}
+      >
+        <div className="flex items-center gap-1 overflow-hidden">
+          <span className="truncate">{label}</span>
+          {sortField === field ? (
+            sortDirection === 'asc' ? <ChevronUp className="w-3 h-3 text-zinc-900 shrink-0" /> : <ChevronDown className="w-3 h-3 text-zinc-900 shrink-0" />
+          ) : (
+            <ArrowUpDown className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
+          )}
+        </div>
+        <div 
+          className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          onMouseDown={(e) => handleResizeStart(e, field, width)}
+        />
+      </th>
+    );
+  };
 
   useEffect(() => {
     if (portfolios.length > 0) {
@@ -637,7 +977,7 @@ function App() {
     setDraggedPortfolioId(null);
   };
 
-  const totalPnL = totalUnrealizedPnL + totalRealizedPnL;
+  const totalPnL = totalUnrealizedPnL + totalRealizedPnL - portfolioTotalBrokerage - portfolioTotalGovtTax;
   const totalPnLPercent = maxNetInvested > 0 ? (totalPnL / maxNetInvested) * 100 : 0;
   const unrealizedPnLPercent = totalInvestment > 0 ? (totalUnrealizedPnL / totalInvestment) * 100 : 0;
 
@@ -806,12 +1146,20 @@ function App() {
           ) : (
             <div className="w-full">
               {/* Stats Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
                   <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
                     <span>Total Stocks</span>
                   </div>
                   <div className="text-sm font-bold text-zinc-900">{filteredSymbolGroups.length}</div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Total Invested</span>
+                  </div>
+                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    ₹{totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
                   <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
@@ -892,11 +1240,19 @@ function App() {
                         </button>
                       ))}
                     </div>
-                    {(filterType !== 'all' || sortField !== null) && (
+                    
+                    <AssetSearch 
+                      availableSymbols={allSymbols} 
+                      selectedSymbols={searchSelectedSymbols} 
+                      onChange={setSearchSelectedSymbols} 
+                    />
+
+                    {(filterType !== 'open' || sortField !== null || searchSelectedSymbols.length > 0) && (
                       <button
                         onClick={() => {
-                          setFilterType('all');
+                          setFilterType('open');
                           setSortField(null);
+                          setSearchSelectedSymbols([]);
                         }}
                         className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-md shadow-sm text-[11px] font-medium text-gray-600 hover:text-zinc-900 transition-colors"
                       >
@@ -904,6 +1260,51 @@ function App() {
                         Clear
                       </button>
                     )}
+                    
+                    <div className="relative">
+                      <button
+                        onClick={() => setIsColumnsDropdownOpen(!isColumnsDropdownOpen)}
+                        className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-md shadow-sm text-[11px] font-medium text-gray-600 hover:text-zinc-900 transition-colors"
+                      >
+                        <Columns className="w-3 h-3" />
+                        Columns
+                      </button>
+                      
+                      {isColumnsDropdownOpen && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setIsColumnsDropdownOpen(false)} />
+                          <div className="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 max-h-64 overflow-y-auto">
+                            {activeColumnOrder.map(colId => {
+                              const col = ALL_COLUMNS.find(c => c.id === colId)!;
+                              return (
+                                <div
+                                  key={col.id}
+                                  draggable
+                                  onDragStart={(e) => handleColumnDragStart(e, col.id)}
+                                  onDragOver={handleColumnDragOver}
+                                  onDrop={(e) => handleColumnDrop(e, col.id)}
+                                  className={`w-full flex items-center px-3 py-1.5 text-[11px] text-left hover:bg-gray-50 text-zinc-900 cursor-move transition-colors ${draggedColId === col.id ? 'opacity-50' : ''}`}
+                                >
+                                  <GripVertical className="w-3 h-3 text-gray-400 mr-2 shrink-0" />
+                                  <div className="w-4 flex justify-center mr-1 shrink-0 cursor-pointer" onClick={() => toggleColumn(col.id)}>
+                                    {visibleColumns.has(col.id) && <Check className="w-3 h-3 text-zinc-900" />}
+                                  </div>
+                                  <span className="flex-1 cursor-pointer select-none" onClick={() => toggleColumn(col.id)}>{col.label}</span>
+                                </div>
+                              );
+                            })}
+                            <div className="border-t border-gray-100 p-1 mt-1">
+                              <button
+                                onClick={resetColumns}
+                                className="w-full flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded transition-colors"
+                              >
+                                Reset to Default
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <button
@@ -941,27 +1342,22 @@ function App() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse whitespace-nowrap">
+                  <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
                     <thead>
                       <tr className="border-b border-gray-200 bg-gray-50/50">
                         <th className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 w-6"></th>
-                        <SortHeader field="symbol" label="Symbol" />
-                        <SortHeader field="netQty" label="Net Qty" />
-                        <SortHeader field="avgBuyPrice" label="Avg Buy" />
-                        <SortHeader field="netCostBasis" label="Invested" />
-                        <SortHeader field="livePrice" label="Live Price" />
-                        <SortHeader field="currentValue" label="Current Value" />
-                        <SortHeader field="totalBrokerage" label="Brokerage" />
-                        <SortHeader field="totalGovtTax" label="Govt Tax" />
-                        <SortHeader field="unrealizedPnL" label="Unrealized PnL" />
-                        <SortHeader field="realizedPnL" label="Realized PnL" />
-                        <SortHeader field="totalPnL" label="Total PnL" />
+                        {activeColumnOrder.map(colId => {
+                          if (!visibleColumns.has(colId)) return null;
+                          const col = ALL_COLUMNS.find(c => c.id === colId)!;
+                          return <SortHeader key={col.id} field={col.id} label={col.label} />;
+                        })}
+                        <th className="px-2 py-1.5 text-right w-8"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredSymbolGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={12} className="px-3 py-6 text-center text-gray-500 text-[11px]">
+                          <td colSpan={visibleColumns.size + 2} className="px-3 py-6 text-center text-gray-500 text-[11px]">
                             No assets found matching the filter.
                           </td>
                         </tr>
@@ -983,69 +1379,102 @@ function App() {
                                       : <ChevronRight className="w-3 h-3" />}
                                   </span>
                                 </td>
-                                <td className="px-2 py-1.5">
-                                  <div className="flex items-center gap-1.5">
-                                    <div className="w-5 h-5 rounded border border-gray-200 bg-white flex items-center justify-center font-bold text-[9px] text-gray-600">
-                                      {group.symbol.charAt(0)}
-                                    </div>
-                                    <div>
-                                      <div className="font-semibold text-[11px] text-zinc-900 flex items-center gap-1.5">
-                                        <span>{group.symbol}</span>
-                                        {group.companyName && (
-                                          <span className="font-normal text-[10px] text-gray-500 truncate max-w-[120px]" title={group.companyName}>
-                                            {group.companyName}
+                                {activeColumnOrder.map(colId => {
+                                  if (!visibleColumns.has(colId)) return null;
+                                  switch (colId) {
+                                    case 'symbol':
+                                      return (
+                                        <td key="symbol" className="px-2 py-1.5 truncate">
+                                          <div className="flex items-center gap-1.5 overflow-hidden">
+                                            <div className="w-5 h-5 rounded border border-gray-200 bg-white flex items-center justify-center font-bold text-[9px] text-gray-600 shrink-0">
+                                              {group.symbol.charAt(0)}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                              <div className="font-semibold text-[11px] text-zinc-900 flex items-center gap-1.5 truncate">
+                                                <span className="truncate">{group.symbol}</span>
+                                                {group.companyName && (
+                                                  <span className="font-normal text-[10px] text-gray-500 truncate" title={group.companyName}>
+                                                    {group.companyName}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <div className="text-[9px] text-gray-400 mt-0.5 truncate">
+                                                {group.totalBoughtQty.toLocaleString()} bought
+                                                {group.totalSoldQty > 0 && <> · <span className="text-red-400">{group.totalSoldQty.toLocaleString()} sold</span></>}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      );
+                                    case 'netQty':
+                                      return <td key="netQty" className="px-2 py-1.5 text-[11px] font-semibold text-zinc-900 truncate">{group.netQty.toLocaleString()}</td>;
+                                    case 'avgBuyPrice':
+                                      return <td key="avgBuyPrice" className="px-2 py-1.5 text-[11px] text-gray-600 truncate">₹{fmt(group.avgBuyPrice)}</td>;
+                                    case 'netCostBasis':
+                                      return <td key="netCostBasis" className="px-2 py-1.5 text-[11px] text-gray-600 truncate" title="Avg buy price × remaining shares — money still at work">₹{fmt(group.netCostBasis)}</td>;
+                                    case 'livePrice':
+                                      return <td key="livePrice" className="px-2 py-1.5 text-[11px] font-medium text-zinc-900 truncate">₹{fmt(group.livePrice)}</td>;
+                                    case 'currentValue':
+                                      return <td key="currentValue" className="px-2 py-1.5 text-[11px] font-medium text-zinc-900 truncate">₹{fmt(group.currentValue)}</td>;
+                                    case 'unrealizedPnL':
+                                      return (
+                                        <td key="unrealizedPnL" className="px-2 py-1.5 text-[11px] truncate">
+                                          <span className={`font-medium ${group.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {group.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(group.unrealizedPnL)}
                                           </span>
-                                        )}
-                                      </div>
-                                      <div className="text-[9px] text-gray-400 mt-0.5">
-                                        {group.totalBoughtQty.toLocaleString()} bought
-                                        {group.totalSoldQty > 0 && <> · <span className="text-red-400">{group.totalSoldQty.toLocaleString()} sold</span></>}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="px-2 py-1.5 text-[11px] font-semibold text-zinc-900">{group.netQty.toLocaleString()}</td>
-                                <td className="px-2 py-1.5 text-[11px] text-gray-600">₹{fmt(group.avgBuyPrice)}</td>
-                                <td className="px-2 py-1.5 text-[11px] text-gray-600" title="Avg buy price × remaining shares — money still at work">₹{fmt(group.netCostBasis)}</td>
-                                <td className="px-2 py-1.5 text-[11px] font-medium text-zinc-900">₹{fmt(group.livePrice)}</td>
-                                <td className="px-2 py-1.5 text-[11px] font-medium text-zinc-900">₹{fmt(group.currentValue)}</td>
-                                <td className="px-2 py-1.5 text-[11px] text-gray-600">₹{fmt(group.totalBrokerage)}</td>
-                                <td className="px-2 py-1.5 text-[11px] text-gray-600">₹{fmt(group.totalGovtTax)}</td>
-                                <td className="px-2 py-1.5 text-[11px]">
-                                  <span className={`font-medium ${group.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {group.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(group.unrealizedPnL)}
-                                  </span>
-                                  <span className="text-[9px] ml-1 text-gray-400">({group.unrealizedPct >= 0 ? '+' : ''}{group.unrealizedPct.toFixed(2)}%)</span>
-                                </td>
-                                <td className="px-2 py-1.5 text-[11px]">
-                                  {group.sells.length > 0 ? (
-                                    <span className={`font-medium ${group.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                      {group.realizedPnL >= 0 ? '+' : ''}₹{fmt(group.realizedPnL)}
-                                    </span>
-                                  ) : (
-                                    <span className="text-gray-300">—</span>
-                                  )}
-                                </td>
-                                <td className="px-2 py-1.5 text-[11px]">
-                                  {(() => {
-                                    const total = group.unrealizedPnL + group.realizedPnL;
-                                    const totalPct = group.totalBuyCost > 0 ? (total / group.totalBuyCost) * 100 : 0;
-                                    return (
-                                      <>
-                                        <span className={`font-medium ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                          {total >= 0 ? '+' : ''}₹{fmt(total)}
-                                        </span>
-                                        <span className="text-[9px] ml-1 text-gray-400">({totalPct >= 0 ? '+' : ''}{totalPct.toFixed(2)}%)</span>
-                                      </>
-                                    );
-                                  })()}
+                                          <span className="text-[9px] ml-1 text-gray-400">({group.unrealizedPct >= 0 ? '+' : ''}{group.unrealizedPct.toFixed(2)}%)</span>
+                                        </td>
+                                      );
+                                    case 'realizedPnL':
+                                      return (
+                                        <td key="realizedPnL" className="px-2 py-1.5 text-[11px] truncate">
+                                          {group.sells.length > 0 ? (
+                                            <span className={`font-medium ${group.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                              {group.realizedPnL >= 0 ? '+' : ''}₹{fmt(group.realizedPnL)}
+                                            </span>
+                                          ) : (
+                                            <span className="text-gray-300">—</span>
+                                          )}
+                                        </td>
+                                      );
+                                    case 'totalPnL':
+                                      return (
+                                        <td key="totalPnL" className="px-2 py-1.5 text-[11px] truncate">
+                                          {(() => {
+                                            const total = group.unrealizedPnL + group.realizedPnL - group.totalBrokerage - group.totalGovtTax;
+                                            const totalPct = group.totalBuyCost > 0 ? (total / group.totalBuyCost) * 100 : 0;
+                                            return (
+                                              <>
+                                                <span className={`font-medium ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                  {total >= 0 ? '+' : ''}₹{fmt(total)}
+                                                </span>
+                                                <span className="text-[9px] ml-1 text-gray-400">({totalPct >= 0 ? '+' : ''}{totalPct.toFixed(2)}%)</span>
+                                              </>
+                                            );
+                                          })()}
+                                        </td>
+                                      );
+                                    case 'xirr':
+                                      return (
+                                        <td key="xirr" className={`px-2 py-1.5 text-[11px] font-bold ${group.xirr >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
+                                          {group.xirr >= 0 ? '+' : ''}{(group.xirr * 100).toFixed(2)}%
+                                        </td>
+                                      );
+                                    default:
+                                      return null;
+                                  }
+                                })}
+                                <td className="px-2 py-1.5 text-[11px] text-right">
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteAsset(group.symbol); }} className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100" title={`Delete ${group.symbol}`}>
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </td>
                               </tr>
 
                               {/* ── Expanded detail side-by-side FIFO section ── */}
                               {isExpanded && (
                                 <tr className="border-t border-b border-gray-200 bg-gray-50/70">
-                                  <td colSpan={12} className="p-2">
+                                  <td colSpan={visibleColumns.size + 2} className="p-2">
                                     <div className="space-y-2">
                                       {group.fifoBuyLots.length === 0 ? (
                                         <p className="text-[11px] text-gray-400 py-2 text-center">No buy entries found.</p>
@@ -1084,6 +1513,8 @@ function App() {
                                                       <th className="pb-1 font-medium">Qty</th>
                                                       <th className="pb-1 font-medium">Price</th>
                                                       <th className="pb-1 font-medium">Value</th>
+                                                      <th className="pb-1 font-medium">Brokerage</th>
+                                                      <th className="pb-1 font-medium">Govt Tax</th>
                                                       <th className="pb-1 font-medium">Unrealized PnL</th>
                                                       <th className="pb-1 text-right font-medium">Actions</th>
                                                     </tr>
@@ -1101,6 +1532,8 @@ function App() {
                                                         <td className="py-1 font-bold text-gray-800">{lot.buyQty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}</td>
                                                         <td className="py-1 text-gray-600 font-semibold">₹{fmt(lot.entryPrice)}</td>
                                                         <td className="py-1 text-gray-600 font-medium">₹{fmt(lot.cost)}</td>
+                                                        <td></td>
+                                                        <td></td>
                                                         <td className="py-1 font-medium">
                                                           <span className={lot.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}>
                                                             {lot.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(lot.unrealizedPnL)}
@@ -1125,6 +1558,8 @@ function App() {
                                                               <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-100 text-purple-700">BONUS</span>
                                                             ) : ev.type === 'SPLIT' ? (
                                                               <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-700">SPLIT</span>
+                                                            ) : ev.type === 'DIVIDEND' ? (
+                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-100 text-blue-700">DIVIDEND</span>
                                                             ) : (
                                                               <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-green-100 text-green-700">BUY</span>
                                                             )}
@@ -1136,9 +1571,15 @@ function App() {
                                                               : ev.qty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}
                                                           </td>
                                                           <td className="py-1 text-gray-400">
-                                                            {ev.type === 'SPLIT' ? '—' : (ev.price !== undefined ? `₹${fmt(ev.price)}` : '₹0.00')}
+                                                            {ev.type === 'SPLIT' ? '—' : ev.type === 'DIVIDEND' ? `₹${fmt(ev.qty)}/sh` : (ev.price !== undefined ? `₹${fmt(ev.price)}` : '₹0.00')}
                                                           </td>
-                                                          <td className="py-1 text-gray-400">{isBuy ? `₹${fmt(eventCost)}` : '—'}</td>
+                                                          <td className="py-1 text-gray-600 font-medium">{eventCost > 0 ? `₹${fmt(eventCost)}` : '—'}</td>
+                                                          <td className="py-1 text-gray-500 text-[10px]">
+                                                            {ev.brokerage ? `₹${fmt(ev.brokerage)}` : '—'}
+                                                          </td>
+                                                          <td className="py-1 text-gray-500 text-[10px]">
+                                                            {ev.govtTax ? `₹${fmt(ev.govtTax)}` : '—'}
+                                                          </td>
                                                           <td className="py-1 font-medium">
                                                             {isBuy ? (
                                                               <>
@@ -1231,6 +1672,8 @@ function App() {
                                                         <th className="pb-1 font-medium">Qty</th>
                                                         <th className="pb-1 font-medium">Price</th>
                                                         <th className="pb-1 font-medium">Value</th>
+                                                        <th className="pb-1 font-medium">Brokerage</th>
+                                                        <th className="pb-1 font-medium">Govt Tax</th>
                                                         <th className="pb-1 font-medium">Realized PnL</th>
                                                         <th className="pb-1 text-right font-medium">Actions</th>
                                                       </tr>
@@ -1241,24 +1684,32 @@ function App() {
                                                         return (
                                                           <tr key={`alloc-${sellAlloc.sellId}`} className="hover:bg-red-50/40 transition-colors">
                                                             <td className="py-1">
-                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-red-100 text-red-700">SELL</span>
+                                                              {sellAlloc.type === 'DIVIDEND' ? (
+                                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-100 text-blue-700">DIVIDEND</span>
+                                                              ) : (
+                                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-red-100 text-red-700">SELL</span>
+                                                              )}
                                                             </td>
                                                             <td className="py-1 text-gray-500">{new Date(sellAlloc.exit_date).toLocaleDateString()}</td>
                                                             <td className="py-1 font-medium text-gray-800">{sellAlloc.quantity.toLocaleString()}</td>
                                                             <td className="py-1 text-gray-600">₹{fmt(sellAlloc.exit_price)}</td>
                                                             <td className="py-1 text-gray-600 font-medium">₹{fmt(sellAlloc.proceeds)}</td>
+                                                            <td className="py-1 text-gray-500 text-[10px]">{sellAlloc.brokerage ? `₹${fmt(sellAlloc.brokerage)}` : '—'}</td>
+                                                            <td className="py-1 text-gray-500 text-[10px]">{sellAlloc.govtTax ? `₹${fmt(sellAlloc.govtTax)}` : '—'}</td>
                                                             <td className="py-1 font-medium">
                                                               <span className={sellAlloc.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}>
                                                                 {sellAlloc.realizedPnL >= 0 ? '+' : ''}₹{fmt(sellAlloc.realizedPnL)}
                                                               </span>
-                                                              <span className="text-[9px] ml-1 text-gray-400">({realPnlPct >= 0 ? '+' : ''}{realPnlPct.toFixed(2)}%)</span>
+                                                              {sellAlloc.type !== 'DIVIDEND' && (
+                                                                <span className="text-[9px] ml-1 text-gray-400">({realPnlPct >= 0 ? '+' : ''}{realPnlPct.toFixed(2)}%)</span>
+                                                              )}
                                                             </td>
                                                             <td className="py-1 text-right">
                                                               <div className="flex items-center justify-end gap-1">
-                                                                <button onClick={(e) => { e.stopPropagation(); setEditSoldStockId(sellAlloc.sellId); }} className="p-1 text-gray-500 hover:text-zinc-900 rounded hover:bg-gray-100 transition-colors" title="Edit Sell">
+                                                                <button onClick={(e) => { e.stopPropagation(); sellAlloc.type === 'DIVIDEND' ? setEditStockId(sellAlloc.sellId) : setEditSoldStockId(sellAlloc.sellId); }} className="p-1 text-gray-500 hover:text-zinc-900 rounded hover:bg-gray-100 transition-colors" title={sellAlloc.type === 'DIVIDEND' ? "Edit Dividend" : "Edit Sell"}>
                                                                   <Pencil className="w-3.5 h-3.5" />
                                                                 </button>
-                                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteSoldStock(sellAlloc.sellId); }} className="p-1 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 transition-colors" title="Delete Sell">
+                                                                <button onClick={(e) => { e.stopPropagation(); sellAlloc.type === 'DIVIDEND' ? handleDeleteStock(sellAlloc.sellId) : handleDeleteSoldStock(sellAlloc.sellId); }} className="p-1 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 transition-colors" title={sellAlloc.type === 'DIVIDEND' ? "Delete Dividend" : "Delete Sell"}>
                                                                   <Trash2 className="w-3.5 h-3.5" />
                                                                 </button>
                                                               </div>
@@ -1288,7 +1739,7 @@ function App() {
 
                 {symbolGroups.length > 0 && (
                   <div className="px-4 py-2 border-t border-gray-200 bg-gray-50/50 text-[11px] text-gray-500 flex justify-between items-center">
-                    <span>{symbolGroups.length} symbol{symbolGroups.length !== 1 ? 's' : ''} · click a row to expand transactions</span>
+                    <span>Click a row to expand transactions</span>
                   </div>
                 )}
               </div>
@@ -1345,6 +1796,7 @@ function App() {
         type={corporateActionType}
         portfolioId={activePortfolio?.id || null}
         ownedSymbols={symbolGroups.filter(g => g.netQty > 0).map(g => g.symbol)}
+        symbolGroups={symbolGroups}
         onSuccess={fetchData}
       />
     </div>
