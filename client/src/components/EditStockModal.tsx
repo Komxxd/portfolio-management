@@ -41,6 +41,8 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
 
   if (!isOpen || !stock) return null;
 
+  const isBonus = stock.entry_price === 0;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quantity || !entryPrice || !entryDate) return;
@@ -79,8 +81,8 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
           <X className="w-4 h-4" />
         </button>
         
-        <h2 className="text-xl font-semibold mb-1 text-zinc-900 tracking-tight">Edit Asset: {stock.symbol}</h2>
-        <p className="text-sm text-gray-500 mb-6">Update the details for this asset.</p>
+        <h2 className="text-xl font-semibold mb-1 text-zinc-900 tracking-tight">{isBonus ? 'Edit Bonus' : 'Edit Asset'}: {stock.symbol}</h2>
+        <p className="text-sm text-gray-500 mb-6">Update the details for this {isBonus ? 'bonus issue' : 'asset'}.</p>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -124,50 +126,54 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
               />
             </div>
 
-            <div className="col-span-2">
-              <label htmlFor="editEntryPrice" className="block text-sm font-medium text-gray-700 mb-1">
-                Entry Price (₹)
-              </label>
-              <input
-                type="number"
-                id="editEntryPrice"
-                value={entryPrice}
-                onChange={(e) => setEntryPrice(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                step="any"
-                min="0"
-              />
-            </div>
+            {!isBonus && (
+              <>
+                <div className="col-span-2">
+                  <label htmlFor="editEntryPrice" className="block text-sm font-medium text-gray-700 mb-1">
+                    Entry Price (₹)
+                  </label>
+                  <input
+                    type="number"
+                    id="editEntryPrice"
+                    value={entryPrice}
+                    onChange={(e) => setEntryPrice(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    step="any"
+                    min="0"
+                  />
+                </div>
 
-            <div>
-              <label htmlFor="editBrokerage" className="block text-sm font-medium text-gray-700 mb-1">
-                Brokerage (₹)
-              </label>
-              <input
-                type="number"
-                id="editBrokerage"
-                value={brokerage}
-                onChange={(e) => setBrokerage(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                step="any"
-                min="0"
-              />
-            </div>
+                <div>
+                  <label htmlFor="editBrokerage" className="block text-sm font-medium text-gray-700 mb-1">
+                    Brokerage (₹)
+                  </label>
+                  <input
+                    type="number"
+                    id="editBrokerage"
+                    value={brokerage}
+                    onChange={(e) => setBrokerage(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    step="any"
+                    min="0"
+                  />
+                </div>
 
-            <div>
-              <label htmlFor="editGovtTax" className="block text-sm font-medium text-gray-700 mb-1">
-                Govt Tax (₹)
-              </label>
-              <input
-                type="number"
-                id="editGovtTax"
-                value={govtTax}
-                onChange={(e) => setGovtTax(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                step="any"
-                min="0"
-              />
-            </div>
+                <div>
+                  <label htmlFor="editGovtTax" className="block text-sm font-medium text-gray-700 mb-1">
+                    Govt Tax (₹)
+                  </label>
+                  <input
+                    type="number"
+                    id="editGovtTax"
+                    value={govtTax}
+                    onChange={(e) => setGovtTax(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    step="any"
+                    min="0"
+                  />
+                </div>
+              </>
+            )}
           </div>
           
           {error && <p className="text-red-500 text-sm">{error}</p>}

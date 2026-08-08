@@ -7,6 +7,7 @@ import { SellStockModal } from './components/SellStockModal'
 import { EditStockModal } from './components/EditStockModal'
 import { EditSoldStockModal } from './components/EditSoldStockModal'
 import { RenamePortfolioModal } from './components/RenamePortfolioModal'
+import { CorporateActionModal } from './components/CorporateActionModal'
 
 interface Portfolio {
   id: string;
@@ -91,6 +92,7 @@ function App() {
   const [editStockId, setEditStockId] = useState<string | null>(null);
   const [editSoldStockId, setEditSoldStockId] = useState<string | null>(null);
   const [renamePortfolioId, setRenamePortfolioId] = useState<string | null>(null);
+  const [corporateActionType, setCorporateActionType] = useState<'bonus' | 'split' | 'dividend' | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'open' | 'closed'>('all');
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -330,75 +332,117 @@ function App() {
     const totalSoldQty = sells.reduce((sum, s) => sum + Number(s.quantity), 0);
     const netQty = totalBoughtQty - totalSoldQty;
 
-    // ── FIFO matching logic ──────────────────────────────────────────────
-    const sortedBuys = [...buys].sort((a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime());
-    const sortedSells = [...sells].sort((a, b) => new Date(a.exit_date).getTime() - new Date(b.exit_date).getTime());
+    // ── Chronological Event Processing & FIFO ────────────────────────────
+    type HistoryEvent = {
+      id?: string;
+      type: 'BUY' | 'BONUS';
+      date: string;
+      qty: number;
+      price?: number;
+    };
 
-    const sellPool = sortedSells.map(s => ({
-      sell: s,
-      remainingSellQty: Number(s.quantity)
-    }));
-
-    const fifoBuyLots = sortedBuys.map(buy => {
-      const buyQty = Number(buy.quantity);
-      const entryPrice = Number(buy.entry_price);
-      const cost = buyQty * entryPrice;
-
-      let needed = buyQty;
-      let soldQty = 0;
-      let lotRealizedPnL = 0;
-      const matchedSells: {
-        sellId: string;
-        exit_date: string;
-        quantity: number;
-        exit_price: number;
-        proceeds: number;
-        realizedPnL: number;
-      }[] = [];
-
-      for (const item of sellPool) {
-        if (needed <= 0) break;
-        if (item.remainingSellQty <= 0) continue;
-
-        const takeQty = Math.min(needed, item.remainingSellQty);
-        const exitPrice = Number(item.sell.exit_price);
-        const proceeds = takeQty * exitPrice;
-        const realPnL = takeQty * (exitPrice - entryPrice);
-
-        matchedSells.push({
-          sellId: item.sell.id,
-          exit_date: item.sell.exit_date,
-          quantity: takeQty,
-          exit_price: exitPrice,
-          proceeds,
-          realizedPnL: realPnL
-        });
-
-        soldQty += takeQty;
-        needed -= takeQty;
-        lotRealizedPnL += realPnL;
-        item.remainingSellQty -= takeQty;
+    const events: { type: 'BUY' | 'BONUS' | 'SELL'; date: number; raw: any }[] = [];
+    
+    buys.forEach(b => {
+      if (Number(b.entry_price) === 0) {
+        events.push({ type: 'BONUS', date: new Date(b.entry_date).getTime(), raw: b });
+      } else {
+        events.push({ type: 'BUY', date: new Date(b.entry_date).getTime(), raw: b });
       }
+    });
+    sells.forEach(s => {
+      events.push({ type: 'SELL', date: new Date(s.exit_date).getTime(), raw: s });
+    });
 
-      const remainingQty = buyQty - soldQty;
+    events.sort((a, b) => a.date - b.date);
+
+    const openLots: any[] = [];
+    
+    events.forEach(ev => {
+      if (ev.type === 'BUY') {
+        const b = ev.raw as Stock;
+        const qty = Number(b.quantity);
+        const price = Number(b.entry_price);
+        openLots.push({
+          id: b.id,
+          buy: b,
+          originalDate: b.entry_date,
+          originalQty: qty,
+          originalPrice: price,
+          buyQty: qty,
+          entryPrice: price,
+          cost: qty * price + Number(b.brokerage || 0) + Number(b.govt_tax || 0),
+          remainingQty: qty,
+          soldQty: 0,
+          realizedPnL: 0,
+          history: [{ id: b.id, type: 'BUY', date: b.entry_date, qty, price }] as HistoryEvent[],
+          matchedSells: []
+        });
+      } else if (ev.type === 'SELL') {
+        const s = ev.raw as SoldStock;
+        let needed = Number(s.quantity);
+        const exitPrice = Number(s.exit_price);
+        
+        for (const lot of openLots) {
+          if (needed <= 0) break;
+          if (lot.remainingQty <= 0) continue;
+          
+          const takeQty = Math.min(needed, lot.remainingQty);
+          const proceeds = takeQty * exitPrice;
+          const realPnL = takeQty * (exitPrice - lot.entryPrice);
+          
+          lot.matchedSells.push({
+            sellId: s.id,
+            exit_date: s.exit_date,
+            quantity: takeQty,
+            exit_price: exitPrice,
+            proceeds,
+            realizedPnL: realPnL
+          });
+          
+          lot.soldQty += takeQty;
+          lot.remainingQty -= takeQty;
+          lot.realizedPnL += realPnL;
+          needed -= takeQty;
+        }
+      } else if (ev.type === 'BONUS') {
+        const b = ev.raw as Stock;
+        const bonusQty = Number(b.quantity);
+        
+        const totalOpen = openLots.reduce((sum, lot) => sum + lot.remainingQty, 0);
+        
+        if (totalOpen > 0) {
+          openLots.forEach(lot => {
+            if (lot.remainingQty > 0) {
+              const share = bonusQty * (lot.remainingQty / totalOpen);
+              lot.buyQty += share;
+              lot.remainingQty += share;
+              lot.entryPrice = lot.cost / lot.buyQty;
+              lot.history.push({
+                id: b.id,
+                type: 'BONUS',
+                date: b.entry_date,
+                qty: share
+              });
+            }
+          });
+        }
+      }
+    });
+
+    const fallbackPrice = buys.length > 0 ? Number(buys[buys.length - 1].entry_price) : 0;
+    const currentLivePrice = livePrices[symbol]?.price !== undefined ? livePrices[symbol].price : fallbackPrice;
+
+    const fifoBuyLots = openLots.map(lot => {
       const status: 'OPEN' | 'PARTIALLY_SOLD' | 'CLOSED' =
-        remainingQty === 0 ? 'CLOSED' : soldQty > 0 ? 'PARTIALLY_SOLD' : 'OPEN';
-
-      const fallbackPrice = buys.length > 0 ? Number(buys[buys.length - 1].entry_price) : 0;
-      const livePrice = livePrices[symbol]?.price !== undefined ? livePrices[symbol].price : fallbackPrice;
-      const unrealizedPnL = remainingQty * (livePrice - entryPrice);
-      const unrealizedPct = (remainingQty * entryPrice) > 0 ? (unrealizedPnL / (remainingQty * entryPrice)) * 100 : 0;
+        lot.remainingQty === 0 ? 'CLOSED' : lot.soldQty > 0 ? 'PARTIALLY_SOLD' : 'OPEN';
+        
+      const unrealizedPnL = lot.remainingQty * (currentLivePrice - lot.entryPrice);
+      const unrealizedPct = (lot.remainingQty * lot.entryPrice) > 0 ? (unrealizedPnL / (lot.remainingQty * lot.entryPrice)) * 100 : 0;
 
       return {
-        buy,
-        buyQty,
-        entryPrice,
-        cost,
-        soldQty,
-        remainingQty,
+        ...lot,
         status,
-        matchedSells,
-        realizedPnL: lotRealizedPnL,
         unrealizedPnL,
         unrealizedPct
       };
@@ -409,7 +453,6 @@ function App() {
     // Avg buy price for currently held shares
     const avgBuyPrice = netQty > 0 ? netCostBasis / netQty : 0;
 
-    const fallbackPrice = buys.length > 0 ? Number(buys[buys.length - 1].entry_price) : 0;
     const livePrice = livePrices[symbol]?.price !== undefined ? livePrices[symbol].price : (avgBuyPrice || fallbackPrice);
     const companyName = livePrices[symbol]?.name || '';
 
@@ -856,6 +899,25 @@ function App() {
                     >
                       − Sell New Asset
                     </button>
+                    <div className="w-px h-3 bg-gray-300 mx-1"></div>
+                    <button
+                      onClick={() => setCorporateActionType('bonus')}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                    >
+                      Add Bonus
+                    </button>
+                    <button
+                      onClick={() => setCorporateActionType('split')}
+                      className="text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors"
+                    >
+                      Add Split
+                    </button>
+                    <button
+                      onClick={() => setCorporateActionType('dividend')}
+                      className="text-xs font-medium text-green-600 hover:text-green-800 transition-colors"
+                    >
+                      Add Dividend
+                    </button>
                   </div>
                 </div>
 
@@ -1008,31 +1070,106 @@ function App() {
                                                     </tr>
                                                   </thead>
                                                   <tbody>
-                                                    <tr>
-                                                      <td className="py-1">
-                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-green-100 text-green-700">BUY</span>
-                                                      </td>
-                                                      <td className="py-1 text-gray-500">{new Date(lot.buy.entry_date).toLocaleDateString()}</td>
-                                                      <td className="py-1 font-medium text-gray-800">{lot.buyQty.toLocaleString()}</td>
-                                                      <td className="py-1 text-gray-600">₹{fmt(lot.entryPrice)}</td>
-                                                      <td className="py-1 text-gray-600 font-medium">₹{fmt(lot.cost)}</td>
-                                                      <td className="py-1 font-medium">
-                                                        <span className={lot.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}>
-                                                          {lot.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(lot.unrealizedPnL)}
-                                                        </span>
-                                                        <span className="text-[9px] ml-1 text-gray-400">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
-                                                      </td>
-                                                      <td className="py-1 text-right">
-                                                        <div className="flex items-center justify-end gap-1">
-                                                          <button onClick={(e) => { e.stopPropagation(); setEditStockId(lot.buy.id); }} className="p-1 text-gray-500 hover:text-zinc-900 rounded hover:bg-gray-100 transition-colors" title="Edit Buy">
-                                                            <Pencil className="w-3.5 h-3.5" />
-                                                          </button>
-                                                          <button onClick={(e) => { e.stopPropagation(); handleDeleteStock(lot.buy.id); }} className="p-1 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 transition-colors" title="Delete Buy">
-                                                            <Trash2 className="w-3.5 h-3.5" />
-                                                          </button>
-                                                        </div>
-                                                      </td>
-                                                    </tr>
+                                                    {/* Current Combined State Row */}
+                                                    {lot.history && lot.history.length > 0 && (
+                                                      <tr className="bg-blue-50/30">
+                                                        <td className="py-1">
+                                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-100 text-blue-700">COMBINED</span>
+                                                        </td>
+                                                        <td className="py-1 text-gray-500 font-medium">
+                                                          {new Date(lot.history[lot.history.length - 1].date).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="py-1 font-bold text-gray-800">{lot.buyQty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}</td>
+                                                        <td className="py-1 text-gray-600 font-semibold">₹{fmt(lot.entryPrice)}</td>
+                                                        <td className="py-1 text-gray-600 font-medium">₹{fmt(lot.cost)}</td>
+                                                        <td className="py-1 font-medium">
+                                                          <span className={lot.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                                            {lot.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(lot.unrealizedPnL)}
+                                                          </span>
+                                                          <span className="text-[9px] ml-1 text-gray-400">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
+                                                        </td>
+                                                        <td className="py-1 text-right"></td>
+                                                      </tr>
+                                                    )}
+
+                                                    {/* History Events Rows */}
+                                                    {[...(lot.history || [])].reverse().map((ev: any, idx: number) => {
+                                                      const isBuy = ev.type === 'BUY';
+                                                      const eventCost = ev.qty * (ev.price || 0);
+                                                      const eventUnrealizedPnL = isBuy ? ev.qty * (group.livePrice - (ev.price || 0)) : 0;
+                                                      const eventUnrealizedPct = eventCost > 0 ? (eventUnrealizedPnL / eventCost) * 100 : 0;
+                                                      
+                                                      return (
+                                                        <tr key={`${ev.type}-${idx}`} className="border-t border-gray-100">
+                                                          <td className="py-1">
+                                                            {ev.type === 'BONUS' ? (
+                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-100 text-purple-700">BONUS</span>
+                                                            ) : (
+                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-green-100 text-green-700">BUY</span>
+                                                            )}
+                                                          </td>
+                                                          <td className="py-1 text-gray-400">{new Date(ev.date).toLocaleDateString()}</td>
+                                                          <td className="py-1 font-medium text-gray-600">{ev.qty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}</td>
+                                                          <td className="py-1 text-gray-400">{ev.price !== undefined ? `₹${fmt(ev.price)}` : '₹0.00'}</td>
+                                                          <td className="py-1 text-gray-400">{isBuy ? `₹${fmt(eventCost)}` : '—'}</td>
+                                                          <td className="py-1 font-medium">
+                                                            {isBuy ? (
+                                                              <>
+                                                                <span className={eventUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}>
+                                                                  {eventUnrealizedPnL >= 0 ? '+' : ''}₹{fmt(eventUnrealizedPnL)}
+                                                                </span>
+                                                                <span className="text-[9px] ml-1 text-gray-400">({eventUnrealizedPct >= 0 ? '+' : ''}{eventUnrealizedPct.toFixed(2)}%)</span>
+                                                              </>
+                                                            ) : '—'}
+                                                          </td>
+                                                          <td className="py-1 text-right">
+                                                            {ev.id && (
+                                                              <div className="flex items-center justify-end gap-1">
+                                                                <button onClick={(e) => { e.stopPropagation(); setEditStockId(ev.id); }} className="p-1 text-gray-500 hover:text-zinc-900 rounded hover:bg-gray-100 transition-colors" title="Edit Entry">
+                                                                  <Pencil className="w-3.5 h-3.5" />
+                                                                </button>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteStock(ev.id); }} className="p-1 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 transition-colors" title="Delete Entry">
+                                                                  <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                              </div>
+                                                            )}
+                                                          </td>
+                                                        </tr>
+                                                      );
+                                                    })}
+                                                    
+                                                    {/* If no history (fallback for older DB structures before refactor) */}
+                                                    {(!lot.history || lot.history.length === 0) && (
+                                                      <tr>
+                                                        <td className="py-1">
+                                                          {lot.entryPrice === 0 ? (
+                                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-100 text-purple-700">BONUS</span>
+                                                          ) : (
+                                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-green-100 text-green-700">BUY</span>
+                                                          )}
+                                                        </td>
+                                                        <td className="py-1 text-gray-500">{new Date(lot.buy.entry_date).toLocaleDateString()}</td>
+                                                        <td className="py-1 font-medium text-gray-800">{lot.buyQty.toLocaleString()}</td>
+                                                        <td className="py-1 text-gray-600">₹{fmt(lot.entryPrice)}</td>
+                                                        <td className="py-1 text-gray-600 font-medium">₹{fmt(lot.cost)}</td>
+                                                        <td className="py-1 font-medium">
+                                                          <span className={lot.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                                            {lot.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(lot.unrealizedPnL)}
+                                                          </span>
+                                                          <span className="text-[9px] ml-1 text-gray-400">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
+                                                        </td>
+                                                        <td className="py-1 text-right">
+                                                          <div className="flex items-center justify-end gap-1">
+                                                            <button onClick={(e) => { e.stopPropagation(); setEditStockId(lot.buy.id); }} className="p-1 text-gray-500 hover:text-zinc-900 rounded hover:bg-gray-100 transition-colors" title="Edit Buy">
+                                                              <Pencil className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteStock(lot.buy.id); }} className="p-1 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 transition-colors" title="Delete Buy">
+                                                              <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                          </div>
+                                                        </td>
+                                                      </tr>
+                                                    )}
                                                   </tbody>
                                                 </table>
                                               </div>
@@ -1173,6 +1310,15 @@ function App() {
         onRenamed={fetchData}
         portfolioId={renamePortfolioId}
         currentName={portfolios.find(p => p.id === renamePortfolioId)?.name || ''}
+      />
+
+      <CorporateActionModal
+        isOpen={corporateActionType !== null}
+        onClose={() => setCorporateActionType(null)}
+        type={corporateActionType}
+        portfolioId={activePortfolio?.id || null}
+        ownedSymbols={symbolGroups.filter(g => g.netQty > 0).map(g => g.symbol)}
+        onSuccess={fetchData}
       />
     </div>
   )
