@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Plus, Briefcase, Search, Trash2, Pencil, ChevronDown, ChevronRight, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Plus, Briefcase, Search, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { CreatePortfolioModal } from './components/CreatePortfolioModal'
 import { AddStockModal } from './components/AddStockModal'
@@ -44,6 +44,8 @@ function App() {
   const [editSoldStockId, setEditSoldStockId] = useState<string | null>(null);
   const [renamePortfolioId, setRenamePortfolioId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'open' | 'closed'>('all');
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [loading, setLoading] = useState(true);
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
@@ -409,6 +411,47 @@ function App() {
     totalRealizedPnL += g.realizedPnL;
   });
 
+  if (sortField) {
+    filteredSymbolGroups.sort((a, b) => {
+      let valA: any = a[sortField as keyof typeof a];
+      let valB: any = b[sortField as keyof typeof b];
+
+      if (sortField === 'totalPnL') {
+        valA = a.unrealizedPnL + a.realizedPnL;
+        valB = b.unrealizedPnL + b.realizedPnL;
+      }
+
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const SortHeader = ({ field, label }: { field: string, label: string }) => (
+    <th 
+      className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {sortField === field ? (
+          sortDirection === 'asc' ? <ChevronUp className="w-3 h-3 text-zinc-900" /> : <ChevronDown className="w-3 h-3 text-zinc-900" />
+        ) : (
+          <ArrowUpDown className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors" />
+        )}
+      </div>
+    </th>
+  );
+
   useEffect(() => {
     if (portfolios.length > 0) {
       localStorage.setItem('portfolioOrder', JSON.stringify(portfolios.map(p => p.id)));
@@ -690,6 +733,18 @@ function App() {
                         </button>
                       ))}
                     </div>
+                    {(filterType !== 'all' || sortField !== null) && (
+                      <button
+                        onClick={() => {
+                          setFilterType('all');
+                          setSortField(null);
+                        }}
+                        className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-md shadow-sm text-[11px] font-medium text-gray-600 hover:text-zinc-900 transition-colors"
+                      >
+                        <FilterX className="w-3 h-3" />
+                        Clear
+                      </button>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <button
@@ -712,15 +767,15 @@ function App() {
                     <thead>
                       <tr className="border-b border-gray-200 bg-gray-50/50">
                         <th className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500 w-8"></th>
-                        <th className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Symbol</th>
-                        <th className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Net Qty</th>
-                        <th className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Avg Buy</th>
-                        <th className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Invested</th>
-                        <th className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Live Price</th>
-                        <th className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Current Value</th>
-                        <th className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Unrealized PnL</th>
-                        <th className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Realized PnL</th>
-                        <th className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500">Total PnL</th>
+                        <SortHeader field="symbol" label="Symbol" />
+                        <SortHeader field="netQty" label="Net Qty" />
+                        <SortHeader field="avgBuyPrice" label="Avg Buy" />
+                        <SortHeader field="netCostBasis" label="Invested" />
+                        <SortHeader field="livePrice" label="Live Price" />
+                        <SortHeader field="currentValue" label="Current Value" />
+                        <SortHeader field="unrealizedPnL" label="Unrealized PnL" />
+                        <SortHeader field="realizedPnL" label="Realized PnL" />
+                        <SortHeader field="totalPnL" label="Total PnL" />
                       </tr>
                     </thead>
                     <tbody>
@@ -735,10 +790,9 @@ function App() {
                           const isExpanded = expandedSymbols.has(group.symbol);
                           const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                           return (
-                            <>
+                            <React.Fragment key={group.symbol}>
                               {/* ── Summary row ── */}
                               <tr
-                                key={group.symbol}
                                 onClick={() => toggleSymbol(group.symbol)}
                                 className="border-t border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors group"
                               >
@@ -959,7 +1013,7 @@ function App() {
                                   </td>
                                 </tr>
                               )}
-                            </>
+                            </React.Fragment>
                           );
                         })
                       )}
