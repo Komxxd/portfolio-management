@@ -15,6 +15,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
   const [symbol, setSymbol] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [qty, setQty] = useState('');
+  const [splitFactor, setSplitFactor] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -42,6 +43,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
       setSearchQuery('');
       setDate(new Date().toISOString().split('T')[0]);
       setQty('');
+      setSplitFactor('');
       setError(null);
       setSubmitting(false);
     }
@@ -51,8 +53,8 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (type !== 'bonus') {
-      // Split and dividend not implemented yet
+    if (type !== 'bonus' && type !== 'split') {
+      // Dividend not implemented yet
       return;
     }
 
@@ -61,8 +63,13 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
       return;
     }
 
-    if (!qty || Number(qty) <= 0) {
+    if (type === 'bonus' && (!qty || Number(qty) <= 0)) {
       setError('Please enter a valid bonus quantity');
+      return;
+    }
+
+    if (type === 'split' && (!splitFactor || Number(splitFactor) <= 0)) {
+      setError('Please enter a valid split factor');
       return;
     }
 
@@ -70,7 +77,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
       setSubmitting(true);
       setError(null);
 
-      if (type === 'bonus') {
+      if (type === 'bonus' || type === 'split') {
         const { data: buyData, error: buyError } = await supabase
           .from('stocks')
           .select('entry_date')
@@ -82,29 +89,29 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
 
         if (buyError) throw buyError;
         if (!buyData || buyData.length === 0) {
-          setError('You must have at least one buy position for this symbol before adding a bonus.');
+          setError(`You must have at least one buy position for this symbol before adding a ${type}.`);
           setSubmitting(false);
           return;
         }
 
         const firstBuyDate = new Date(buyData[0].entry_date).getTime();
-        const bonusDate = new Date(date).getTime();
+        const actionDate = new Date(date).getTime();
 
-        if (bonusDate < firstBuyDate) {
-          setError(`Bonus date cannot be before the first buy date (${new Date(buyData[0].entry_date).toLocaleDateString()})`);
+        if (actionDate < firstBuyDate) {
+          setError(`${type === 'bonus' ? 'Bonus' : 'Split'} date cannot be before the first buy date (${new Date(buyData[0].entry_date).toLocaleDateString()})`);
           setSubmitting(false);
           return;
         }
       }
 
-      // A bonus is essentially a buy with 0 cost
+      // Bonus = 0 cost, Split = -1 cost marker
       const { error: insertError } = await supabase
         .from('stocks')
         .insert({
           portfolio_id: portfolioId,
           symbol: symbol.toUpperCase(),
-          quantity: Number(qty),
-          entry_price: 0,
+          quantity: type === 'bonus' ? Number(qty) : Number(splitFactor),
+          entry_price: type === 'bonus' ? 0 : -1,
           entry_date: date,
           brokerage: 0,
           govt_tax: 0
@@ -115,7 +122,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
       if (onSuccess) onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to process bonus action');
+      setError(err.message || `Failed to process ${type} action`);
     } finally {
       setSubmitting(false);
     }
@@ -150,7 +157,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
               </div>
             )}
 
-            {type === 'bonus' ? (
+            {type === 'bonus' || type === 'split' ? (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -200,7 +207,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Entry Date
+                    {type === 'bonus' ? 'Entry Date' : 'Split Date'}
                   </label>
                   <input
                     type="date"
@@ -211,23 +218,39 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Bonus Qty <span className="text-xs text-gray-400 font-normal ml-1">(Shares added)</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={qty}
-                    onChange={(e) => setQty(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
-                    placeholder="e.g. 100"
-                    min="0"
-                    step="0.0001"
-                    required
-                  />
-                </div>
-
-
+                {type === 'bonus' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Bonus Qty <span className="text-xs text-gray-400 font-normal ml-1">(Shares added)</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={qty}
+                      onChange={(e) => setQty(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
+                      placeholder="e.g. 100"
+                      min="0"
+                      step="0.0001"
+                      required
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Split Factor <span className="text-xs text-gray-400 font-normal ml-1">(Multiplier, e.g. 2 for 1:2 split)</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={splitFactor}
+                      onChange={(e) => setSplitFactor(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
+                      placeholder="e.g. 2"
+                      min="0.0001"
+                      step="any"
+                      required
+                    />
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -248,7 +271,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
             </button>
             <button
               type="submit"
-              disabled={submitting || (type !== 'bonus')}
+              disabled={submitting || (type !== 'bonus' && type !== 'split')}
               className="px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
             >
               {submitting ? 'Processing...' : 'Submit'}

@@ -335,17 +335,19 @@ function App() {
     // ── Chronological Event Processing & FIFO ────────────────────────────
     type HistoryEvent = {
       id?: string;
-      type: 'BUY' | 'BONUS';
+      type: 'BUY' | 'BONUS' | 'SPLIT';
       date: string;
       qty: number;
       price?: number;
     };
 
-    const events: { type: 'BUY' | 'BONUS' | 'SELL'; date: number; raw: any }[] = [];
+    const events: { type: 'BUY' | 'BONUS' | 'SPLIT' | 'SELL'; date: number; raw: any }[] = [];
     
     buys.forEach(b => {
       if (Number(b.entry_price) === 0) {
         events.push({ type: 'BONUS', date: new Date(b.entry_date).getTime(), raw: b });
+      } else if (Number(b.entry_price) === -1) {
+        events.push({ type: 'SPLIT', date: new Date(b.entry_date).getTime(), raw: b });
       } else {
         events.push({ type: 'BUY', date: new Date(b.entry_date).getTime(), raw: b });
       }
@@ -427,6 +429,23 @@ function App() {
             }
           });
         }
+      } else if (ev.type === 'SPLIT') {
+        const b = ev.raw as Stock;
+        const multiplier = Number(b.quantity);
+        
+        openLots.forEach(lot => {
+          if (lot.remainingQty > 0) {
+            lot.buyQty *= multiplier;
+            lot.remainingQty *= multiplier;
+            lot.entryPrice = lot.cost / lot.buyQty;
+            lot.history.push({
+              id: b.id,
+              type: 'SPLIT',
+              date: b.entry_date,
+              qty: multiplier
+            });
+          }
+        });
       }
     });
 
@@ -1104,13 +1123,21 @@ function App() {
                                                           <td className="py-1">
                                                             {ev.type === 'BONUS' ? (
                                                               <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-100 text-purple-700">BONUS</span>
+                                                            ) : ev.type === 'SPLIT' ? (
+                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-700">SPLIT</span>
                                                             ) : (
                                                               <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-green-100 text-green-700">BUY</span>
                                                             )}
                                                           </td>
                                                           <td className="py-1 text-gray-400">{new Date(ev.date).toLocaleDateString()}</td>
-                                                          <td className="py-1 font-medium text-gray-600">{ev.qty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}</td>
-                                                          <td className="py-1 text-gray-400">{ev.price !== undefined ? `₹${fmt(ev.price)}` : '₹0.00'}</td>
+                                                          <td className="py-1 font-medium text-gray-600">
+                                                            {ev.type === 'SPLIT' 
+                                                              ? `x${ev.qty.toFixed(2)}` 
+                                                              : ev.qty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}
+                                                          </td>
+                                                          <td className="py-1 text-gray-400">
+                                                            {ev.type === 'SPLIT' ? '—' : (ev.price !== undefined ? `₹${fmt(ev.price)}` : '₹0.00')}
+                                                          </td>
                                                           <td className="py-1 text-gray-400">{isBuy ? `₹${fmt(eventCost)}` : '—'}</td>
                                                           <td className="py-1 font-medium">
                                                             {isBuy ? (
