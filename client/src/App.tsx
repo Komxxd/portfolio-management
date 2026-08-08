@@ -45,7 +45,7 @@ function App() {
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
 
   // Real-time prices state
-  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  const [livePrices, setLivePrices] = useState<Record<string, { price: number; name: string }>>({});
   const [pricesLoading, setPricesLoading] = useState(false);
 
   const fetchData = async () => {
@@ -198,6 +198,8 @@ function App() {
 
   let totalInvestment = 0;
   let totalCurrentValue = 0;
+  let totalUnrealizedPnL = 0;
+  let totalRealizedPnL = 0;
 
   const symbolGroups = allSymbols.map(symbol => {
     const buys = activeStocks.filter(s => s.symbol === symbol);
@@ -262,7 +264,7 @@ function App() {
         remainingQty === 0 ? 'CLOSED' : soldQty > 0 ? 'PARTIALLY_SOLD' : 'OPEN';
 
       const fallbackPrice = buys.length > 0 ? Number(buys[buys.length - 1].entry_price) : 0;
-      const livePrice = livePrices[symbol] !== undefined ? livePrices[symbol] : fallbackPrice;
+      const livePrice = livePrices[symbol]?.price !== undefined ? livePrices[symbol].price : fallbackPrice;
       const unrealizedPnL = remainingQty * (livePrice - entryPrice);
       const unrealizedPct = (remainingQty * entryPrice) > 0 ? (unrealizedPnL / (remainingQty * entryPrice)) * 100 : 0;
 
@@ -287,7 +289,8 @@ function App() {
     const avgBuyPrice = netQty > 0 ? netCostBasis / netQty : 0;
 
     const fallbackPrice = buys.length > 0 ? Number(buys[buys.length - 1].entry_price) : 0;
-    const livePrice = livePrices[symbol] !== undefined ? livePrices[symbol] : (avgBuyPrice || fallbackPrice);
+    const livePrice = livePrices[symbol]?.price !== undefined ? livePrices[symbol].price : (avgBuyPrice || fallbackPrice);
+    const companyName = livePrices[symbol]?.name || '';
 
     const currentValue = netQty * livePrice;
     const unrealizedPnL = currentValue - netCostBasis;
@@ -298,9 +301,12 @@ function App() {
 
     totalInvestment += netCostBasis;
     totalCurrentValue += currentValue;
+    totalUnrealizedPnL += unrealizedPnL;
+    totalRealizedPnL += fifoRealizedPnL;
 
     return {
       symbol,
+      companyName,
       buys,
       sells,
       totalBoughtQty,
@@ -318,8 +324,9 @@ function App() {
     };
   });
 
-  const totalPnL = totalCurrentValue - totalInvestment;
+  const totalPnL = totalUnrealizedPnL + totalRealizedPnL;
   const totalPnLPercent = totalInvestment > 0 ? (totalPnL / totalInvestment) * 100 : 0;
+  const unrealizedPnLPercent = totalInvestment > 0 ? (totalUnrealizedPnL / totalInvestment) * 100 : 0;
 
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
@@ -440,37 +447,56 @@ function App() {
           ) : (
             <div className="w-full">
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
-                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-xs font-medium text-gray-500 mb-1">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-6">
+                <div className="bg-white border border-gray-200 rounded-md px-4 py-3 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-gray-500 mb-1">
                     <span>Total Stocks</span>
                   </div>
-                  <div className="text-xl font-bold text-zinc-900">{activeStocks.length}</div>
+                  <div className="text-base font-bold text-zinc-900">{activeStocks.length}</div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-xs font-medium text-gray-500 mb-1">
-                    <span>Total Investment</span>
+                <div className="bg-white border border-gray-200 rounded-md px-4 py-3 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-gray-500 mb-1">
+                    <span>Total Invested</span>
                   </div>
-                  <div className="text-xl font-bold text-zinc-900">
+                  <div className="text-base font-bold text-zinc-900 truncate" title={`₹${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-xs font-medium text-gray-500 mb-1">
+                <div className="bg-white border border-gray-200 rounded-md px-4 py-3 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-gray-500 mb-1">
                     <span>Current Value</span>
                   </div>
-                  <div className="text-xl font-bold text-zinc-900">
+                  <div className="text-base font-bold text-zinc-900 truncate" title={`₹${totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                  <div className="flex items-center gap-2 text-xs font-medium text-gray-500 mb-1">
+                <div className="bg-white border border-gray-200 rounded-md px-4 py-3 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-gray-500 mb-1">
+                    <span>Unrealized PnL</span>
+                  </div>
+                  <div className={`text-base font-bold truncate ${totalUnrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    {totalUnrealizedPnL >= 0 ? '+' : ''}₹{totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <span className="text-[10px] font-medium ml-1 text-gray-500">
+                      ({unrealizedPnLPercent >= 0 ? '+' : ''}{unrealizedPnLPercent.toFixed(2)}%)
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-4 py-3 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-gray-500 mb-1">
+                    <span>Realized PnL</span>
+                  </div>
+                  <div className={`text-base font-bold truncate ${totalRealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    {totalRealizedPnL >= 0 ? '+' : ''}₹{totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-4 py-3 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-gray-500 mb-1">
                     <span>Total PnL</span>
                   </div>
-                  <div className={`text-xl font-bold ${totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className={`text-base font-bold truncate ${totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {totalPnL >= 0 ? '+' : ''}₹{totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    <span className="text-xs font-medium ml-2 bg-gray-100 px-2 py-0.5 rounded-full text-gray-600">
-                      {totalPnLPercent >= 0 ? '+' : ''}{totalPnLPercent.toFixed(2)}%
+                    <span className="text-[10px] font-medium ml-1 text-gray-500">
+                      ({totalPnLPercent >= 0 ? '+' : ''}{totalPnLPercent.toFixed(2)}%)
                     </span>
                   </div>
                 </div>
@@ -552,7 +578,14 @@ function App() {
                                       {group.symbol.charAt(0)}
                                     </div>
                                     <div>
-                                      <div className="font-semibold text-sm text-zinc-900">{group.symbol}</div>
+                                      <div className="font-semibold text-sm text-zinc-900 flex items-center gap-2">
+                                        <span>{group.symbol}</span>
+                                        {group.companyName && (
+                                          <span className="font-normal text-xs text-gray-500 truncate max-w-[150px]" title={group.companyName}>
+                                            {group.companyName}
+                                          </span>
+                                        )}
+                                      </div>
                                       <div className="text-[10px] text-gray-400">
                                         {group.totalBoughtQty.toLocaleString()} bought
                                         {group.totalSoldQty > 0 && <> · <span className="text-red-400">{group.totalSoldQty.toLocaleString()} sold</span></>}

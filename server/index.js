@@ -57,7 +57,10 @@ app.get("/api/prices", async (req, res) => {
         
         quotesArray.forEach(q => {
             if (q && q.symbol && q.regularMarketPrice) {
-                prices[q.symbol] = q.regularMarketPrice;
+                prices[q.symbol] = {
+                    price: q.regularMarketPrice,
+                    name: q.shortName || q.longName || q.shortname || q.longname || q.symbol
+                };
             }
         });
         
