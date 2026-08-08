@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Plus, Briefcase, Search, Trash2, Pencil, ChevronDown, ChevronRight, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Plus, Briefcase, Search, Trash2, Pencil, ChevronDown, ChevronRight, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { CreatePortfolioModal } from './components/CreatePortfolioModal'
 import { AddStockModal } from './components/AddStockModal'
 import { SellStockModal } from './components/SellStockModal'
 import { EditStockModal } from './components/EditStockModal'
 import { EditSoldStockModal } from './components/EditSoldStockModal'
+import { RenamePortfolioModal } from './components/RenamePortfolioModal'
 
 interface Portfolio {
   id: string;
@@ -41,12 +42,14 @@ function App() {
   const [sellStockPortfolioId, setSellStockPortfolioId] = useState<string | null>(null);
   const [editStockId, setEditStockId] = useState<string | null>(null);
   const [editSoldStockId, setEditSoldStockId] = useState<string | null>(null);
+  const [renamePortfolioId, setRenamePortfolioId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     const saved = localStorage.getItem('isSidebarOpen');
     return saved !== null ? saved === 'true' : true;
   });
+  const [draggedPortfolioId, setDraggedPortfolioId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('isSidebarOpen', isSidebarOpen.toString());
@@ -66,11 +69,26 @@ function App() {
         .order('created_at', { ascending: true });
 
       if (pError) throw pError;
-      setPortfolios(portfoliosData || []);
+      
+      const portfoliosDataArray = portfoliosData || [];
+      const savedOrder = JSON.parse(localStorage.getItem('portfolioOrder') || '[]');
+      
+      if (savedOrder.length > 0) {
+        portfoliosDataArray.sort((a, b) => {
+          const idxA = savedOrder.indexOf(a.id);
+          const idxB = savedOrder.indexOf(b.id);
+          if (idxA === -1 && idxB === -1) return 0;
+          if (idxA === -1) return 1;
+          if (idxB === -1) return -1;
+          return idxA - idxB;
+        });
+      }
+      
+      setPortfolios(portfoliosDataArray);
 
-      if (portfoliosData && portfoliosData.length > 0) {
-        if (!activePortfolioId && !portfoliosData.find(p => p.id === activePortfolioId)) {
-          setActivePortfolioId(portfoliosData[0].id);
+      if (portfoliosDataArray.length > 0) {
+        if (!activePortfolioId && !portfoliosDataArray.find(p => p.id === activePortfolioId)) {
+          setActivePortfolioId(portfoliosDataArray[0].id);
         }
 
         const { data: stocksData, error: sError } = await supabase
@@ -143,12 +161,60 @@ function App() {
       if (error) throw error;
 
       if (activePortfolioId === id) {
-        setActivePortfolioId(null);
+        setActivePortfolioId(portfolios.length > 1 ? portfolios.find(p => p.id !== id)?.id || null : null);
       }
-      fetchData();
+
+      await fetchData();
     } catch (err: any) {
       console.error('Error deleting portfolio:', err.message);
       alert('Failed to delete portfolio. Please try again.');
+    }
+  };
+
+  const handleCopyPortfolio = async (id: string, originalName: string) => {
+    try {
+      setLoading(true);
+      const newName = `${originalName} (Copy)`;
+      const { data: newPortfolio, error: pError } = await supabase
+        .from('portfolios')
+        .insert([{ name: newName }])
+        .select()
+        .single();
+      
+      if (pError) throw pError;
+
+      const { data: originalStocks, error: sError } = await supabase
+        .from('stocks')
+        .select('symbol, quantity, entry_price, entry_date')
+        .eq('portfolio_id', id);
+
+      if (sError) throw sError;
+
+      const { data: originalSoldStocks, error: ssError } = await supabase
+        .from('sold_stocks')
+        .select('symbol, quantity, exit_price, exit_date')
+        .eq('portfolio_id', id);
+        
+      if (ssError) throw ssError;
+
+      if (originalStocks && originalStocks.length > 0) {
+        const stocksToInsert = originalStocks.map(s => ({ ...s, portfolio_id: newPortfolio.id }));
+        const { error: insertStocksError } = await supabase.from('stocks').insert(stocksToInsert);
+        if (insertStocksError) throw insertStocksError;
+      }
+
+      if (originalSoldStocks && originalSoldStocks.length > 0) {
+        const soldStocksToInsert = originalSoldStocks.map(s => ({ ...s, portfolio_id: newPortfolio.id }));
+        const { error: insertSoldStocksError } = await supabase.from('sold_stocks').insert(soldStocksToInsert);
+        if (insertSoldStocksError) throw insertSoldStocksError;
+      }
+
+      await fetchData();
+    } catch (err: any) {
+      console.error('Error copying portfolio:', err.message);
+      alert('Failed to copy portfolio. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -333,6 +399,40 @@ function App() {
     };
   });
 
+  useEffect(() => {
+    if (portfolios.length > 0) {
+      localStorage.setItem('portfolioOrder', JSON.stringify(portfolios.map(p => p.id)));
+    }
+  }, [portfolios]);
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedPortfolioId(id);
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedPortfolioId || draggedPortfolioId === targetId) return;
+
+    const sourceIdx = portfolios.findIndex(p => p.id === draggedPortfolioId);
+    const targetIdx = portfolios.findIndex(p => p.id === targetId);
+
+    if (sourceIdx === -1 || targetIdx === -1) return;
+
+    const newPortfolios = [...portfolios];
+    const [removed] = newPortfolios.splice(sourceIdx, 1);
+    newPortfolios.splice(targetIdx, 0, removed);
+
+    setPortfolios(newPortfolios);
+    setDraggedPortfolioId(null);
+  };
+
   const totalPnL = totalUnrealizedPnL + totalRealizedPnL;
   const totalPnLPercent = totalInvestment > 0 ? (totalPnL / totalInvestment) * 100 : 0;
   const unrealizedPnLPercent = totalInvestment > 0 ? (totalUnrealizedPnL / totalInvestment) * 100 : 0;
@@ -386,17 +486,45 @@ function App() {
               {portfolios.map(portfolio => (
                 <button
                   key={portfolio.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, portfolio.id)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, portfolio.id)}
+                  onDragEnd={() => setDraggedPortfolioId(null)}
                   onClick={() => setActivePortfolioId(portfolio.id)}
-                  className={`group w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${activePortfolioId === portfolio.id
+                  className={`group w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors cursor-grab active:cursor-grabbing ${
+                    draggedPortfolioId === portfolio.id ? 'opacity-50 border border-dashed border-gray-400' : ''
+                  } ${
+                    activePortfolioId === portfolio.id
                       ? 'bg-gray-100 text-zinc-900 font-medium'
                       : 'text-gray-600 hover:bg-gray-50'
-                    }`}
+                  }`}
                 >
                   <div className="flex items-center gap-3 truncate">
                     <div className={`w-2 h-2 rounded-full shrink-0 ${activePortfolioId === portfolio.id ? 'bg-orange-500' : 'bg-gray-300'}`} />
                     <span className="truncate">{portfolio.name}</span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRenamePortfolioId(portfolio.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-zinc-100 hover:text-zinc-600 rounded text-gray-400 transition-all"
+                      title="Rename Portfolio"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </div>
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCopyPortfolio(portfolio.id, portfolio.name);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-blue-100 hover:text-blue-600 rounded text-gray-400 transition-all"
+                      title="Copy Portfolio"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </div>
                     <div
                       onClick={(e) => {
                         e.stopPropagation();
@@ -860,6 +988,14 @@ function App() {
         soldStock={soldStocks.find(s => s.id === editSoldStockId) || null}
         onClose={() => setEditSoldStockId(null)}
         onEdited={fetchData}
+      />
+
+      <RenamePortfolioModal
+        isOpen={!!renamePortfolioId}
+        onClose={() => setRenamePortfolioId(null)}
+        onRenamed={fetchData}
+        portfolioId={renamePortfolioId}
+        currentName={portfolios.find(p => p.id === renamePortfolioId)?.name || ''}
       />
     </div>
   )
