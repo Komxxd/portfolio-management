@@ -49,6 +49,17 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Quantity validation
   const parsedQty = parseFloat(quantity);
   const qtyExceedsHolding =
