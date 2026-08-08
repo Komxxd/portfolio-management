@@ -36,6 +36,50 @@ interface SoldStock {
   exit_date: string;
 }
 
+function calculateXIRR(cashFlows: { amount: number, date: number }[], guess = 0.1): number {
+  if (cashFlows.length < 2) return 0;
+  
+  const minDate = Math.min(...cashFlows.map(cf => cf.date));
+  
+  const maxIterations = 100;
+  const tolerance = 1e-5;
+  let rate = guess;
+  
+  for (let i = 0; i < maxIterations; i++) {
+    let fValue = 0;
+    let fDerivative = 0;
+    
+    for (const cf of cashFlows) {
+      const days = (cf.date - minDate) / (1000 * 60 * 60 * 24);
+      const years = days / 365;
+      
+      fValue += cf.amount / Math.pow(1 + rate, years);
+      if (years > 0) {
+        fDerivative -= (years * cf.amount) / Math.pow(1 + rate, years + 1);
+      }
+    }
+    
+    if (Math.abs(fValue) < tolerance) {
+      return rate;
+    }
+    
+    if (fDerivative === 0) break;
+    
+    const nextRate = rate - fValue / fDerivative;
+    if (Math.abs(nextRate - rate) < tolerance) {
+      return nextRate;
+    }
+    
+    if (nextRate <= -1) {
+      rate = -0.999999;
+    } else {
+      rate = nextRate;
+    }
+  }
+  
+  return rate;
+}
+
 function App() {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [stocks, setStocks] = useState<Stock[]>([]);
@@ -444,6 +488,18 @@ function App() {
     }
   });
 
+  const xirrCashFlows = allTransactions.map(t => ({
+    date: t.date,
+    amount: -t.amount
+  }));
+  if (totalCurrentValue > 0 || xirrCashFlows.length > 0) {
+    xirrCashFlows.push({
+      date: Date.now(),
+      amount: totalCurrentValue
+    });
+  }
+  const portfolioXIRR = calculateXIRR(xirrCashFlows);
+
   if (sortField) {
     filteredSymbolGroups.sort((a, b) => {
       let valA: any = a[sortField as keyof typeof a];
@@ -688,16 +744,16 @@ function App() {
           ) : (
             <div className="w-full">
               {/* Stats Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-4">
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
                   <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
                     <span>Total Stocks</span>
                   </div>
-                  <div className="text-sm font-bold text-zinc-900">{activeStocks.length}</div>
+                  <div className="text-sm font-bold text-zinc-900">{filteredSymbolGroups.length}</div>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
                   <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
-                    <span>Net Invested</span>
+                    <span>Max Investment</span>
                   </div>
                   <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -741,6 +797,14 @@ function App() {
                     </span>
                   </div>
                 </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>XIRR</span>
+                  </div>
+                  <div className={`text-sm font-bold truncate ${portfolioXIRR >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`${(portfolioXIRR * 100).toFixed(2)}%`}>
+                    {portfolioXIRR >= 0 ? '+' : ''}{(portfolioXIRR * 100).toFixed(2)}%
+                  </div>
+                </div>
               </div>
 
               {/* Data Table */}
@@ -754,7 +818,7 @@ function App() {
                       )}
                     </div>
                     <div className="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200">
-                      {(['all', 'open', 'closed'] as const).map(type => (
+                      {(['open', 'closed', 'all'] as const).map(type => (
                         <button
                           key={type}
                           onClick={() => setFilterType(type)}
