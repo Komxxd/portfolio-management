@@ -43,7 +43,15 @@ function App() {
   const [editSoldStockId, setEditSoldStockId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('isSidebarOpen');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('isSidebarOpen', isSidebarOpen.toString());
+  }, [isSidebarOpen]);
+
 
   // Real-time prices state
   const [livePrices, setLivePrices] = useState<Record<string, { price: number; name: string }>>({});
