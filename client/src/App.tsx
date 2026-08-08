@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Briefcase, Search, Trash2, Pencil, ChevronDown, ChevronRight, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
+import { Plus, Briefcase, Search, Trash2, Pencil, ChevronDown, ChevronRight, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { CreatePortfolioModal } from './components/CreatePortfolioModal'
 import { AddStockModal } from './components/AddStockModal'
@@ -43,6 +43,7 @@ function App() {
   const [editSoldStockId, setEditSoldStockId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Real-time prices state
   const [livePrices, setLivePrices] = useState<Record<string, { price: number; name: string }>>({});
@@ -331,15 +332,23 @@ function App() {
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0">
-        <div className="h-16 px-4 flex items-center gap-3 border-b border-gray-200 shrink-0">
-          <div className="w-8 h-8 bg-zinc-900 text-white rounded-md flex items-center justify-center font-bold">
-            P
+      <aside className={`bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${isSidebarOpen ? 'w-64 opacity-100' : 'w-0 opacity-0 border-none'}`}>
+        <div className="w-64 flex flex-col h-full">
+          <div className="h-16 px-4 flex items-center justify-between border-b border-gray-200 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-zinc-900 text-white rounded-md flex items-center justify-center font-bold">
+                P
+              </div>
+              <h1 className="font-semibold text-sm">Portfolio</h1>
+            </div>
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-1.5 -mr-1.5 text-gray-500 hover:text-zinc-900 rounded-md hover:bg-gray-100 transition-colors"
+              title="Close Sidebar"
+            >
+              <PanelLeftClose className="w-5 h-5" />
+            </button>
           </div>
-          <div>
-            <h1 className="font-semibold text-sm">Portfolio</h1>
-          </div>
-        </div>
 
         <div className="px-4 py-4">
           <div className="relative">
@@ -402,23 +411,33 @@ function App() {
             </nav>
           </div>
         </div>
+        </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-gray-200 px-8 flex items-center justify-between shrink-0">
-          <div className="flex flex-col justify-center">
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-zinc-900">
+        <header className="h-16 bg-white border-b border-gray-200 px-4 md:px-8 flex items-center justify-between shrink-0 transition-all">
+          <div className="flex items-center gap-3">
+            {!isSidebarOpen && (
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 -ml-2 text-gray-500 hover:text-zinc-900 rounded-md hover:bg-gray-100 transition-colors"
+                title="Open Sidebar"
+              >
+                <PanelLeftOpen className="w-5 h-5" />
+              </button>
+            )}
+            <div className="flex flex-col justify-center">
+              <h2 className="text-xl font-bold text-zinc-900 leading-tight">
                 {activePortfolio ? activePortfolio.name : 'Portfolios'}
               </h2>
+              {activePortfolio && (
+                <span className="text-[10px] text-gray-400 font-medium tracking-wide leading-tight">
+                  Prices auto-update every minute
+                </span>
+              )}
             </div>
-            {activePortfolio && (
-              <span className="text-[10px] text-gray-400 font-medium tracking-wide">
-                Prices auto-update every minute
-              </span>
-            )}
           </div>
         </header>
 
