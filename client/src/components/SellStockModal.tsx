@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, ChevronDown, AlertCircle, Search } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 interface SellStockModalProps {
@@ -22,6 +22,8 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
   const [loadingStocks, setLoadingStocks] = useState(false);
 
   const [selectedSymbol, setSelectedSymbol] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const [quantity, setQuantity] = useState('');
   const [exitPrice, setExitPrice] = useState('');
   const [exitDate, setExitDate] = useState(new Date().toISOString().split('T')[0]);
@@ -30,6 +32,22 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
 
   // Derive the selected stock info for inline hints
   const selectedStock = ownedStocks.find(s => s.symbol === selectedSymbol) ?? null;
+  const filteredStocks = ownedStocks.filter(s =>
+    s.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Quantity validation
   const parsedQty = parseFloat(quantity);
@@ -46,6 +64,8 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
       setLoadingStocks(true);
       setOwnedStocks([]);
       setSelectedSymbol('');
+      setSearchQuery('');
+      setShowDropdown(false);
       setQuantity('');
       setExitPrice('');
       setExitDate(new Date().toISOString().split('T')[0]);
@@ -174,24 +194,55 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
                   No assets available to sell in this portfolio.
                 </div>
               ) : (
-                <div className="relative">
-                  <select
-                    id="sell-symbol"
-                    value={selectedSymbol}
-                    onChange={(e) => {
-                      setSelectedSymbol(e.target.value);
-                      setQuantity('');
-                    }}
-                    className="w-full appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                  >
-                    <option value="">— Choose a symbol —</option>
-                    {ownedStocks.map(s => (
-                      <option key={s.symbol} value={s.symbol}>
-                        {s.symbol} &nbsp;·&nbsp; Available: {s.available.toLocaleString()} units
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 w-4 h-4 text-gray-400" />
+                <div className="relative" ref={dropdownRef}>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      id="sell-symbol"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setSelectedSymbol('');
+                        setQuantity('');
+                        setShowDropdown(true);
+                      }}
+                      onFocus={() => setShowDropdown(true)}
+                      className="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-8 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow placeholder-gray-400"
+                      placeholder="Search or select asset to sell"
+                      autoComplete="off"
+                    />
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 w-4 h-4 text-gray-400" />
+                  </div>
+                  
+                  {showDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto divide-y divide-gray-100">
+                      {filteredStocks.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-gray-500 text-center">No matching assets found</div>
+                      ) : (
+                        filteredStocks.map((s) => (
+                          <button
+                            key={s.symbol}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSymbol(s.symbol);
+                              setSearchQuery(s.symbol);
+                              setQuantity('');
+                              setShowDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between group transition-colors"
+                          >
+                            <div className="font-semibold text-sm text-zinc-900 group-hover:text-orange-600 transition-colors">
+                              {s.symbol}
+                            </div>
+                            <div className="text-[10px] text-gray-500 bg-gray-100 px-2 py-1 rounded uppercase tracking-wider">
+                              Available: {s.available.toLocaleString()}
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
