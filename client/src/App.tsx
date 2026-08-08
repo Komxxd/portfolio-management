@@ -43,6 +43,7 @@ function App() {
   const [editStockId, setEditStockId] = useState<string | null>(null);
   const [editSoldStockId, setEditSoldStockId] = useState<string | null>(null);
   const [renamePortfolioId, setRenamePortfolioId] = useState<string | null>(null);
+  const [filterType, setFilterType] = useState<'all' | 'open' | 'closed'>('all');
   const [loading, setLoading] = useState(true);
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
@@ -271,11 +272,6 @@ function App() {
     ...activeSoldStocks.map(s => s.symbol),
   ])].sort();
 
-  let totalInvestment = 0;
-  let totalCurrentValue = 0;
-  let totalUnrealizedPnL = 0;
-  let totalRealizedPnL = 0;
-
   const symbolGroups = allSymbols.map(symbol => {
     const buys = activeStocks.filter(s => s.symbol === symbol);
     const sells = activeSoldStocks.filter(s => s.symbol === symbol);
@@ -374,11 +370,6 @@ function App() {
 
     const totalBuyCost = buys.reduce((sum, b) => sum + Number(b.quantity) * Number(b.entry_price), 0);
 
-    totalInvestment += netCostBasis;
-    totalCurrentValue += currentValue;
-    totalUnrealizedPnL += unrealizedPnL;
-    totalRealizedPnL += fifoRealizedPnL;
-
     return {
       symbol,
       companyName,
@@ -397,6 +388,25 @@ function App() {
       realizedPnL: fifoRealizedPnL,
       fifoBuyLots,
     };
+  });
+
+  let filteredSymbolGroups = symbolGroups;
+  if (filterType === 'open') {
+    filteredSymbolGroups = symbolGroups.filter(g => g.netQty > 0);
+  } else if (filterType === 'closed') {
+    filteredSymbolGroups = symbolGroups.filter(g => g.netQty === 0 && g.totalBoughtQty > 0);
+  }
+
+  let totalInvestment = 0;
+  let totalCurrentValue = 0;
+  let totalUnrealizedPnL = 0;
+  let totalRealizedPnL = 0;
+
+  filteredSymbolGroups.forEach(g => {
+    totalInvestment += g.netCostBasis;
+    totalCurrentValue += g.currentValue;
+    totalUnrealizedPnL += g.unrealizedPnL;
+    totalRealizedPnL += g.realizedPnL;
   });
 
   useEffect(() => {
@@ -660,14 +670,26 @@ function App() {
               {/* Data Table */}
               <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col">
                 <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-white">
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-sm text-zinc-900">Assets</h3>
-                    {pricesLoading && (
-                      <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                        <div className="w-3 h-3 border border-gray-300 border-t-gray-500 rounded-full animate-spin" />
-                        Live sync...
-                      </span>
-                    )}
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-lg text-zinc-900">Assets</h3>
+                      {pricesLoading && (
+                        <div className="w-3.5 h-3.5 border-2 border-gray-200 border-t-zinc-900 rounded-full animate-spin" title="Updating live prices..." />
+                      )}
+                    </div>
+                    <div className="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+                      {(['all', 'open', 'closed'] as const).map(type => (
+                        <button
+                          key={type}
+                          onClick={() => setFilterType(type)}
+                          className={`px-3 py-1 text-[11px] font-medium rounded-md capitalize transition-colors ${
+                            filterType === type ? 'bg-white text-zinc-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <button
@@ -702,14 +724,14 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {symbolGroups.length === 0 ? (
+                      {filteredSymbolGroups.length === 0 ? (
                         <tr>
                           <td colSpan={10} className="px-4 py-8 text-center text-gray-500 text-xs">
-                            No assets found in this portfolio. Buy a stock to get started.
+                            No assets found matching the filter.
                           </td>
                         </tr>
                       ) : (
-                        symbolGroups.map(group => {
+                        filteredSymbolGroups.map(group => {
                           const isExpanded = expandedSymbols.has(group.symbol);
                           const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                           return (
