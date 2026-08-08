@@ -26,6 +26,8 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
   const [showDropdown, setShowDropdown] = useState(false);
   const [quantity, setQuantity] = useState('');
   const [exitPrice, setExitPrice] = useState('');
+  const [brokerage, setBrokerage] = useState('0');
+  const [govtTax, setGovtTax] = useState('0');
   const [exitDate, setExitDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -79,6 +81,8 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
       setShowDropdown(false);
       setQuantity('');
       setExitPrice('');
+      setBrokerage('0');
+      setGovtTax('0');
       setExitDate(new Date().toISOString().split('T')[0]);
       setError('');
 
@@ -159,6 +163,8 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
           symbol: selectedSymbol,
           quantity: parseFloat(quantity),
           exit_price: parseFloat(exitPrice),
+          brokerage: parseFloat(brokerage || '0'),
+          govt_tax: parseFloat(govtTax || '0'),
           exit_date: exitDate,
         },
       ]);
@@ -325,6 +331,40 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
                   onChange={(e) => setExitPrice(e.target.value)}
                   className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                   placeholder="150.00"
+                  step="any"
+                  min="0"
+                  disabled={!selectedSymbol}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="brokerage" className="block text-sm font-medium text-gray-700 mb-1">
+                  Brokerage (₹)
+                </label>
+                <input
+                  type="number"
+                  id="brokerage"
+                  value={brokerage}
+                  onChange={(e) => setBrokerage(e.target.value)}
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                  placeholder="0.00"
+                  step="any"
+                  min="0"
+                  disabled={!selectedSymbol}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="govtTax" className="block text-sm font-medium text-gray-700 mb-1">
+                  Govt Tax (₹)
+                </label>
+                <input
+                  type="number"
+                  id="govtTax"
+                  value={govtTax}
+                  onChange={(e) => setGovtTax(e.target.value)}
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                  placeholder="0.00"
                   step="any"
                   min="0"
                   disabled={!selectedSymbol}

@@ -24,6 +24,8 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId }: AddStoc
   
   const [quantity, setQuantity] = useState('');
   const [entryPrice, setEntryPrice] = useState('');
+  const [brokerage, setBrokerage] = useState('0');
+  const [govtTax, setGovtTax] = useState('0');
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -108,6 +110,8 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId }: AddStoc
           symbol: ticker.toUpperCase().trim(),
           quantity: parseFloat(quantity),
           entry_price: parseFloat(entryPrice),
+          brokerage: parseFloat(brokerage || '0'),
+          govt_tax: parseFloat(govtTax || '0'),
           entry_date: entryDate
         }
       ]);
@@ -121,6 +125,8 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId }: AddStoc
       setSearchQuery('');
       setQuantity('');
       setEntryPrice('');
+      setBrokerage('0');
+      setGovtTax('0');
       setEntryDate(new Date().toISOString().split('T')[0]);
       onAdded();
       onClose();
@@ -234,6 +240,38 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId }: AddStoc
                   onChange={(e) => setEntryPrice(e.target.value)}
                   className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                   placeholder="150.00"
+                  step="any"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="brokerage" className="block text-sm font-medium text-gray-700 mb-1">
+                  Brokerage (₹)
+                </label>
+                <input
+                  type="number"
+                  id="brokerage"
+                  value={brokerage}
+                  onChange={(e) => setBrokerage(e.target.value)}
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                  placeholder="0.00"
+                  step="any"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="govtTax" className="block text-sm font-medium text-gray-700 mb-1">
+                  Govt Tax (₹)
+                </label>
+                <input
+                  type="number"
+                  id="govtTax"
+                  value={govtTax}
+                  onChange={(e) => setGovtTax(e.target.value)}
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                  placeholder="0.00"
                   step="any"
                   min="0"
                 />

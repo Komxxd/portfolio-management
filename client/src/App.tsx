@@ -20,6 +20,8 @@ interface Stock {
   symbol: string;
   quantity: number;
   entry_price: number;
+  brokerage?: number;
+  govt_tax?: number;
   entry_date: string;
 }
 
@@ -29,6 +31,8 @@ interface SoldStock {
   symbol: string;
   quantity: number;
   exit_price: number;
+  brokerage?: number;
+  govt_tax?: number;
   exit_date: string;
 }
 
@@ -371,6 +375,8 @@ function App() {
     const fifoRealizedPnL = fifoBuyLots.reduce((sum, lot) => sum + lot.realizedPnL, 0);
 
     const totalBuyCost = buys.reduce((sum, b) => sum + Number(b.quantity) * Number(b.entry_price), 0);
+    const totalBrokerage = buys.reduce((sum, b) => sum + Number(b.brokerage || 0), 0) + sells.reduce((sum, s) => sum + Number(s.brokerage || 0), 0);
+    const totalGovtTax = buys.reduce((sum, b) => sum + Number(b.govt_tax || 0), 0) + sells.reduce((sum, s) => sum + Number(s.govt_tax || 0), 0);
 
     return {
       symbol,
@@ -388,6 +394,8 @@ function App() {
       unrealizedPnL,
       unrealizedPct,
       realizedPnL: fifoRealizedPnL,
+      totalBrokerage,
+      totalGovtTax,
       fifoBuyLots,
     };
   });
@@ -404,11 +412,36 @@ function App() {
   let totalUnrealizedPnL = 0;
   let totalRealizedPnL = 0;
 
+  const allTransactions: { date: number; amount: number }[] = [];
+
   filteredSymbolGroups.forEach(g => {
     totalInvestment += g.netCostBasis;
     totalCurrentValue += g.currentValue;
     totalUnrealizedPnL += g.unrealizedPnL;
     totalRealizedPnL += g.realizedPnL;
+    
+    g.buys.forEach(buy => {
+      allTransactions.push({
+        date: new Date(buy.entry_date).getTime(),
+        amount: (Number(buy.quantity) * Number(buy.entry_price)) + Number(buy.brokerage || 0) + Number(buy.govt_tax || 0)
+      });
+    });
+    g.sells.forEach(sell => {
+      allTransactions.push({
+        date: new Date(sell.exit_date).getTime(),
+        amount: -((Number(sell.quantity) * Number(sell.exit_price)) - Number(sell.brokerage || 0) - Number(sell.govt_tax || 0))
+      });
+    });
+  });
+
+  allTransactions.sort((a, b) => a.date - b.date);
+  let maxNetInvested = 0;
+  let currentInvested = 0;
+  allTransactions.forEach(tx => {
+    currentInvested += tx.amount;
+    if (currentInvested > maxNetInvested) {
+      maxNetInvested = currentInvested;
+    }
   });
 
   if (sortField) {
@@ -487,7 +520,7 @@ function App() {
   };
 
   const totalPnL = totalUnrealizedPnL + totalRealizedPnL;
-  const totalPnLPercent = totalInvestment > 0 ? (totalPnL / totalInvestment) * 100 : 0;
+  const totalPnLPercent = maxNetInvested > 0 ? (totalPnL / maxNetInvested) * 100 : 0;
   const unrealizedPnLPercent = totalInvestment > 0 ? (totalUnrealizedPnL / totalInvestment) * 100 : 0;
 
   return (
@@ -631,7 +664,7 @@ function App() {
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-auto p-4 md:p-6">
+        <div className="flex-1 overflow-auto p-2 md:p-4">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="w-8 h-8 border-2 border-gray-200 border-t-zinc-900 rounded-full animate-spin" />
@@ -655,55 +688,55 @@ function App() {
           ) : (
             <div className="w-full">
               {/* Stats Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-6">
-                <div className="bg-white border border-gray-200 rounded-md px-4 py-3 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-gray-500 mb-1">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
                     <span>Total Stocks</span>
                   </div>
-                  <div className="text-base font-bold text-zinc-900">{activeStocks.length}</div>
+                  <div className="text-sm font-bold text-zinc-900">{activeStocks.length}</div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-4 py-3 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-gray-500 mb-1">
-                    <span>Total Invested</span>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Net Invested</span>
                   </div>
-                  <div className="text-base font-bold text-zinc-900 truncate" title={`₹${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-                    ₹{totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    ₹{maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-4 py-3 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-gray-500 mb-1">
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
                     <span>Current Value</span>
                   </div>
-                  <div className="text-base font-bold text-zinc-900 truncate" title={`₹${totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-4 py-3 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-gray-500 mb-1">
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
                     <span>Unrealized PnL</span>
                   </div>
-                  <div className={`text-base font-bold truncate ${totalUnrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className={`text-sm font-bold truncate ${totalUnrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {totalUnrealizedPnL >= 0 ? '+' : ''}₹{totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    <span className="text-[10px] font-medium ml-1 text-gray-500">
+                    <span className="text-[9px] font-medium ml-1 text-gray-500">
                       ({unrealizedPnLPercent >= 0 ? '+' : ''}{unrealizedPnLPercent.toFixed(2)}%)
                     </span>
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-4 py-3 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-gray-500 mb-1">
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
                     <span>Realized PnL</span>
                   </div>
-                  <div className={`text-base font-bold truncate ${totalRealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className={`text-sm font-bold truncate ${totalRealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {totalRealizedPnL >= 0 ? '+' : ''}₹{totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-4 py-3 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium text-gray-500 mb-1">
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
                     <span>Total PnL</span>
                   </div>
-                  <div className={`text-base font-bold truncate ${totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className={`text-sm font-bold truncate ${totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {totalPnL >= 0 ? '+' : ''}₹{totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    <span className="text-[10px] font-medium ml-1 text-gray-500">
+                    <span className="text-[9px] font-medium ml-1 text-gray-500">
                       ({totalPnLPercent >= 0 ? '+' : ''}{totalPnLPercent.toFixed(2)}%)
                     </span>
                   </div>
@@ -712,10 +745,10 @@ function App() {
 
               {/* Data Table */}
               <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col">
-                <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-white">
+                <div className="px-3 py-2 border-b border-gray-200 flex justify-between items-center bg-white">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-lg text-zinc-900">Assets</h3>
+                      <h3 className="font-semibold text-base text-zinc-900">Assets</h3>
                       {pricesLoading && (
                         <div className="w-3.5 h-3.5 border-2 border-gray-200 border-t-zinc-900 rounded-full animate-spin" title="Updating live prices..." />
                       )}
@@ -766,13 +799,15 @@ function App() {
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-gray-200 bg-gray-50/50">
-                        <th className="px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500 w-8"></th>
+                        <th className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 w-6"></th>
                         <SortHeader field="symbol" label="Symbol" />
                         <SortHeader field="netQty" label="Net Qty" />
                         <SortHeader field="avgBuyPrice" label="Avg Buy" />
                         <SortHeader field="netCostBasis" label="Invested" />
                         <SortHeader field="livePrice" label="Live Price" />
                         <SortHeader field="currentValue" label="Current Value" />
+                        <SortHeader field="totalBrokerage" label="Brokerage" />
+                        <SortHeader field="totalGovtTax" label="Govt Tax" />
                         <SortHeader field="unrealizedPnL" label="Unrealized PnL" />
                         <SortHeader field="realizedPnL" label="Realized PnL" />
                         <SortHeader field="totalPnL" label="Total PnL" />
@@ -781,7 +816,7 @@ function App() {
                     <tbody>
                       {filteredSymbolGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={10} className="px-4 py-8 text-center text-gray-500 text-xs">
+                          <td colSpan={12} className="px-3 py-6 text-center text-gray-500 text-[11px]">
                             No assets found matching the filter.
                           </td>
                         </tr>
@@ -796,46 +831,48 @@ function App() {
                                 onClick={() => toggleSymbol(group.symbol)}
                                 className="border-t border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors group"
                               >
-                                <td className="pl-3 pr-1 py-2.5">
+                                <td className="pl-2 pr-1 py-1.5">
                                   <span className="text-gray-400 group-hover:text-zinc-700 transition-colors">
                                     {isExpanded
-                                      ? <ChevronDown className="w-3.5 h-3.5" />
-                                      : <ChevronRight className="w-3.5 h-3.5" />}
+                                      ? <ChevronDown className="w-3 h-3" />
+                                      : <ChevronRight className="w-3 h-3" />}
                                   </span>
                                 </td>
-                                <td className="px-3 py-2.5">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded border border-gray-200 bg-white flex items-center justify-center font-bold text-[10px] text-gray-600">
+                                <td className="px-2 py-1.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-5 h-5 rounded border border-gray-200 bg-white flex items-center justify-center font-bold text-[9px] text-gray-600">
                                       {group.symbol.charAt(0)}
                                     </div>
                                     <div>
-                                      <div className="font-semibold text-sm text-zinc-900 flex items-center gap-2">
+                                      <div className="font-semibold text-[11px] text-zinc-900 flex items-center gap-1.5">
                                         <span>{group.symbol}</span>
                                         {group.companyName && (
-                                          <span className="font-normal text-xs text-gray-500 truncate max-w-[150px]" title={group.companyName}>
+                                          <span className="font-normal text-[10px] text-gray-500 truncate max-w-[120px]" title={group.companyName}>
                                             {group.companyName}
                                           </span>
                                         )}
                                       </div>
-                                      <div className="text-[10px] text-gray-400">
+                                      <div className="text-[9px] text-gray-400 mt-0.5">
                                         {group.totalBoughtQty.toLocaleString()} bought
                                         {group.totalSoldQty > 0 && <> · <span className="text-red-400">{group.totalSoldQty.toLocaleString()} sold</span></>}
                                       </div>
                                     </div>
                                   </div>
                                 </td>
-                                <td className="px-3 py-2.5 text-xs font-semibold text-zinc-900">{group.netQty.toLocaleString()}</td>
-                                <td className="px-3 py-2.5 text-xs text-gray-600">₹{fmt(group.avgBuyPrice)}</td>
-                                <td className="px-3 py-2.5 text-xs text-gray-600" title="Avg buy price × remaining shares — money still at work">₹{fmt(group.netCostBasis)}</td>
-                                <td className="px-3 py-2.5 text-xs font-medium text-zinc-900">₹{fmt(group.livePrice)}</td>
-                                <td className="px-3 py-2.5 text-xs font-medium text-zinc-900">₹{fmt(group.currentValue)}</td>
-                                <td className="px-3 py-2.5 text-xs">
+                                <td className="px-2 py-1.5 text-[11px] font-semibold text-zinc-900">{group.netQty.toLocaleString()}</td>
+                                <td className="px-2 py-1.5 text-[11px] text-gray-600">₹{fmt(group.avgBuyPrice)}</td>
+                                <td className="px-2 py-1.5 text-[11px] text-gray-600" title="Avg buy price × remaining shares — money still at work">₹{fmt(group.netCostBasis)}</td>
+                                <td className="px-2 py-1.5 text-[11px] font-medium text-zinc-900">₹{fmt(group.livePrice)}</td>
+                                <td className="px-2 py-1.5 text-[11px] font-medium text-zinc-900">₹{fmt(group.currentValue)}</td>
+                                <td className="px-2 py-1.5 text-[11px] text-gray-600">₹{fmt(group.totalBrokerage)}</td>
+                                <td className="px-2 py-1.5 text-[11px] text-gray-600">₹{fmt(group.totalGovtTax)}</td>
+                                <td className="px-2 py-1.5 text-[11px]">
                                   <span className={`font-medium ${group.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                     {group.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(group.unrealizedPnL)}
                                   </span>
-                                  <span className="text-[10px] ml-1 text-gray-400">({group.unrealizedPct >= 0 ? '+' : ''}{group.unrealizedPct.toFixed(2)}%)</span>
+                                  <span className="text-[9px] ml-1 text-gray-400">({group.unrealizedPct >= 0 ? '+' : ''}{group.unrealizedPct.toFixed(2)}%)</span>
                                 </td>
-                                <td className="px-3 py-2.5 text-xs">
+                                <td className="px-2 py-1.5 text-[11px]">
                                   {group.sells.length > 0 ? (
                                     <span className={`font-medium ${group.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                       {group.realizedPnL >= 0 ? '+' : ''}₹{fmt(group.realizedPnL)}
@@ -844,7 +881,7 @@ function App() {
                                     <span className="text-gray-300">—</span>
                                   )}
                                 </td>
-                                <td className="px-3 py-2.5 text-xs">
+                                <td className="px-2 py-1.5 text-[11px]">
                                   {(() => {
                                     const total = group.unrealizedPnL + group.realizedPnL;
                                     const totalPct = group.totalBuyCost > 0 ? (total / group.totalBuyCost) * 100 : 0;
@@ -853,7 +890,7 @@ function App() {
                                         <span className={`font-medium ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                           {total >= 0 ? '+' : ''}₹{fmt(total)}
                                         </span>
-                                        <span className="text-[10px] ml-1 text-gray-400">({totalPct >= 0 ? '+' : ''}{totalPct.toFixed(2)}%)</span>
+                                        <span className="text-[9px] ml-1 text-gray-400">({totalPct >= 0 ? '+' : ''}{totalPct.toFixed(2)}%)</span>
                                       </>
                                     );
                                   })()}
@@ -863,17 +900,17 @@ function App() {
                               {/* ── Expanded detail side-by-side FIFO section ── */}
                               {isExpanded && (
                                 <tr className="border-t border-b border-gray-200 bg-gray-50/70">
-                                  <td colSpan={10} className="p-3">
-                                    <div className="space-y-3">
+                                  <td colSpan={12} className="p-2">
+                                    <div className="space-y-2">
                                       {group.fifoBuyLots.length === 0 ? (
-                                        <p className="text-xs text-gray-400 py-3 text-center">No buy entries found.</p>
+                                        <p className="text-[11px] text-gray-400 py-2 text-center">No buy entries found.</p>
                                       ) : (
                                         group.fifoBuyLots.map((lot, lotIdx) => (
-                                          <div key={`lot-${lot.buy.id}`} className="bg-white border border-gray-200 rounded-lg p-3 shadow-xs">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                          <div key={`lot-${lot.buy.id}`} className="bg-white border border-gray-200 rounded-lg p-2 shadow-xs">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                               {/* Left Column: BUY Lot Details */}
-                                              <div className="pr-0 md:pr-3 border-b md:border-b-0 md:border-r border-gray-100 pb-3 md:pb-0">
-                                                <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
+                                              <div className="pr-0 md:pr-2 border-b md:border-b-0 md:border-r border-gray-100 pb-2 md:pb-0">
+                                                <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-gray-100">
                                                   <div className="flex items-center gap-1.5 font-semibold text-xs text-green-800">
                                                     <ArrowUpCircle className="w-4 h-4 text-green-600" />
                                                     <span>Buy Position{group.fifoBuyLots.length > 1 ? ` #${lotIdx + 1}` : ''}</span>
@@ -894,34 +931,34 @@ function App() {
                                                   </div>
                                                 </div>
 
-                                                <table className="w-full text-left text-xs whitespace-nowrap">
+                                                <table className="w-full text-left text-[11px] whitespace-nowrap">
                                                   <thead>
-                                                    <tr className="text-[10px] text-gray-400 uppercase border-b border-gray-100">
-                                                      <th className="pb-1.5 font-medium">Type</th>
-                                                      <th className="pb-1.5 font-medium">Date</th>
-                                                      <th className="pb-1.5 font-medium">Qty</th>
-                                                      <th className="pb-1.5 font-medium">Price</th>
-                                                      <th className="pb-1.5 font-medium">Value</th>
-                                                      <th className="pb-1.5 font-medium">Unrealized PnL</th>
-                                                      <th className="pb-1.5 text-right font-medium">Actions</th>
+                                                    <tr className="text-[9px] text-gray-400 uppercase border-b border-gray-100">
+                                                      <th className="pb-1 font-medium">Type</th>
+                                                      <th className="pb-1 font-medium">Date</th>
+                                                      <th className="pb-1 font-medium">Qty</th>
+                                                      <th className="pb-1 font-medium">Price</th>
+                                                      <th className="pb-1 font-medium">Value</th>
+                                                      <th className="pb-1 font-medium">Unrealized PnL</th>
+                                                      <th className="pb-1 text-right font-medium">Actions</th>
                                                     </tr>
                                                   </thead>
                                                   <tbody>
                                                     <tr>
-                                                      <td className="py-1.5">
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700">BUY</span>
+                                                      <td className="py-1">
+                                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-green-100 text-green-700">BUY</span>
                                                       </td>
-                                                      <td className="py-1.5 text-gray-500">{new Date(lot.buy.entry_date).toLocaleDateString()}</td>
-                                                      <td className="py-1.5 font-medium text-gray-800">{lot.buyQty.toLocaleString()}</td>
-                                                      <td className="py-1.5 text-gray-600">₹{fmt(lot.entryPrice)}</td>
-                                                      <td className="py-1.5 text-gray-600 font-medium">₹{fmt(lot.cost)}</td>
-                                                      <td className="py-1.5 font-medium">
+                                                      <td className="py-1 text-gray-500">{new Date(lot.buy.entry_date).toLocaleDateString()}</td>
+                                                      <td className="py-1 font-medium text-gray-800">{lot.buyQty.toLocaleString()}</td>
+                                                      <td className="py-1 text-gray-600">₹{fmt(lot.entryPrice)}</td>
+                                                      <td className="py-1 text-gray-600 font-medium">₹{fmt(lot.cost)}</td>
+                                                      <td className="py-1 font-medium">
                                                         <span className={lot.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}>
                                                           {lot.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(lot.unrealizedPnL)}
                                                         </span>
-                                                        <span className="text-[10px] ml-1 text-gray-400">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
+                                                        <span className="text-[9px] ml-1 text-gray-400">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
                                                       </td>
-                                                      <td className="py-1.5 text-right">
+                                                      <td className="py-1 text-right">
                                                         <div className="flex items-center justify-end gap-1">
                                                           <button onClick={(e) => { e.stopPropagation(); setEditStockId(lot.buy.id); }} className="p-1 text-gray-500 hover:text-zinc-900 rounded hover:bg-gray-100 transition-colors" title="Edit Buy">
                                                             <Pencil className="w-3.5 h-3.5" />
@@ -938,17 +975,17 @@ function App() {
 
                                               {/* Right Column: Sell Positions */}
                                               <div>
-                                                <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
-                                                  <div className="flex items-center gap-1.5 font-semibold text-xs text-red-800">
+                                                <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-gray-100">
+                                                  <div className="flex items-center gap-1.5 font-semibold text-[11px] text-red-800">
                                                     <ArrowDownCircle className="w-4 h-4 text-red-600" />
                                                     <span>Sell Positions</span>
                                                   </div>
                                                   <div className="flex items-center gap-2">
-                                                    <span className="text-[11px] text-gray-500 font-medium">
+                                                    <span className="text-[10px] text-gray-500 font-medium">
                                                       {lot.soldQty.toLocaleString()} / {lot.buyQty.toLocaleString()} sold
                                                     </span>
                                                     {lot.matchedSells.length > 0 && (
-                                                      <span className={`text-[11px] font-semibold ${lot.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                      <span className={`text-[10px] font-semibold ${lot.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                         (Realized: {lot.realizedPnL >= 0 ? '+' : ''}₹{fmt(lot.realizedPnL)})
                                                       </span>
                                                     )}
@@ -956,18 +993,18 @@ function App() {
                                                 </div>
 
                                                 {lot.matchedSells.length === 0 ? (
-                                                  <p className="text-xs text-gray-400 py-2.5 text-center">No sell entries recorded yet.</p>
+                                                  <p className="text-[11px] text-gray-400 py-2 text-center">No sell entries recorded yet.</p>
                                                 ) : (
-                                                  <table className="w-full text-left text-xs whitespace-nowrap">
+                                                  <table className="w-full text-left text-[11px] whitespace-nowrap">
                                                     <thead>
-                                                      <tr className="text-[10px] text-gray-400 uppercase border-b border-gray-100">
-                                                        <th className="pb-1.5 font-medium">Type</th>
-                                                        <th className="pb-1.5 font-medium">Date</th>
-                                                        <th className="pb-1.5 font-medium">Qty</th>
-                                                        <th className="pb-1.5 font-medium">Price</th>
-                                                        <th className="pb-1.5 font-medium">Value</th>
-                                                        <th className="pb-1.5 font-medium">Realized PnL</th>
-                                                        <th className="pb-1.5 text-right font-medium">Actions</th>
+                                                      <tr className="text-[9px] text-gray-400 uppercase border-b border-gray-100">
+                                                        <th className="pb-1 font-medium">Type</th>
+                                                        <th className="pb-1 font-medium">Date</th>
+                                                        <th className="pb-1 font-medium">Qty</th>
+                                                        <th className="pb-1 font-medium">Price</th>
+                                                        <th className="pb-1 font-medium">Value</th>
+                                                        <th className="pb-1 font-medium">Realized PnL</th>
+                                                        <th className="pb-1 text-right font-medium">Actions</th>
                                                       </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-50">
@@ -975,20 +1012,20 @@ function App() {
                                                         const realPnlPct = lot.entryPrice > 0 ? ((sellAlloc.exit_price - lot.entryPrice) / lot.entryPrice) * 100 : 0;
                                                         return (
                                                           <tr key={`alloc-${sellAlloc.sellId}`} className="hover:bg-red-50/40 transition-colors">
-                                                            <td className="py-1.5">
-                                                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700">SELL</span>
+                                                            <td className="py-1">
+                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-red-100 text-red-700">SELL</span>
                                                             </td>
-                                                            <td className="py-1.5 text-gray-500">{new Date(sellAlloc.exit_date).toLocaleDateString()}</td>
-                                                            <td className="py-1.5 font-medium text-gray-800">{sellAlloc.quantity.toLocaleString()}</td>
-                                                            <td className="py-1.5 text-gray-600">₹{fmt(sellAlloc.exit_price)}</td>
-                                                            <td className="py-1.5 text-gray-600 font-medium">₹{fmt(sellAlloc.proceeds)}</td>
-                                                            <td className="py-1.5 font-medium">
+                                                            <td className="py-1 text-gray-500">{new Date(sellAlloc.exit_date).toLocaleDateString()}</td>
+                                                            <td className="py-1 font-medium text-gray-800">{sellAlloc.quantity.toLocaleString()}</td>
+                                                            <td className="py-1 text-gray-600">₹{fmt(sellAlloc.exit_price)}</td>
+                                                            <td className="py-1 text-gray-600 font-medium">₹{fmt(sellAlloc.proceeds)}</td>
+                                                            <td className="py-1 font-medium">
                                                               <span className={sellAlloc.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}>
                                                                 {sellAlloc.realizedPnL >= 0 ? '+' : ''}₹{fmt(sellAlloc.realizedPnL)}
                                                               </span>
-                                                              <span className="text-[10px] ml-1 text-gray-400">({realPnlPct >= 0 ? '+' : ''}{realPnlPct.toFixed(2)}%)</span>
+                                                              <span className="text-[9px] ml-1 text-gray-400">({realPnlPct >= 0 ? '+' : ''}{realPnlPct.toFixed(2)}%)</span>
                                                             </td>
-                                                            <td className="py-1.5 text-right">
+                                                            <td className="py-1 text-right">
                                                               <div className="flex items-center justify-end gap-1">
                                                                 <button onClick={(e) => { e.stopPropagation(); setEditSoldStockId(sellAlloc.sellId); }} className="p-1 text-gray-500 hover:text-zinc-900 rounded hover:bg-gray-100 transition-colors" title="Edit Sell">
                                                                   <Pencil className="w-3.5 h-3.5" />

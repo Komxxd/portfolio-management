@@ -8,6 +8,8 @@ interface SoldStock {
   symbol: string;
   quantity: number;
   exit_price: number;
+  brokerage?: number;
+  govt_tax?: number;
   exit_date: string;
 }
 
@@ -21,6 +23,8 @@ interface EditSoldStockModalProps {
 export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: EditSoldStockModalProps) {
   const [quantity, setQuantity] = useState('');
   const [exitPrice, setExitPrice] = useState('');
+  const [brokerage, setBrokerage] = useState('0');
+  const [govtTax, setGovtTax] = useState('0');
   const [exitDate, setExitDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,6 +33,8 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
     if (soldStock) {
       setQuantity(soldStock.quantity.toString());
       setExitPrice(soldStock.exit_price.toString());
+      setBrokerage((soldStock.brokerage || 0).toString());
+      setGovtTax((soldStock.govt_tax || 0).toString());
       setExitDate(soldStock.exit_date);
     }
   }, [soldStock]);
@@ -47,6 +53,8 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
       .update({ 
         quantity: parseFloat(quantity),
         exit_price: parseFloat(exitPrice),
+        brokerage: parseFloat(brokerage || '0'),
+        govt_tax: parseFloat(govtTax || '0'),
         exit_date: exitDate
       })
       .eq('id', soldStock.id);
@@ -125,6 +133,36 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
                 id="editExitPrice"
                 value={exitPrice}
                 onChange={(e) => setExitPrice(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                step="any"
+                min="0"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="editBrokerage" className="block text-sm font-medium text-gray-700 mb-1">
+                Brokerage (₹)
+              </label>
+              <input
+                type="number"
+                id="editBrokerage"
+                value={brokerage}
+                onChange={(e) => setBrokerage(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                step="any"
+                min="0"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="editGovtTax" className="block text-sm font-medium text-gray-700 mb-1">
+                Govt Tax (₹)
+              </label>
+              <input
+                type="number"
+                id="editGovtTax"
+                value={govtTax}
+                onChange={(e) => setGovtTax(e.target.value)}
                 className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                 step="any"
                 min="0"
