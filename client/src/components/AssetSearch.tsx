@@ -49,15 +49,15 @@ export function AssetSearch({ availableAssets, selectedSymbols, onChange }: Asse
       >
         <Search className="w-3.5 h-3.5 text-gray-400 mr-2 shrink-0" />
         
-        <div className="flex flex-wrap gap-1 items-center flex-1 max-w-[280px]">
+        <div className="flex flex-nowrap gap-1 items-center flex-1 max-w-[280px] overflow-hidden">
           {selectedSymbols.slice(0, 2).map(sym => (
-            <span key={sym} className="flex items-center gap-1 bg-zinc-100 border border-zinc-200 text-zinc-800 text-[10px] font-medium px-1.5 py-0.5 rounded">
+            <span key={sym} className="flex items-center gap-1 bg-zinc-100 border border-zinc-200 text-zinc-800 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0">
               {sym}
               <X className="w-3 h-3 cursor-pointer hover:text-red-500" onClick={(e) => removeSymbol(sym, e)} />
             </span>
           ))}
           {selectedSymbols.length > 2 && (
-            <span className="text-[10px] text-gray-500 font-medium px-1">
+            <span className="text-[10px] text-gray-500 font-medium px-1 shrink-0">
               +{selectedSymbols.length - 2} more
             </span>
           )}
@@ -92,9 +92,27 @@ export function AssetSearch({ availableAssets, selectedSymbols, onChange }: Asse
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-full max-w-[280px] min-w-[220px] bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto py-1">
+        <div className="absolute top-full left-0 mt-1 w-full max-w-[280px] min-w-[220px] bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 flex flex-col py-1">
           {filteredAssets.length > 0 ? (
-            <div className="flex flex-col">
+            <>
+              <div 
+                className="px-3 py-1.5 border-b border-gray-100 cursor-pointer hover:bg-gray-50 flex items-center justify-between group"
+                onClick={() => {
+                  const allFilteredSelected = filteredAssets.every(a => selectedSymbols.includes(a.symbol));
+                  if (allFilteredSelected) {
+                    const filteredSymbols = filteredAssets.map(a => a.symbol);
+                    onChange(selectedSymbols.filter(s => !filteredSymbols.includes(s)));
+                  } else {
+                    const filteredSymbols = filteredAssets.map(a => a.symbol);
+                    onChange(Array.from(new Set([...selectedSymbols, ...filteredSymbols])));
+                  }
+                }}
+              >
+                <span className="text-xs font-medium text-blue-600 group-hover:text-blue-700">
+                  {filteredAssets.every(a => selectedSymbols.includes(a.symbol)) ? 'Deselect All' : 'Select All'}
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto flex flex-col">
               {filteredAssets.map(asset => {
                 const isSelected = selectedSymbols.includes(asset.symbol);
                 return (
@@ -121,7 +139,8 @@ export function AssetSearch({ availableAssets, selectedSymbols, onChange }: Asse
                   </div>
                 );
               })}
-            </div>
+              </div>
+            </>
           ) : (
             <div className="px-3 py-4 text-xs text-gray-500 text-center">
               No assets found

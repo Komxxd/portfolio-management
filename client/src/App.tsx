@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Briefcase, Search, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, GripVertical } from 'lucide-react'
+import { Plus, Briefcase, Search, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, GripVertical, Info } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import { CreatePortfolioModal } from './components/CreatePortfolioModal'
 import { AddStockModal } from './components/AddStockModal'
@@ -10,6 +10,7 @@ import { RenamePortfolioModal } from './components/RenamePortfolioModal'
 import { CorporateActionModal } from './components/CorporateActionModal'
 import { CorporateActionsViewerModal } from './components/CorporateActionsViewerModal'
 import { AssetSearch } from './components/AssetSearch'
+import { PortfolioInfoModal } from './components/PortfolioInfoModal'
 
 const ALL_COLUMNS = [
   { id: 'symbol', label: 'Symbol' },
@@ -23,7 +24,8 @@ const ALL_COLUMNS = [
   { id: 'brokerage', label: 'Brokerage' },
   { id: 'govtTax', label: 'Govt Tax' },
   { id: 'totalPnL', label: 'Total PnL' },
-  { id: 'xirr', label: 'XIRR' }
+  { id: 'xirr', label: 'XIRR' },
+  { id: 'portfolioWeight', label: '% Invested' }
 ];
 
 interface Portfolio {
@@ -103,6 +105,7 @@ function App() {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [soldStocks, setSoldStocks] = useState<SoldStock[]>([]);
   const [activePortfolioId, setActivePortfolioId] = useState<string | null>(null);
+  const [isPortfolioInfoModalOpen, setIsPortfolioInfoModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [addStockPortfolioId, setAddStockPortfolioId] = useState<string | null>(null);
   const [sellStockPortfolioId, setSellStockPortfolioId] = useState<string | null>(null);
@@ -238,13 +241,38 @@ function App() {
     localStorage.setItem('portfolioColumnOrder', JSON.stringify(portfolioColumnOrder));
   }, [portfolioColumnOrder]);
 
-  const visibleColumns = (activePortfolioId && portfolioVisibleColumns[activePortfolioId]) 
-    ? portfolioVisibleColumns[activePortfolioId] 
-    : new Set(ALL_COLUMNS.map(c => c.id));
+  const visibleColumns = (() => {
+    let cols = (activePortfolioId && portfolioVisibleColumns[activePortfolioId]) 
+      ? new Set(portfolioVisibleColumns[activePortfolioId]) 
+      : new Set(ALL_COLUMNS.map(c => c.id));
+    
+    // Auto-enable new columns if they are not explicitly disabled
+    const saved = localStorage.getItem('portfolioVisibleColumns');
+    if (activePortfolioId && saved && portfolioVisibleColumns[activePortfolioId]) {
+      const allIds = ALL_COLUMNS.map(c => c.id);
+      const isMissing = !portfolioVisibleColumns[activePortfolioId].has('portfolioWeight') && 
+        !(JSON.parse(saved)[activePortfolioId] || []).includes('portfolioWeight');
+      
+      // We'll just add it to the visible set if it's completely missing
+      // (a slightly hacky but safe approach without deep migration)
+      if (isMissing) {
+        cols.add('portfolioWeight');
+      }
+    }
+    return cols;
+  })();
 
-  const activeColumnOrder = (activePortfolioId && portfolioColumnOrder[activePortfolioId])
-    ? portfolioColumnOrder[activePortfolioId]
-    : ALL_COLUMNS.map(c => c.id);
+  const activeColumnOrder = (() => {
+    let order = (activePortfolioId && portfolioColumnOrder[activePortfolioId])
+      ? [...portfolioColumnOrder[activePortfolioId]]
+      : ALL_COLUMNS.map(c => c.id);
+    
+    const missingCols = ALL_COLUMNS.map(c => c.id).filter(id => !order.includes(id));
+    if (missingCols.length > 0) {
+      order = [...order, ...missingCols];
+    }
+    return order;
+  })();
 
   const toggleColumn = (colId: string) => {
     if (!activePortfolioId) return;
@@ -898,6 +926,12 @@ function App() {
       if (sortField === 'totalPnL') {
         valA = a.unrealizedPnL + a.realizedPnL;
         valB = b.unrealizedPnL + b.realizedPnL;
+      } else if (sortField === 'xirr') {
+        valA = a.xirr;
+        valB = b.xirr;
+      } else if (sortField === 'portfolioWeight') {
+        valA = totalInvestment > 0 ? (a.netCostBasis / totalInvestment) * 100 : 0;
+        valB = totalInvestment > 0 ? (b.netCostBasis / totalInvestment) * 100 : 0;
       }
 
       if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
@@ -927,7 +961,7 @@ function App() {
     const width = activeColumnWidths[field] || (field === 'symbol' ? 180 : 100);
     return (
       <th 
-        className={`px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500 cursor-pointer hover:bg-gray-100 transition-colors select-none group relative ${resizingCol?.id === field ? 'bg-gray-100' : ''}`}
+        className={`px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500 cursor-pointer bg-white hover:bg-gray-100 transition-colors select-none group relative ${resizingCol?.id === field ? 'bg-gray-100' : ''}`}
         style={{ width, minWidth: width, maxWidth: width }}
         onClick={() => handleSort(field)}
       >
@@ -1126,7 +1160,7 @@ function App() {
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-auto p-2 md:p-4">
+        <div className="flex-1 overflow-hidden p-2 md:p-4 flex flex-col min-h-0">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="w-8 h-8 border-2 border-gray-200 border-t-zinc-900 rounded-full animate-spin" />
@@ -1148,7 +1182,7 @@ function App() {
               </button>
             </div>
           ) : (
-            <div className="w-full">
+            <div className="w-full flex flex-col h-full min-h-0">
               {/* Stats Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
@@ -1222,11 +1256,18 @@ function App() {
               </div>
 
               {/* Data Table */}
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col">
-                <div className="px-3 py-2 border-b border-gray-200 flex justify-between items-center bg-white">
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+                <div className="px-3 py-2 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-base text-zinc-900">Assets</h3>
+                      <button 
+                        onClick={() => setIsPortfolioInfoModalOpen(true)}
+                        className="text-gray-400 hover:text-blue-500 transition-colors"
+                        title="View Corporate Actions Timeline"
+                      >
+                        <Info className="w-4 h-4" />
+                      </button>
                       {pricesLoading && (
                         <div className="w-3.5 h-3.5 border-2 border-gray-200 border-t-zinc-900 rounded-full animate-spin" title="Updating live prices..." />
                       )}
@@ -1359,17 +1400,17 @@ function App() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-auto flex-1 bg-white">
                   <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
-                    <thead>
-                      <tr className="border-b border-gray-200 bg-gray-50/50">
-                        <th className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 w-6"></th>
+                    <thead className="sticky top-0 z-10 bg-white shadow-sm">
+                      <tr className="border-b border-gray-200">
+                        <th className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 w-6 bg-white"></th>
                         {activeColumnOrder.map(colId => {
                           if (!visibleColumns.has(colId)) return null;
                           const col = ALL_COLUMNS.find(c => c.id === colId)!;
                           return <SortHeader key={col.id} field={col.id} label={col.label} />;
                         })}
-                        <th className="px-2 py-1.5 text-right w-8"></th>
+                        <th className="px-2 py-1.5 text-right w-8 bg-white"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1440,6 +1481,13 @@ function App() {
                                       return <td key="avgBuyPrice" className="px-2 py-1.5 text-[11px] text-gray-600 truncate">₹{fmt(group.avgBuyPrice)}</td>;
                                     case 'netCostBasis':
                                       return <td key="netCostBasis" className="px-2 py-1.5 text-[11px] text-gray-600 truncate" title="Avg buy price × remaining shares — money still at work">₹{fmt(group.netCostBasis)}</td>;
+                                    case 'portfolioWeight':
+                                      const weight = totalInvestment > 0 ? (group.netCostBasis / totalInvestment) * 100 : 0;
+                                      return (
+                                        <td key="portfolioWeight" className="px-2 py-1.5 text-[11px] text-gray-600 truncate">
+                                          {weight.toFixed(2)}%
+                                        </td>
+                                      );
                                     case 'livePrice':
                                       return <td key="livePrice" className="px-2 py-1.5 text-[11px] font-medium text-zinc-900 truncate">₹{fmt(group.livePrice)}</td>;
                                     case 'currentValue':
@@ -1836,6 +1884,12 @@ function App() {
         isOpen={viewCorporateActionsSymbol !== null}
         onClose={() => setViewCorporateActionsSymbol(null)}
         symbol={viewCorporateActionsSymbol || ''}
+      />
+
+      <PortfolioInfoModal
+        isOpen={isPortfolioInfoModalOpen}
+        onClose={() => setIsPortfolioInfoModalOpen(false)}
+        symbols={allSymbols.map(sym => ({ symbol: sym, name: livePrices[sym]?.name || '' }))}
       />
     </div>
   )

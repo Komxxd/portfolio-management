@@ -119,6 +119,58 @@ app.get("/api/corporate-actions", async (req, res) => {
     }
 });
 
+app.post('/api/bulk-corporate-actions', async (req, res) => {
+    try {
+        const { symbols } = req.body;
+        if (!symbols || !Array.isArray(symbols)) {
+            return res.status(400).json({ error: "Missing or invalid 'symbols' array in request body" });
+        }
+
+        const fetchSymbolActions = async (symbol) => {
+            try {
+                const result = await yahooFinance.chart(symbol, {
+                    period1: '1990-01-01'
+                });
+
+                let events = [];
+                if (result && result.events) {
+                    if (result.events.dividends) {
+                        events.push(...Object.values(result.events.dividends).map(d => ({
+                            symbol,
+                            type: 'DIVIDEND',
+                            date: d.date,
+                            amount: d.amount
+                        })));
+                    }
+                    if (result.events.splits) {
+                        events.push(...Object.values(result.events.splits).map(s => ({
+                            symbol,
+                            type: 'SPLIT',
+                            date: s.date,
+                            numerator: s.numerator,
+                            denominator: s.denominator,
+                            splitRatio: s.splitRatio
+                        })));
+                    }
+                }
+                return events;
+            } catch (err) {
+                console.error(`Failed to fetch corporate actions for ${symbol}:`, err);
+                return []; // Return empty for failed symbols so others still succeed
+            }
+        };
+
+        const allResults = await Promise.all(symbols.map(fetchSymbolActions));
+        // Flatten and sort by date descending
+        const allEvents = allResults.flat().sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        res.json({ events: allEvents });
+    } catch (error) {
+        console.error("Bulk Corporate Actions Error:", error);
+        res.status(500).json({ error: "Failed to fetch bulk corporate actions" });
+    }
+});
+
 const PORT = process.env.PORT || 5001;
 
 if (require.main === module) {
