@@ -71,6 +71,54 @@ app.get("/api/prices", async (req, res) => {
     }
 });
 
+// Corporate Actions endpoint
+app.get("/api/corporate-actions", async (req, res) => {
+    try {
+        const symbol = req.query.symbol;
+        if (!symbol) {
+            return res.status(400).json({ error: "Symbol is required" });
+        }
+        
+        // Fetch chart data from a long time ago to get all events
+        const result = await yahooFinance.chart(symbol, {
+            period1: '1990-01-01'
+        });
+        
+        let dividends = [];
+        let splits = [];
+
+        if (result && result.events) {
+            if (result.events.dividends) {
+                dividends = Object.values(result.events.dividends).map(d => ({
+                    date: d.date,
+                    amount: d.amount
+                }));
+            }
+            if (result.events.splits) {
+                splits = Object.values(result.events.splits).map(s => ({
+                    date: s.date,
+                    numerator: s.numerator,
+                    denominator: s.denominator,
+                    splitRatio: s.splitRatio
+                }));
+            }
+        }
+        
+        // Sort by date descending
+        dividends.sort((a, b) => new Date(b.date) - new Date(a.date));
+        splits.sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        res.json({
+            symbol,
+            dividends,
+            splits
+        });
+    } catch (error) {
+        console.error("Corporate Actions Error:", error);
+        res.status(500).json({ error: "Failed to fetch corporate actions" });
+    }
+});
+
 const PORT = process.env.PORT || 5001;
 
 if (require.main === module) {

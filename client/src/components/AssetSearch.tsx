@@ -2,12 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, X, Check } from 'lucide-react';
 
 interface AssetSearchProps {
-  availableSymbols: string[];
+  availableAssets: { symbol: string, name: string }[];
   selectedSymbols: string[];
   onChange: (symbols: string[]) => void;
 }
 
-export function AssetSearch({ availableSymbols, selectedSymbols, onChange }: AssetSearchProps) {
+export function AssetSearch({ availableAssets, selectedSymbols, onChange }: AssetSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -22,8 +22,9 @@ export function AssetSearch({ availableSymbols, selectedSymbols, onChange }: Ass
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredSymbols = availableSymbols.filter(sym => 
-    sym.toLowerCase().includes(searchText.toLowerCase())
+  const filteredAssets = availableAssets.filter(asset => 
+    asset.symbol.toLowerCase().includes(searchText.toLowerCase()) ||
+    asset.name?.toLowerCase().includes(searchText.toLowerCase())
   );
 
   const toggleSymbol = (sym: string) => {
@@ -92,20 +93,31 @@ export function AssetSearch({ availableSymbols, selectedSymbols, onChange }: Ass
       {/* Dropdown Menu */}
       {isOpen && (
         <div className="absolute top-full left-0 mt-1 w-full max-w-[280px] min-w-[220px] bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto py-1">
-          {filteredSymbols.length > 0 ? (
+          {filteredAssets.length > 0 ? (
             <div className="flex flex-col">
-              {filteredSymbols.map(sym => {
-                const isSelected = selectedSymbols.includes(sym);
+              {filteredAssets.map(asset => {
+                const isSelected = selectedSymbols.includes(asset.symbol);
                 return (
                   <div
-                    key={sym}
-                    className="flex items-center px-3 py-1.5 hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => toggleSymbol(sym)}
+                    key={asset.symbol}
+                    className="flex items-center px-3 py-1.5 hover:bg-gray-50 cursor-pointer group"
+                    onClick={() => toggleSymbol(asset.symbol)}
                   >
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center mr-2.5 transition-colors ${isSelected ? 'bg-zinc-900 border-zinc-900 text-white' : 'border-gray-300 bg-white'}`}>
-                      {isSelected && <Check className="w-3 h-3" />}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-semibold ${isSelected ? 'text-zinc-900' : 'text-zinc-700'}`}>
+                          {asset.symbol}
+                        </span>
+                        {asset.name && (
+                          <span className="text-[10px] text-gray-500 truncate" title={asset.name}>
+                            {asset.name}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-xs font-medium text-zinc-900">{sym}</span>
+                    {isSelected && (
+                      <Check className="w-3.5 h-3.5 text-zinc-900 ml-2 shrink-0" />
+                    )}
                   </div>
                 );
               })}

@@ -114,69 +114,73 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
               />
             </div>
             
-            <div>
-              <label htmlFor="editQuantity" className="block text-sm font-medium text-gray-700 mb-1">
-                {isSplit ? 'Split Multiplier' : isDividend ? 'Dividend Per Share (₹)' : 'Quantity'}
-              </label>
-              <input
-                type="number"
-                id="editQuantity"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                step="any"
-                min={isSplit || isDividend ? "0.0001" : "0"}
-              />
-            </div>
-
             {!isCorporateAction && (
-              <>
-                <div className="col-span-2">
-                  <label htmlFor="editEntryPrice" className="block text-sm font-medium text-gray-700 mb-1">
-                    Entry Price (₹)
-                  </label>
-                  <input
-                    type="number"
-                    id="editEntryPrice"
-                    value={entryPrice}
-                    onChange={(e) => setEntryPrice(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                    step="any"
-                    min="0"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="editBrokerage" className="block text-sm font-medium text-gray-700 mb-1">
-                    Brokerage (₹)
-                  </label>
-                  <input
-                    type="number"
-                    id="editBrokerage"
-                    value={brokerage}
-                    onChange={(e) => setBrokerage(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                    step="any"
-                    min="0"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="editGovtTax" className="block text-sm font-medium text-gray-700 mb-1">
-                    Govt Tax (₹)
-                  </label>
-                  <input
-                    type="number"
-                    id="editGovtTax"
-                    value={govtTax}
-                    onChange={(e) => setGovtTax(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                    step="any"
-                    min="0"
-                  />
-                </div>
-              </>
+              <div>
+                <label htmlFor="editEntryPrice" className="block text-sm font-medium text-gray-700 mb-1">
+                  Entry Price (₹)
+                </label>
+                <input
+                  type="number"
+                  id="editEntryPrice"
+                  value={entryPrice}
+                  onChange={(e) => setEntryPrice(e.target.value)}
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                  step="any"
+                  min="0"
+                />
+              </div>
             )}
+            
+            <div className={`col-span-2 ${!isCorporateAction ? 'grid grid-cols-3 gap-4' : ''}`}>
+              <div>
+                <label htmlFor="editQuantity" className="block text-sm font-medium text-gray-700 mb-1">
+                  {isSplit ? 'Split Multiplier' : isDividend ? 'Dividend Per Share (₹)' : 'Quantity'}
+                </label>
+                <input
+                  type="number"
+                  id="editQuantity"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                  step="any"
+                  min={isSplit || isDividend ? "0.0001" : "0"}
+                />
+              </div>
+
+              {!isCorporateAction && (
+                <>
+                  <div>
+                    <label htmlFor="editBrokerage" className="block text-sm font-medium text-gray-700 mb-1">
+                      Brokerage (₹)
+                    </label>
+                    <input
+                      type="number"
+                      id="editBrokerage"
+                      value={brokerage}
+                      onChange={(e) => setBrokerage(e.target.value)}
+                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                      step="any"
+                      min="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="editGovtTax" className="block text-sm font-medium text-gray-700 mb-1">
+                      Govt Tax (₹)
+                    </label>
+                    <input
+                      type="number"
+                      id="editGovtTax"
+                      value={govtTax}
+                      onChange={(e) => setGovtTax(e.target.value)}
+                      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                      step="any"
+                      min="0"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           
           {error && <p className="text-red-500 text-sm">{error}</p>}

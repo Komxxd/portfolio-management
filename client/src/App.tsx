@@ -8,6 +8,7 @@ import { EditStockModal } from './components/EditStockModal'
 import { EditSoldStockModal } from './components/EditSoldStockModal'
 import { RenamePortfolioModal } from './components/RenamePortfolioModal'
 import { CorporateActionModal } from './components/CorporateActionModal'
+import { CorporateActionsViewerModal } from './components/CorporateActionsViewerModal'
 import { AssetSearch } from './components/AssetSearch'
 
 const ALL_COLUMNS = [
@@ -19,6 +20,8 @@ const ALL_COLUMNS = [
   { id: 'currentValue', label: 'Current Value' },
   { id: 'unrealizedPnL', label: 'Unrealized PnL' },
   { id: 'realizedPnL', label: 'Realized PnL' },
+  { id: 'brokerage', label: 'Brokerage' },
+  { id: 'govtTax', label: 'Govt Tax' },
   { id: 'totalPnL', label: 'Total PnL' },
   { id: 'xirr', label: 'XIRR' }
 ];
@@ -107,6 +110,7 @@ function App() {
   const [editSoldStockId, setEditSoldStockId] = useState<string | null>(null);
   const [renamePortfolioId, setRenamePortfolioId] = useState<string | null>(null);
   const [corporateActionType, setCorporateActionType] = useState<'bonus' | 'split' | 'dividend' | null>(null);
+  const [viewCorporateActionsSymbol, setViewCorporateActionsSymbol] = useState<string | null>(null);
   const [portfolioFilters, setPortfolioFilters] = useState<Record<string, { filterType: 'open' | 'closed' | 'all'; searchSelectedSymbols: string[]; sortField: string | null; sortDirection: 'asc' | 'desc' }>>({});
 
   const currentFilters = activePortfolioId && portfolioFilters[activePortfolioId] 
@@ -1155,18 +1159,18 @@ function App() {
                 </div>
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
                   <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
-                    <span>Total Invested</span>
-                  </div>
-                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-                    ₹{totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
                     <span>Max Investment</span>
                   </div>
                   <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Total Invested</span>
+                  </div>
+                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    ₹{totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
@@ -1242,7 +1246,7 @@ function App() {
                     </div>
                     
                     <AssetSearch 
-                      availableSymbols={allSymbols} 
+                      availableAssets={allSymbols.map(sym => ({ symbol: sym, name: livePrices[sym]?.name || '' }))} 
                       selectedSymbols={searchSelectedSymbols} 
                       onChange={setSearchSelectedSymbols} 
                     />
@@ -1274,6 +1278,14 @@ function App() {
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setIsColumnsDropdownOpen(false)} />
                           <div className="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 max-h-64 overflow-y-auto">
+                            <div className="border-b border-gray-100 p-1 mb-1">
+                              <button
+                                onClick={resetColumns}
+                                className="w-full flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded transition-colors"
+                              >
+                                Reset to Default
+                              </button>
+                            </div>
                             {activeColumnOrder.map(colId => {
                               const col = ALL_COLUMNS.find(c => c.id === colId)!;
                               return (
@@ -1293,14 +1305,6 @@ function App() {
                                 </div>
                               );
                             })}
-                            <div className="border-t border-gray-100 p-1 mt-1">
-                              <button
-                                onClick={resetColumns}
-                                className="w-full flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded transition-colors"
-                              >
-                                Reset to Default
-                              </button>
-                            </div>
                           </div>
                         </>
                       )}
@@ -1337,6 +1341,20 @@ function App() {
                       className="text-xs font-medium text-green-600 hover:text-green-800 transition-colors"
                     >
                       Add Dividend
+                    </button>
+                    <div className="w-px h-3 bg-gray-300 mx-1"></div>
+                    <button
+                      onClick={() => {
+                        if (expandedSymbols.size > 0) {
+                          setExpandedSymbols(new Set());
+                        } else {
+                          setExpandedSymbols(new Set(filteredSymbolGroups.map(g => g.symbol)));
+                        }
+                      }}
+                      className="text-xs font-medium text-gray-500 hover:text-zinc-900 transition-colors flex items-center gap-1"
+                    >
+                      <ArrowUpDown className="w-3 h-3" />
+                      {expandedSymbols.size > 0 ? 'Collapse All' : 'Expand All'}
                     </button>
                   </div>
                 </div>
@@ -1386,9 +1404,6 @@ function App() {
                                       return (
                                         <td key="symbol" className="px-2 py-1.5 truncate">
                                           <div className="flex items-center gap-1.5 overflow-hidden">
-                                            <div className="w-5 h-5 rounded border border-gray-200 bg-white flex items-center justify-center font-bold text-[9px] text-gray-600 shrink-0">
-                                              {group.symbol.charAt(0)}
-                                            </div>
                                             <div className="min-w-0 flex-1">
                                               <div className="font-semibold text-[11px] text-zinc-900 flex items-center gap-1.5 truncate">
                                                 <span className="truncate">{group.symbol}</span>
@@ -1398,9 +1413,22 @@ function App() {
                                                   </span>
                                                 )}
                                               </div>
-                                              <div className="text-[9px] text-gray-400 mt-0.5 truncate">
-                                                {group.totalBoughtQty.toLocaleString()} bought
-                                                {group.totalSoldQty > 0 && <> · <span className="text-red-400">{group.totalSoldQty.toLocaleString()} sold</span></>}
+                                              <div className="text-[9px] text-gray-400 mt-0.5 truncate flex items-center gap-1.5">
+                                                <span>
+                                                  {group.totalBoughtQty.toLocaleString()} bought
+                                                  {group.totalSoldQty > 0 && <> · <span className="text-red-400">{group.totalSoldQty.toLocaleString()} sold</span></>}
+                                                </span>
+                                                <span>·</span>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setViewCorporateActionsSymbol(group.symbol);
+                                                  }}
+                                                  className="text-blue-500 hover:text-blue-700 hover:underline transition-colors focus:outline-none"
+                                                  title={`View Corporate Actions for ${group.symbol}`}
+                                                >
+                                                  Corporate Actions
+                                                </button>
                                               </div>
                                             </div>
                                           </div>
@@ -1437,6 +1465,10 @@ function App() {
                                           )}
                                         </td>
                                       );
+                                    case 'brokerage':
+                                      return <td key="brokerage" className="px-2 py-1.5 text-[11px] text-gray-600 truncate">₹{fmt(group.totalBrokerage)}</td>;
+                                    case 'govtTax':
+                                      return <td key="govtTax" className="px-2 py-1.5 text-[11px] text-gray-600 truncate">₹{fmt(group.totalGovtTax)}</td>;
                                     case 'totalPnL':
                                       return (
                                         <td key="totalPnL" className="px-2 py-1.5 text-[11px] truncate">
@@ -1798,6 +1830,12 @@ function App() {
         ownedSymbols={symbolGroups.filter(g => g.netQty > 0).map(g => g.symbol)}
         symbolGroups={symbolGroups}
         onSuccess={fetchData}
+      />
+
+      <CorporateActionsViewerModal
+        isOpen={viewCorporateActionsSymbol !== null}
+        onClose={() => setViewCorporateActionsSymbol(null)}
+        symbol={viewCorporateActionsSymbol || ''}
       />
     </div>
   )

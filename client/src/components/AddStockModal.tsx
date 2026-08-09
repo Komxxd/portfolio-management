@@ -214,22 +214,6 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId }: AddStoc
               </div>
               
               <div>
-                <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
-                  Quantity
-                </label>
-                <input
-                  type="number"
-                  id="quantity"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                  placeholder="0.00"
-                  step="any"
-                  min="0"
-                />
-              </div>
-
-              <div className="col-span-2">
                 <label htmlFor="entryPrice" className="block text-sm font-medium text-gray-700 mb-1">
                   Entry Price (₹)
                 </label>
@@ -245,36 +229,54 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId }: AddStoc
                 />
               </div>
 
-              <div>
-                <label htmlFor="brokerage" className="block text-sm font-medium text-gray-700 mb-1">
-                  Brokerage (₹)
-                </label>
-                <input
-                  type="number"
-                  id="brokerage"
-                  value={brokerage}
-                  onChange={(e) => setBrokerage(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                  placeholder="0.00"
-                  step="any"
-                  min="0"
-                />
-              </div>
+              <div className="col-span-2 grid grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantity
+                  </label>
+                  <input
+                    type="number"
+                    id="quantity"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    placeholder="0.00"
+                    step="any"
+                    min="0"
+                  />
+                </div>
 
-              <div>
-                <label htmlFor="govtTax" className="block text-sm font-medium text-gray-700 mb-1">
-                  Govt Tax (₹)
-                </label>
-                <input
-                  type="number"
-                  id="govtTax"
-                  value={govtTax}
-                  onChange={(e) => setGovtTax(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                  placeholder="0.00"
-                  step="any"
-                  min="0"
-                />
+                <div>
+                  <label htmlFor="brokerage" className="block text-sm font-medium text-gray-700 mb-1">
+                    Brokerage (₹)
+                  </label>
+                  <input
+                    type="number"
+                    id="brokerage"
+                    value={brokerage}
+                    onChange={(e) => setBrokerage(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    placeholder="0.00"
+                    step="any"
+                    min="0"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="govtTax" className="block text-sm font-medium text-gray-700 mb-1">
+                    Govt Tax (₹)
+                  </label>
+                  <input
+                    type="number"
+                    id="govtTax"
+                    value={govtTax}
+                    onChange={(e) => setGovtTax(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    placeholder="0.00"
+                    step="any"
+                    min="0"
+                  />
+                </div>
               </div>
             </div>
           </div>

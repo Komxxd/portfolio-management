@@ -288,39 +288,6 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
               </div>
 
               <div>
-                <label htmlFor="sell-quantity" className="block text-sm font-medium text-gray-700 mb-1">
-                  Quantity
-                  {selectedStock && (
-                    <span className="ml-1 text-[10px] font-normal text-gray-400">
-                      (max {selectedStock.available.toLocaleString()})
-                    </span>
-                  )}
-                </label>
-                <input
-                  type="number"
-                  id="sell-quantity"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  max={selectedStock?.available}
-                  className={`w-full bg-white border rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 transition-shadow ${
-                    qtyExceedsHolding
-                      ? 'border-red-400 focus:ring-red-400 focus:border-red-400'
-                      : 'border-gray-200 focus:ring-zinc-900 focus:border-zinc-900'
-                  }`}
-                  placeholder="0.00"
-                  step="any"
-                  min="0"
-                  disabled={!selectedSymbol}
-                />
-                {qtyExceedsHolding && (
-                  <p className="mt-1 text-[11px] text-red-500 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    Exceeds available holding of {selectedStock!.available.toLocaleString()}
-                  </p>
-                )}
-              </div>
-
-              <div className="col-span-2">
                 <label htmlFor="exitPrice" className="block text-sm font-medium text-gray-700 mb-1">
                   Exit Price (₹)
                 </label>
@@ -337,38 +304,73 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
                 />
               </div>
 
-              <div>
-                <label htmlFor="brokerage" className="block text-sm font-medium text-gray-700 mb-1">
-                  Brokerage (₹)
-                </label>
-                <input
-                  type="number"
-                  id="brokerage"
-                  value={brokerage}
-                  onChange={(e) => setBrokerage(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                  placeholder="0.00"
-                  step="any"
-                  min="0"
-                  disabled={!selectedSymbol}
-                />
-              </div>
+              <div className="col-span-2 grid grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="sell-quantity" className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantity
+                    {selectedStock && (
+                      <span className="ml-1 text-[10px] font-normal text-gray-400">
+                        (max {selectedStock.available.toLocaleString()})
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    id="sell-quantity"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    max={selectedStock?.available}
+                    className={`w-full bg-white border rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 transition-shadow ${
+                      qtyExceedsHolding
+                        ? 'border-red-400 focus:ring-red-400 focus:border-red-400'
+                        : 'border-gray-200 focus:ring-zinc-900 focus:border-zinc-900'
+                    }`}
+                    placeholder="0.00"
+                    step="any"
+                    min="0"
+                    disabled={!selectedSymbol}
+                  />
+                  {qtyExceedsHolding && (
+                    <p className="mt-1 text-[11px] text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Exceeds available holding of {selectedStock!.available.toLocaleString()}
+                    </p>
+                  )}
+                </div>
 
-              <div>
-                <label htmlFor="govtTax" className="block text-sm font-medium text-gray-700 mb-1">
-                  Govt Tax (₹)
-                </label>
-                <input
-                  type="number"
-                  id="govtTax"
-                  value={govtTax}
-                  onChange={(e) => setGovtTax(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                  placeholder="0.00"
-                  step="any"
-                  min="0"
-                  disabled={!selectedSymbol}
-                />
+                <div>
+                  <label htmlFor="brokerage" className="block text-sm font-medium text-gray-700 mb-1">
+                    Brokerage (₹)
+                  </label>
+                  <input
+                    type="number"
+                    id="brokerage"
+                    value={brokerage}
+                    onChange={(e) => setBrokerage(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    placeholder="0.00"
+                    step="any"
+                    min="0"
+                    disabled={!selectedSymbol}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="govtTax" className="block text-sm font-medium text-gray-700 mb-1">
+                    Govt Tax (₹)
+                  </label>
+                  <input
+                    type="number"
+                    id="govtTax"
+                    value={govtTax}
+                    onChange={(e) => setGovtTax(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    placeholder="0.00"
+                    step="any"
+                    min="0"
+                    disabled={!selectedSymbol}
+                  />
+                </div>
               </div>
             </div>
           </div>
