@@ -249,7 +249,7 @@ function App() {
     // Auto-enable new columns if they are not explicitly disabled
     const saved = localStorage.getItem('portfolioVisibleColumns');
     if (activePortfolioId && saved && portfolioVisibleColumns[activePortfolioId]) {
-      const allIds = ALL_COLUMNS.map(c => c.id);
+
       const isMissing = !portfolioVisibleColumns[activePortfolioId].has('portfolioWeight') && 
         !(JSON.parse(saved)[activePortfolioId] || []).includes('portfolioWeight');
       
