@@ -196,7 +196,15 @@ function App() {
   const [isColumnsDropdownOpen, setIsColumnsDropdownOpen] = useState(false);
   const [isRecycleBinModalOpen, setIsRecycleBinModalOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [portfolioToDelete, setPortfolioToDelete] = useState<string | null>(null);
+  const [confirmationConfig, setConfirmationConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    isDestructive?: boolean;
+    requireInputToConfirm?: string;
+  } | null>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -501,7 +509,7 @@ function App() {
     }
   };
 
-  const handleDeleteStock = async (stockId: string) => {
+  const handleDeleteStock = (stockId: string) => {
     const stockToDelete = stocks.find(s => s.id === stockId);
     if (stockToDelete && stockToDelete.entry_price > 0) {
       const otherBuys = stocks.filter(s => s.symbol === stockToDelete.symbol && s.id !== stockId && s.entry_price > 0);
@@ -509,76 +517,111 @@ function App() {
         const hasOtherEntries = stocks.some(s => s.symbol === stockToDelete.symbol && s.id !== stockId) || 
                                 soldStocks.some(s => s.symbol === stockToDelete.symbol);
         if (hasOtherEntries) {
-           const confirm = window.confirm(`Deleting the last Buy entry for ${stockToDelete.symbol} will also delete all associated Sells and Corporate Actions. Continue?`);
-           if (!confirm) return;
+           setConfirmationConfig({
+             isOpen: true,
+             title: 'Delete Asset entirely?',
+             message: `Deleting the last Buy entry for ${stockToDelete.symbol} will also delete all associated Sells and Corporate Actions. Continue?`,
+             confirmText: 'Delete All',
+             isDestructive: true,
+             onConfirm: () => executeDeleteAsset(stockToDelete.symbol)
+           });
+           return;
         }
-        await executeDeleteAsset(stockToDelete.symbol);
+        executeDeleteAsset(stockToDelete.symbol);
         return;
       }
     }
 
-    try {
-      const { error } = await supabase
-        .from('stocks')
-        .delete()
-        .eq('id', stockId);
+    setConfirmationConfig({
+      isOpen: true,
+      title: 'Delete Buy Entry',
+      message: 'Are you sure you want to delete this buy entry? This action cannot be undone.',
+      confirmText: 'Delete',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('stocks')
+            .delete()
+            .eq('id', stockId);
 
-      if (error) throw error;
+          if (error) throw error;
 
-      setStocks(prev => prev.filter(s => s.id !== stockId));
-    } catch (err: any) {
-      console.error('Error deleting stock:', err.message);
-      alert('Failed to delete asset. Please try again.');
-    }
+          setStocks(prev => prev.filter(s => s.id !== stockId));
+        } catch (err: any) {
+          console.error('Error deleting stock:', err.message);
+          alert('Failed to delete asset. Please try again.');
+        }
+      }
+    });
   };
 
-  const handleDeleteSoldStock = async (soldStockId: string) => {
-    try {
-      const { error } = await supabase
-        .from('sold_stocks')
-        .delete()
-        .eq('id', soldStockId);
 
-      if (error) throw error;
+  const handleDeleteSoldStock = (soldStockId: string) => {
+    setConfirmationConfig({
+      isOpen: true,
+      title: 'Delete Sell Entry',
+      message: 'Are you sure you want to delete this sell entry? This action cannot be undone.',
+      confirmText: 'Delete',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('sold_stocks')
+            .delete()
+            .eq('id', soldStockId);
 
-      setSoldStocks(prev => prev.filter(s => s.id !== soldStockId));
-    } catch (err: any) {
-      console.error('Error deleting sold stock:', err.message);
-      alert('Failed to delete sold asset. Please try again.');
-    }
+          if (error) throw error;
+
+          setSoldStocks(prev => prev.filter(s => s.id !== soldStockId));
+        } catch (err: any) {
+          console.error('Error deleting sold stock:', err.message);
+          alert('Failed to delete sold asset. Please try again.');
+        }
+      }
+    });
   };
 
-  const handleDeleteAsset = async (symbol: string) => {
-    const confirmDelete = window.confirm(`Are you sure you want to delete ALL records for ${symbol}? This cannot be undone.`);
-    if (!confirmDelete) return;
-    await executeDeleteAsset(symbol);
+  const handleDeleteAsset = (symbol: string) => {
+    setConfirmationConfig({
+      isOpen: true,
+      title: `Delete Asset: ${symbol}`,
+      message: `Are you sure you want to delete ALL records for ${symbol}? This cannot be undone.`,
+      confirmText: 'Delete Asset',
+      isDestructive: true,
+      onConfirm: () => executeDeleteAsset(symbol)
+    });
   };
 
   const handleDeletePortfolio = (id: string) => {
-    setPortfolioToDelete(id);
-  };
+    const portfolioName = portfolios.find(p => p.id === id)?.name;
+    setConfirmationConfig({
+      isOpen: true,
+      title: 'Delete Portfolio',
+      message: `Are you sure you want to delete "${portfolioName}"? It will be moved to the Recycle Bin and can be recovered within 30 days.`,
+      confirmText: 'Delete',
+      isDestructive: true,
+      requireInputToConfirm: portfolioName,
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('portfolios')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', id);
 
-  const executeDeletePortfolio = async () => {
-    if (!portfolioToDelete) return;
-    try {
-      const { error } = await supabase
-        .from('portfolios')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', portfolioToDelete);
+          if (error) throw error;
 
-      if (error) throw error;
+          if (activePortfolioId === id) {
+            setActivePortfolioId(portfolios.length > 1 ? portfolios.find(p => p.id !== id)?.id || null : null);
+          }
 
-      if (activePortfolioId === portfolioToDelete) {
-        setActivePortfolioId(portfolios.length > 1 ? portfolios.find(p => p.id !== portfolioToDelete)?.id || null : null);
+          await fetchData();
+        } catch (err: any) {
+          console.error('Error deleting portfolio:', err);
+          alert('Failed to delete portfolio. Please try again.');
+        }
       }
-
-      await fetchData();
-    } catch (err: any) {
-      console.error('Error deleting portfolio:', err);
-      alert('Failed to delete portfolio. Please try again.');
-    } finally {
-      setPortfolioToDelete(null);
-    }
+    });
   };
 
   const handleCopyPortfolio = async (id: string, originalName: string) => {
@@ -1588,7 +1631,7 @@ function App() {
                 <div className="overflow-auto flex-1 bg-white">
                   <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
                     <thead className="sticky top-0 z-10 bg-white shadow-sm">
-                      <tr className="border-b border-gray-200">
+                      <tr className="border-b border-gray-200 divide-x divide-gray-200">
                         <th className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 w-6 bg-white"></th>
                         {activeColumnOrder.map(colId => {
                           if (!visibleColumns.has(colId)) return null;
@@ -1614,7 +1657,7 @@ function App() {
                               {/* ── Summary row ── */}
                               <tr
                                 onClick={() => toggleSymbol(group.symbol)}
-                                className="border-t border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors group"
+                                className="border-b border-gray-200 divide-x divide-gray-200 hover:bg-gray-50 cursor-pointer transition-colors group"
                               >
                                 <td className="pl-2 pr-1 py-1.5">
                                   <span className="text-gray-400 group-hover:text-zinc-700 transition-colors">
@@ -1730,7 +1773,7 @@ function App() {
                                   }
                                 })}
                                 <td className="px-2 py-1.5 text-[11px] text-right">
-                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteAsset(group.symbol); }} className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100" title={`Delete ${group.symbol}`}>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteAsset(group.symbol); }} className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors" title={`Delete ${group.symbol}`}>
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </td>
@@ -2084,16 +2127,18 @@ function App() {
         onRestore={fetchData}
       />
 
-      <ConfirmationModal
-        isOpen={!!portfolioToDelete}
-        onClose={() => setPortfolioToDelete(null)}
-        onConfirm={executeDeletePortfolio}
-        title="Delete Portfolio"
-        message={`Are you sure you want to delete "${portfolios.find(p => p.id === portfolioToDelete)?.name}"? It will be moved to the Recycle Bin and can be recovered within 30 days.`}
-        confirmText="Delete"
-        isDestructive={true}
-        requireInputToConfirm={portfolios.find(p => p.id === portfolioToDelete)?.name}
-      />
+      {confirmationConfig && (
+        <ConfirmationModal
+          isOpen={confirmationConfig.isOpen}
+          onClose={() => setConfirmationConfig(null)}
+          onConfirm={confirmationConfig.onConfirm}
+          title={confirmationConfig.title}
+          message={confirmationConfig.message}
+          confirmText={confirmationConfig.confirmText}
+          isDestructive={confirmationConfig.isDestructive}
+          requireInputToConfirm={confirmationConfig.requireInputToConfirm}
+        />
+      )}
     </div>
   )
 }
