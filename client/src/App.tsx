@@ -13,6 +13,8 @@ import { CorporateActionModal } from './components/CorporateActionModal'
 import { CorporateActionsViewerModal } from './components/CorporateActionsViewerModal'
 import { AssetSearch } from './components/AssetSearch'
 import { PortfolioInfoModal } from './components/PortfolioInfoModal'
+import { ConfirmationModal } from './components/ConfirmationModal'
+import { RecycleBinModal } from './components/RecycleBinModal'
 
 const ALL_COLUMNS = [
   { id: 'symbol', label: 'Symbol' },
@@ -192,7 +194,9 @@ function App() {
   const isActuallyExpanded = sidebarMode === 'expanded' || (sidebarMode === 'hover' && isSidebarHovered) || isSidebarTemporarilyExpanded;
 
   const [isColumnsDropdownOpen, setIsColumnsDropdownOpen] = useState(false);
+  const [isRecycleBinModalOpen, setIsRecycleBinModalOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [portfolioToDelete, setPortfolioToDelete] = useState<string | null>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -407,9 +411,19 @@ function App() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Auto-cleanup deleted portfolios older than 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      await supabase
+        .from('portfolios')
+        .delete()
+        .not('deleted_at', 'is', null)
+        .lt('deleted_at', thirtyDaysAgo.toISOString());
+
       const { data: portfoliosData, error: pError } = await supabase
         .from('portfolios')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: true });
 
       if (pError) throw pError;
@@ -540,26 +554,30 @@ function App() {
     await executeDeleteAsset(symbol);
   };
 
-  const handleDeletePortfolio = async (id: string) => {
-    const confirmDelete = window.confirm('Are you sure you want to delete this portfolio? This action cannot be undone.');
-    if (!confirmDelete) return;
+  const handleDeletePortfolio = (id: string) => {
+    setPortfolioToDelete(id);
+  };
 
+  const executeDeletePortfolio = async () => {
+    if (!portfolioToDelete) return;
     try {
       const { error } = await supabase
         .from('portfolios')
-        .delete()
-        .eq('id', id);
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', portfolioToDelete);
 
       if (error) throw error;
 
-      if (activePortfolioId === id) {
-        setActivePortfolioId(portfolios.length > 1 ? portfolios.find(p => p.id !== id)?.id || null : null);
+      if (activePortfolioId === portfolioToDelete) {
+        setActivePortfolioId(portfolios.length > 1 ? portfolios.find(p => p.id !== portfolioToDelete)?.id || null : null);
       }
 
       await fetchData();
     } catch (err: any) {
-      console.error('Error deleting portfolio:', err.message);
+      console.error('Error deleting portfolio:', err);
       alert('Failed to delete portfolio. Please try again.');
+    } finally {
+      setPortfolioToDelete(null);
     }
   };
 
@@ -1252,14 +1270,26 @@ function App() {
             </nav>
           </div>
         </div>
-        <div className="pl-4 py-4 mt-auto flex items-center relative" ref={sidebarMenuRef}>
-          <button
-            onClick={() => setIsSidebarMenuOpen(!isSidebarMenuOpen)}
-            className="text-gray-400 hover:text-zinc-900 transition-colors"
-            title="Sidebar Control"
+        <div className="mt-auto flex flex-col relative" ref={sidebarMenuRef}>
+          <div 
+            className="pl-4 py-3 flex items-center gap-3 text-gray-400 cursor-pointer hover:text-zinc-900 transition-colors" 
+            onClick={() => setIsRecycleBinModalOpen(true)}
+            onMouseEnter={(e) => handleSidebarTooltipEnter(e, "Recycle Bin")}
+            onMouseLeave={handleSidebarTooltipLeave}
           >
-            {sidebarMode === 'collapsed' ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
-          </button>
+            <Trash2 className="w-5 h-5 shrink-0" />
+            <p className={`text-[10px] font-semibold uppercase tracking-wide transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>Recycle Bin</p>
+          </div>
+          <div className="pl-4 pb-4 pt-1 flex items-center">
+            <button
+              onClick={() => setIsSidebarMenuOpen(!isSidebarMenuOpen)}
+              className="text-gray-400 hover:text-zinc-900 transition-colors"
+              onMouseEnter={(e) => handleSidebarTooltipEnter(e, "Sidebar Control")}
+              onMouseLeave={handleSidebarTooltipLeave}
+            >
+              {sidebarMode === 'collapsed' ? <PanelLeftOpen className="w-5 h-5 shrink-0" /> : <PanelLeftClose className="w-5 h-5 shrink-0" />}
+            </button>
+          </div>
 
           {isSidebarMenuOpen && (
             <div className="fixed left-4 bottom-12 min-w-[180px] bg-white border border-gray-200 rounded-lg py-1 z-50 shadow-lg shadow-gray-400/30">
@@ -2046,6 +2076,23 @@ function App() {
         isOpen={isPortfolioInfoModalOpen}
         onClose={() => setIsPortfolioInfoModalOpen(false)}
         symbols={allSymbols.map(sym => ({ symbol: sym, name: livePrices[sym]?.name || '' }))}
+      />
+
+      <RecycleBinModal
+        isOpen={isRecycleBinModalOpen}
+        onClose={() => setIsRecycleBinModalOpen(false)}
+        onRestore={fetchData}
+      />
+
+      <ConfirmationModal
+        isOpen={!!portfolioToDelete}
+        onClose={() => setPortfolioToDelete(null)}
+        onConfirm={executeDeletePortfolio}
+        title="Delete Portfolio"
+        message={`Are you sure you want to delete "${portfolios.find(p => p.id === portfolioToDelete)?.name}"? It will be moved to the Recycle Bin and can be recovered within 30 days.`}
+        confirmText="Delete"
+        isDestructive={true}
+        requireInputToConfirm={portfolios.find(p => p.id === portfolioToDelete)?.name}
       />
     </div>
   )
