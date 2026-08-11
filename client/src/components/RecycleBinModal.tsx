@@ -30,7 +30,7 @@ export const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ isOpen, onClos
         .order('deleted_at', { ascending: false });
 
       if (error) throw error;
-      setDeletedPortfolios(data || []);
+      setDeletedPortfolios((data as DeletedPortfolio[]) || []);
     } catch (err) {
       console.error('Error fetching deleted portfolios:', err);
     } finally {
