@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react'
-import { Plus, Briefcase, Search, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, GripVertical, Info } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, GripVertical, Info, User, LogOut, PieChart, Folder } from 'lucide-react'
+import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabaseClient'
+import { Auth } from './components/Auth'
 import { CreatePortfolioModal } from './components/CreatePortfolioModal'
 import { AddStockModal } from './components/AddStockModal'
 import { SellStockModal } from './components/SellStockModal'
@@ -101,6 +103,22 @@ function calculateXIRR(cashFlows: { amount: number, date: number }[], guess = 0.
 }
 
 function App() {
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [soldStocks, setSoldStocks] = useState<SoldStock[]>([]);
@@ -156,10 +174,45 @@ function App() {
       return { ...prev, [activePortfolioId]: { ...current, sortDirection: nextVal } };
     });
   };
+
   const [loading, setLoading] = useState(true);
+
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
 
+  type SidebarMode = 'expanded' | 'collapsed' | 'hover';
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(() => {
+    const saved = localStorage.getItem('sidebarMode') as SidebarMode;
+    return saved || 'hover';
+  });
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+  const [isSidebarTemporarilyExpanded, setIsSidebarTemporarilyExpanded] = useState(false);
+  const [isSidebarMenuOpen, setIsSidebarMenuOpen] = useState(false);
+  const sidebarMenuRef = useRef<HTMLDivElement>(null);
+
+  const isActuallyExpanded = sidebarMode === 'expanded' || (sidebarMode === 'hover' && isSidebarHovered) || isSidebarTemporarilyExpanded;
+
   const [isColumnsDropdownOpen, setIsColumnsDropdownOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+      if (sidebarMenuRef.current && !sidebarMenuRef.current.contains(event.target as Node)) {
+        setIsSidebarMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('sidebarMode', sidebarMode);
+  }, [sidebarMode]);
   
   const [portfolioVisibleColumns, setPortfolioVisibleColumns] = useState<Record<string, Set<string>>>(() => {
     const saved = localStorage.getItem('portfolioVisibleColumns');
@@ -332,15 +385,19 @@ function App() {
     setDraggedColId(null);
   };
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    const saved = localStorage.getItem('isSidebarOpen');
-    return saved !== null ? saved === 'true' : true;
-  });
   const [draggedPortfolioId, setDraggedPortfolioId] = useState<string | null>(null);
 
-  useEffect(() => {
-    localStorage.setItem('isSidebarOpen', isSidebarOpen.toString());
-  }, [isSidebarOpen]);
+  const [sidebarTooltip, setSidebarTooltip] = useState<{ text: string, top: number, left: number } | null>(null);
+  const handleSidebarTooltipEnter = (e: React.MouseEvent, text: string) => {
+    if (isActuallyExpanded) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setSidebarTooltip({
+      text,
+      top: rect.top + rect.height / 2,
+      left: rect.left + 44,
+    });
+  };
+  const handleSidebarTooltipLeave = () => setSidebarTooltip(null);
 
 
   // Real-time prices state
@@ -1019,42 +1076,104 @@ function App() {
   const totalPnLPercent = maxNetInvested > 0 ? (totalPnL / maxNetInvested) * 100 : 0;
   const unrealizedPnLPercent = totalInvestment > 0 ? (totalUnrealizedPnL / totalInvestment) * 100 : 0;
 
-  return (
-    <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
-      {/* Sidebar */}
-      <aside className={`bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${isSidebarOpen ? 'w-64 opacity-100' : 'w-0 opacity-0 border-none'}`}>
-        <div className="w-64 flex flex-col h-full">
-          <div className="h-16 px-4 flex items-center justify-between border-b border-gray-200 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-zinc-900 text-white rounded-md flex items-center justify-center font-bold">
-                P
-              </div>
-              <h1 className="font-semibold text-sm">Portfolio</h1>
-            </div>
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="p-1.5 -mr-1.5 text-gray-500 hover:text-zinc-900 rounded-md hover:bg-gray-100 transition-colors"
-              title="Close Sidebar"
-            >
-              <PanelLeftClose className="w-5 h-5" />
-            </button>
-          </div>
+  if (!session) {
+    return <Auth />;
+  }
 
-        <div className="px-4 py-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search"
-              className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900 transition-shadow"
-            />
+  return (
+    <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
+      {/* Unified Top Header */}
+      <header className="h-12 bg-white border-b border-gray-200 px-4 flex items-center justify-between shrink-0 z-10">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center shrink-0">
+            <PieChart className="w-5 h-5 text-zinc-900" />
           </div>
+          
+          <span className="text-gray-300 font-light text-lg leading-none mb-0.5">/</span>
+          <button 
+            onClick={() => { if (sidebarMode !== 'expanded') setIsSidebarTemporarilyExpanded(prev => !prev); }}
+            className="text-sm font-medium text-gray-500 hover:text-zinc-900 transition-colors cursor-pointer"
+          >
+            Portfolios
+          </button>
+          
+          {activePortfolio && (
+            <>
+              <span className="text-gray-300 font-light text-lg leading-none mb-0.5">/</span>
+              <h2 className="text-sm font-semibold text-zinc-900 leading-tight">
+                {activePortfolio.name}
+              </h2>
+            </>
+          )}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 pb-4 pt-4">
+        <div className="relative group" ref={accountMenuRef}>
+          <button
+            onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
+            className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors border ${
+              isAccountMenuOpen 
+                ? 'bg-zinc-900 text-white border-zinc-900' 
+                : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+            }`}
+          >
+            <User className="w-4 h-4" />
+          </button>
+
+          {/* Custom Tooltip */}
+          {!isAccountMenuOpen && (
+            <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 whitespace-nowrap bg-zinc-900 text-white text-[10px] font-medium px-2 py-1 rounded border border-zinc-700">
+              Account Settings
+            </div>
+          )}
+
+          {isAccountMenuOpen && (
+            <div className="absolute right-0 mt-2 min-w-[240px] max-w-sm bg-white border border-gray-200 rounded-lg py-1 z-50 shadow-lg shadow-gray-400/30">
+              <div className="px-4 py-3 border-b border-gray-100">
+                <p className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Signed in as</p>
+                <p className="text-xs font-medium text-gray-900 truncate">
+                  {session?.user?.email}
+                </p>
+              </div>
+              <div className="py-1">
+                <button
+                  onClick={() => supabase.auth.signOut()}
+                  className="w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-zinc-900 flex items-center gap-2"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Sign out
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Main Layout Area */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside 
+          onMouseEnter={() => setIsSidebarHovered(true)}
+          onMouseLeave={() => {
+            setIsSidebarHovered(false);
+            setIsSidebarTemporarilyExpanded(false);
+          }}
+          className={`bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${isActuallyExpanded ? 'w-56' : 'w-12'}`}
+        >
+          <div className="w-56 flex flex-col h-full bg-white">
+
+
+
+        <div className="flex-1 overflow-y-auto pb-4 pt-2">
           <div>
-            <div className="flex items-center justify-between px-3 mb-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Portfolios</p>
+            <div className="flex items-center justify-between pl-4 pr-4 mb-2 mt-2">
+              <div 
+                className="flex items-center gap-3 text-gray-400" 
+                onMouseEnter={(e) => handleSidebarTooltipEnter(e, "Portfolios")}
+                onMouseLeave={handleSidebarTooltipLeave}
+              >
+                <Folder className="w-5 h-5 shrink-0" />
+                <p className={`text-[10px] font-semibold uppercase tracking-wide transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>Portfolios</p>
+              </div>
               <button
                 onClick={() => setIsCreateModalOpen(true)}
                 className="text-gray-400 hover:text-zinc-900 transition-colors"
@@ -1064,7 +1183,7 @@ function App() {
               </button>
             </div>
 
-            <nav className="space-y-0.5">
+            <nav className="mt-1">
               {portfolios.map(portfolio => (
                 <button
                   key={portfolio.id}
@@ -1074,19 +1193,23 @@ function App() {
                   onDrop={(e) => handleDrop(e, portfolio.id)}
                   onDragEnd={() => setDraggedPortfolioId(null)}
                   onClick={() => setActivePortfolioId(portfolio.id)}
-                  className={`group w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors cursor-grab active:cursor-grabbing ${
+                  onMouseEnter={(e) => handleSidebarTooltipEnter(e, portfolio.name)}
+                  onMouseLeave={handleSidebarTooltipLeave}
+                  className={`group w-full flex items-center justify-between pl-4 pr-2 py-1.5 text-xs transition-colors cursor-grab active:cursor-grabbing ${
                     draggedPortfolioId === portfolio.id ? 'opacity-50 border border-dashed border-gray-400' : ''
                   } ${
                     activePortfolioId === portfolio.id
-                      ? 'bg-gray-100 text-zinc-900 font-medium'
+                      ? 'text-zinc-900 font-medium'
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-center gap-3 truncate">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${activePortfolioId === portfolio.id ? 'bg-orange-500' : 'bg-gray-300'}`} />
-                    <span className="truncate">{portfolio.name}</span>
+                    <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center text-[11px] font-bold transition-colors ${activePortfolioId === portfolio.id ? 'bg-zinc-900 text-white' : 'bg-gray-200 text-gray-500 group-hover:bg-gray-300'}`}>
+                      {portfolio.name ? portfolio.name.charAt(0).toUpperCase() : 'P'}
+                    </div>
+                    <span className={`truncate transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>{portfolio.name}</span>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-0.5 shrink-0">
                     <div
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1122,43 +1245,75 @@ function App() {
               ))}
 
               {portfolios.length === 0 && (
-                <div className="px-3 py-2 text-xs text-gray-400">
+                <div className={`pl-4 py-2 text-xs text-gray-400 transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>
                   No portfolios yet.
                 </div>
               )}
             </nav>
           </div>
         </div>
+        <div className="pl-4 py-4 mt-auto flex items-center relative" ref={sidebarMenuRef}>
+          <button
+            onClick={() => setIsSidebarMenuOpen(!isSidebarMenuOpen)}
+            className="text-gray-400 hover:text-zinc-900 transition-colors"
+            title="Sidebar Control"
+          >
+            {sidebarMode === 'collapsed' ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+          </button>
+
+          {isSidebarMenuOpen && (
+            <div className="fixed left-4 bottom-12 min-w-[180px] bg-white border border-gray-200 rounded-lg py-1 z-50 shadow-lg shadow-gray-400/30">
+              <div className="px-3 py-2 border-b border-gray-100">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">Sidebar Control</p>
+              </div>
+              <div className="py-1">
+                <button
+                  onClick={() => { setSidebarMode('expanded'); setIsSidebarMenuOpen(false); }}
+                  className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-zinc-900 flex items-center justify-between"
+                >
+                  Expanded
+                  {sidebarMode === 'expanded' && <Check className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={() => { setSidebarMode('collapsed'); setIsSidebarMenuOpen(false); }}
+                  className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-zinc-900 flex items-center justify-between"
+                >
+                  Collapsed
+                  {sidebarMode === 'collapsed' && <Check className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={() => { setSidebarMode('hover'); setIsSidebarMenuOpen(false); }}
+                  className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-zinc-900 flex items-center justify-between"
+                >
+                  Expand on hover
+                  {sidebarMode === 'hover' && <Check className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
         </div>
       </aside>
 
+      {/* Floating Open Button Removed */}
+
+      {/* Custom Sidebar Tooltip */}
+      {sidebarTooltip && !isActuallyExpanded && (
+        <div 
+          className="fixed z-[100] bg-zinc-900 text-white text-[10px] px-2.5 py-1 rounded-md shadow-lg whitespace-nowrap pointer-events-none"
+          style={{
+            top: sidebarTooltip.top,
+            left: sidebarTooltip.left,
+            transform: 'translateY(-50%)'
+          }}
+        >
+          {sidebarTooltip.text}
+          <div className="absolute top-1/2 -left-1 -mt-1 w-2 h-2 bg-zinc-900 rotate-45" />
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header */}
-        <header className="h-16 bg-white border-b border-gray-200 px-4 md:px-8 flex items-center justify-between shrink-0 transition-all">
-          <div className="flex items-center gap-3">
-            {!isSidebarOpen && (
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-2 -ml-2 text-gray-500 hover:text-zinc-900 rounded-md hover:bg-gray-100 transition-colors"
-                title="Open Sidebar"
-              >
-                <PanelLeftOpen className="w-5 h-5" />
-              </button>
-            )}
-            <div className="flex flex-col justify-center">
-              <h2 className="text-xl font-bold text-zinc-900 leading-tight">
-                {activePortfolio ? activePortfolio.name : 'Portfolios'}
-              </h2>
-              {activePortfolio && (
-                <span className="text-[10px] text-gray-400 font-medium tracking-wide leading-tight">
-                  Prices auto-update every minute
-                </span>
-              )}
-            </div>
-          </div>
-        </header>
-
         {/* Content Area */}
         <div className="flex-1 overflow-hidden p-2 md:p-4 flex flex-col min-h-0">
           {loading ? (
@@ -1827,6 +1982,7 @@ function App() {
           )}
         </div>
       </main>
+      </div>
 
       <CreatePortfolioModal
         isOpen={isCreateModalOpen}
