@@ -19,6 +19,7 @@ interface SplitEvent {
   splitRatio: string;
 }
 
+
 export function CorporateActionsViewerModal({ isOpen, onClose, symbol }: CorporateActionModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -32,7 +33,23 @@ export function CorporateActionsViewerModal({ isOpen, onClose, symbol }: Corpora
     }
   }, [isOpen, symbol]);
 
-  const fetchCorporateActions = async () => {
+  const fetchCorporateActions = async (forceRefresh = false) => {
+    const cacheKey = `corp_actions_${symbol}`;
+    
+    if (!forceRefresh) {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          setDividends(parsed.dividends);
+          setSplits(parsed.splits);
+          return;
+        } catch (e) {
+          // ignore parse errors and fetch fresh
+        }
+      }
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -42,6 +59,12 @@ export function CorporateActionsViewerModal({ isOpen, onClose, symbol }: Corpora
         throw new Error('Failed to fetch corporate actions');
       }
       const data = await response.json();
+      
+      sessionStorage.setItem(cacheKey, JSON.stringify({
+        dividends: data.dividends || [],
+        splits: data.splits || []
+      }));
+
       setDividends(data.dividends || []);
       setSplits(data.splits || []);
     } catch (err: any) {
@@ -108,7 +131,7 @@ export function CorporateActionsViewerModal({ isOpen, onClose, symbol }: Corpora
             ))}
           </div>
           <button 
-            onClick={fetchCorporateActions}
+            onClick={() => fetchCorporateActions(true)}
             disabled={loading}
             className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-zinc-900 transition-colors disabled:opacity-50"
           >

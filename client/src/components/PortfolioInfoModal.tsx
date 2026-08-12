@@ -39,7 +39,22 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose }: PortfolioInfoMo
     }
   }, [isOpen, symbols]);
 
-  const fetchCorporateActions = async () => {
+  const fetchCorporateActions = async (forceRefresh = false) => {
+    const cacheKey = `portfolio_corp_actions_${symbols.map(s => s.symbol).sort().join(',')}`;
+
+    if (!forceRefresh) {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          setEvents(parsed);
+          return;
+        } catch (e) {
+          // ignore parse errors and fetch fresh
+        }
+      }
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -57,7 +72,10 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose }: PortfolioInfoMo
       }
       
       const data = await response.json();
-      setEvents(data.events || []);
+      const events = data.events || [];
+      
+      sessionStorage.setItem(cacheKey, JSON.stringify(events));
+      setEvents(events);
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
     } finally {
@@ -114,7 +132,7 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose }: PortfolioInfoMo
           </div>
           
           <button
-            onClick={fetchCorporateActions}
+            onClick={() => fetchCorporateActions(true)}
             disabled={loading || symbols.length === 0}
             className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-zinc-900 transition-colors disabled:opacity-50"
           >
