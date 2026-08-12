@@ -1601,7 +1601,7 @@ function App() {
           ) : (
             <div className="w-full flex flex-col h-full min-h-0">
               {/* Stats Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
+              <div className="flex flex-wrap gap-2 mb-4 [&>div]:flex-1 [&>div]:min-w-fit">
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
                   <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
                     <span>Total Stocks</span>
