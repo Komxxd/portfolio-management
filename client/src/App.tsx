@@ -30,7 +30,8 @@ const ALL_COLUMNS = [
   { id: 'govtTax', label: 'Govt Tax' },
   { id: 'totalPnL', label: 'Total PnL' },
   { id: 'xirr', label: 'XIRR' },
-  { id: 'portfolioWeight', label: '% Invested' }
+  { id: 'portfolioWeight', label: '% Invested' },
+  { id: 'currentValueWeight', label: '% Current Value' }
 ];
 
 interface Portfolio {
@@ -318,13 +319,26 @@ function App() {
     const saved = localStorage.getItem('portfolioVisibleColumns');
     if (activePortfolioId && saved && portfolioVisibleColumns[activePortfolioId]) {
 
-      const isMissing = !portfolioVisibleColumns[activePortfolioId].has('portfolioWeight') && 
+      const isMissingInvested = !portfolioVisibleColumns[activePortfolioId].has('portfolioWeight') && 
         !(JSON.parse(saved)[activePortfolioId] || []).includes('portfolioWeight');
-      
-      // We'll just add it to the visible set if it's completely missing
-      // (a slightly hacky but safe approach without deep migration)
-      if (isMissing) {
-        cols.add('portfolioWeight');
+      const isMissingCV = !portfolioVisibleColumns[activePortfolioId].has('currentValueWeight') && 
+        !(JSON.parse(saved)[activePortfolioId] || []).includes('currentValueWeight');
+        
+      if (isMissingInvested || isMissingCV) {
+        if (isMissingInvested) cols.add('portfolioWeight');
+        if (isMissingCV) cols.add('currentValueWeight');
+        setPortfolioVisibleColumns(prev => ({
+          ...prev,
+          [activePortfolioId]: cols
+        }));
+        
+        setPortfolioColumnOrder(prev => {
+          const currentOrder = prev[activePortfolioId] || ALL_COLUMNS.map(c => c.id);
+          const newOrder = [...currentOrder];
+          if (isMissingInvested && !newOrder.includes('portfolioWeight')) newOrder.push('portfolioWeight');
+          if (isMissingCV && !newOrder.includes('currentValueWeight')) newOrder.push('currentValueWeight');
+          return { ...prev, [activePortfolioId]: newOrder };
+        });
       }
     }
     return cols;
@@ -1082,7 +1096,7 @@ function App() {
     const width = activeColumnWidths[field] || (field === 'symbol' ? 180 : 100);
     return (
       <th 
-        className={`px-3 py-2 text-[11px] uppercase tracking-wider font-semibold text-gray-500 cursor-pointer bg-white hover:bg-gray-100 transition-colors select-none group relative ${resizingCol?.id === field ? 'bg-gray-100' : ''}`}
+        className={`px-3 py-2 text-[9px] uppercase tracking-wider font-semibold text-gray-500 cursor-pointer bg-white hover:bg-gray-100 transition-colors select-none group relative ${resizingCol?.id === field ? 'bg-gray-100' : ''}`}
         style={{ width, minWidth: width, maxWidth: width }}
         onClick={() => handleSort(field)}
       >
@@ -1094,6 +1108,12 @@ function App() {
             <ArrowUpDown className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
           )}
         </div>
+        
+        {/* Custom Tooltip */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block z-50 whitespace-nowrap bg-zinc-900 text-white text-[10px] font-medium px-2 py-1 rounded border border-zinc-700 pointer-events-none normal-case tracking-normal">
+          {label}
+        </div>
+
         <div 
           className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 opacity-0 group-hover:opacity-100 transition-opacity z-10"
           onMouseDown={(e) => handleResizeStart(e, field, width)}
@@ -1434,7 +1454,7 @@ function App() {
                   }`}
                 >
                   <div className="flex items-center gap-3 truncate">
-                    <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center text-[11px] font-bold transition-colors ${activePortfolioId === portfolio.id ? 'bg-zinc-900 text-white' : 'bg-gray-200 text-gray-500 group-hover:bg-gray-300'}`}>
+                    <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center text-[10px] font-bold transition-colors ${activePortfolioId === portfolio.id ? 'bg-zinc-900 text-white' : 'bg-gray-200 text-gray-500 group-hover:bg-gray-300'}`}>
                       {portfolio.name ? portfolio.name.charAt(0).toUpperCase() : 'P'}
                     </div>
                     <span className={`truncate transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>{portfolio.name}</span>
@@ -1674,7 +1694,7 @@ function App() {
                         <button
                           key={type}
                           onClick={() => setFilterType(type)}
-                          className={`px-3 py-1 text-[11px] font-medium rounded-md capitalize transition-colors ${
+                          className={`px-3 py-1 text-[10px] font-medium rounded-md capitalize transition-colors ${
                             filterType === type ? 'bg-white text-zinc-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                           }`}
                         >
@@ -1696,7 +1716,7 @@ function App() {
                           setSortField(null);
                           setSearchSelectedSymbols([]);
                         }}
-                        className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-md shadow-sm text-[11px] font-medium text-gray-600 hover:text-zinc-900 transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-md shadow-sm text-[10px] font-medium text-gray-600 hover:text-zinc-900 transition-colors"
                       >
                         <FilterX className="w-3 h-3" />
                         Clear
@@ -1706,7 +1726,7 @@ function App() {
                     <div className="relative">
                       <button
                         onClick={() => setIsColumnsDropdownOpen(!isColumnsDropdownOpen)}
-                        className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-md shadow-sm text-[11px] font-medium text-gray-600 hover:text-zinc-900 transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-md shadow-sm text-[10px] font-medium text-gray-600 hover:text-zinc-900 transition-colors"
                       >
                         <Columns className="w-3 h-3" />
                         Columns
@@ -1733,7 +1753,7 @@ function App() {
                                   onDragStart={(e) => handleColumnDragStart(e, col.id)}
                                   onDragOver={handleColumnDragOver}
                                   onDrop={(e) => handleColumnDrop(e, col.id)}
-                                  className={`w-full flex items-center px-3 py-1.5 text-[11px] text-left hover:bg-gray-50 text-zinc-900 cursor-move transition-colors ${draggedColId === col.id ? 'opacity-50' : ''}`}
+                                  className={`w-full flex items-center px-3 py-1.5 text-[10px] text-left hover:bg-gray-50 text-zinc-900 cursor-move transition-colors ${draggedColId === col.id ? 'opacity-50' : ''}`}
                                 >
                                   <GripVertical className="w-3 h-3 text-gray-400 mr-2 shrink-0" />
                                   <div className="w-4 flex justify-center mr-1 shrink-0 cursor-pointer" onClick={() => toggleColumn(col.id)}>
@@ -1811,19 +1831,19 @@ function App() {
                   <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
                     <thead className="sticky top-0 z-10 bg-white shadow-sm">
                       <tr className="border-b border-gray-200 divide-x divide-gray-200">
-                        <th className="px-2 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 w-6 bg-white"></th>
+                        <th className="px-2 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-gray-500 w-6 bg-white"></th>
                         {activeColumnOrder.map(colId => {
                           if (!visibleColumns.has(colId)) return null;
                           const col = ALL_COLUMNS.find(c => c.id === colId)!;
                           return <SortHeader key={col.id} field={col.id} label={col.label} />;
                         })}
-                        <th className="px-2 py-1.5 text-right w-8 bg-white"></th>
+                        <th className="px-2 py-1.5 text-[9px] text-right w-8 bg-white"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredSymbolGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={visibleColumns.size + 2} className="px-3 py-6 text-center text-gray-500 text-[11px]">
+                          <td colSpan={visibleColumns.size + 2} className="px-3 py-6 text-center text-gray-500 text-[10px]">
                             No assets found matching the filter.
                           </td>
                         </tr>
@@ -1853,7 +1873,7 @@ function App() {
                                         <td key="symbol" className="px-2 py-1.5 truncate">
                                           <div className="flex items-center gap-1.5 overflow-hidden">
                                             <div className="min-w-0 flex-1">
-                                              <div className="font-semibold text-[11px] text-zinc-900 flex items-center gap-1.5 truncate">
+                                              <div className="font-semibold text-[10px] text-zinc-900 flex items-center gap-1.5 truncate">
                                                 <span className="truncate">{group.symbol}</span>
                                                 {group.companyName && (
                                                   <span className="font-normal text-[10px] text-gray-500 truncate" title={group.companyName}>
@@ -1883,25 +1903,32 @@ function App() {
                                         </td>
                                       );
                                     case 'netQty':
-                                      return <td key="netQty" className="px-2 py-1.5 text-[11px] font-semibold text-zinc-900 truncate">{group.netQty.toLocaleString()}</td>;
+                                      return <td key="netQty" className="px-2 py-1.5 text-[10px] font-semibold text-zinc-900 truncate">{group.netQty.toLocaleString()}</td>;
                                     case 'avgBuyPrice':
-                                      return <td key="avgBuyPrice" className="px-2 py-1.5 text-[11px] text-gray-600 truncate">₹{fmt(group.avgBuyPrice)}</td>;
+                                      return <td key="avgBuyPrice" className="px-2 py-1.5 text-[10px] text-gray-600 truncate">₹{fmt(group.avgBuyPrice)}</td>;
                                     case 'netCostBasis':
-                                      return <td key="netCostBasis" className="px-2 py-1.5 text-[11px] text-gray-600 truncate" title="Avg buy price × remaining shares — money still at work">₹{fmt(group.netCostBasis)}</td>;
+                                      return <td key="netCostBasis" className="px-2 py-1.5 text-[10px] text-gray-600 truncate" title="Avg buy price × remaining shares — money still at work">₹{fmt(group.netCostBasis)}</td>;
                                     case 'portfolioWeight':
                                       const weight = totalInvestment > 0 ? (group.netCostBasis / totalInvestment) * 100 : 0;
                                       return (
-                                        <td key="portfolioWeight" className="px-2 py-1.5 text-[11px] text-gray-600 truncate">
+                                        <td key="portfolioWeight" className="px-2 py-1.5 text-[10px] text-gray-600 truncate">
                                           {weight.toFixed(2)}%
                                         </td>
                                       );
+                                    case 'currentValueWeight':
+                                      const cvWeight = totalCurrentValue > 0 ? (group.currentValue / totalCurrentValue) * 100 : 0;
+                                      return (
+                                        <td key="currentValueWeight" className="px-2 py-1.5 text-[10px] text-gray-600 truncate">
+                                          {cvWeight.toFixed(2)}%
+                                        </td>
+                                      );
                                     case 'livePrice':
-                                      return <td key="livePrice" className="px-2 py-1.5 text-[11px] font-medium text-zinc-900 truncate">₹{fmt(group.livePrice)}</td>;
+                                      return <td key="livePrice" className="px-2 py-1.5 text-[10px] font-medium text-zinc-900 truncate">₹{fmt(group.livePrice)}</td>;
                                     case 'currentValue':
-                                      return <td key="currentValue" className="px-2 py-1.5 text-[11px] font-medium text-zinc-900 truncate">₹{fmt(group.currentValue)}</td>;
+                                      return <td key="currentValue" className="px-2 py-1.5 text-[10px] font-medium text-zinc-900 truncate">₹{fmt(group.currentValue)}</td>;
                                     case 'unrealizedPnL':
                                       return (
-                                        <td key="unrealizedPnL" className="px-2 py-1.5 text-[11px] truncate">
+                                        <td key="unrealizedPnL" className="px-2 py-1.5 text-[10px] truncate">
                                           <span className={`font-medium ${group.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                             {group.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(group.unrealizedPnL)}
                                           </span>
@@ -1910,7 +1937,7 @@ function App() {
                                       );
                                     case 'realizedPnL':
                                       return (
-                                        <td key="realizedPnL" className="px-2 py-1.5 text-[11px] truncate">
+                                        <td key="realizedPnL" className="px-2 py-1.5 text-[10px] truncate">
                                           {group.sells.length > 0 ? (
                                             <span className={`font-medium ${group.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                               {group.realizedPnL >= 0 ? '+' : ''}₹{fmt(group.realizedPnL)}
@@ -1921,12 +1948,12 @@ function App() {
                                         </td>
                                       );
                                     case 'brokerage':
-                                      return <td key="brokerage" className="px-2 py-1.5 text-[11px] text-gray-600 truncate">₹{fmt(group.totalBrokerage)}</td>;
+                                      return <td key="brokerage" className="px-2 py-1.5 text-[10px] text-gray-600 truncate">₹{fmt(group.totalBrokerage)}</td>;
                                     case 'govtTax':
-                                      return <td key="govtTax" className="px-2 py-1.5 text-[11px] text-gray-600 truncate">₹{fmt(group.totalGovtTax)}</td>;
+                                      return <td key="govtTax" className="px-2 py-1.5 text-[10px] text-gray-600 truncate">₹{fmt(group.totalGovtTax)}</td>;
                                     case 'totalPnL':
                                       return (
-                                        <td key="totalPnL" className="px-2 py-1.5 text-[11px] truncate">
+                                        <td key="totalPnL" className="px-2 py-1.5 text-[10px] truncate">
                                           {(() => {
                                             const total = group.unrealizedPnL + group.realizedPnL - group.totalBrokerage - group.totalGovtTax;
                                             const totalPct = group.totalBuyCost > 0 ? (total / group.totalBuyCost) * 100 : 0;
@@ -1943,7 +1970,7 @@ function App() {
                                       );
                                     case 'xirr':
                                       return (
-                                        <td key="xirr" className={`px-2 py-1.5 text-[11px] font-bold ${group.xirr >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
+                                        <td key="xirr" className={`px-2 py-1.5 text-[10px] font-bold ${group.xirr >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
                                           {group.xirr >= 0 ? '+' : ''}{(group.xirr * 100).toFixed(2)}%
                                         </td>
                                       );
@@ -1951,7 +1978,7 @@ function App() {
                                       return null;
                                   }
                                 })}
-                                <td className="px-2 py-1.5 text-[11px] text-right">
+                                <td className="px-2 py-1.5 text-[10px] text-right">
                                   <button onClick={(e) => { e.stopPropagation(); handleDeleteAsset(group.symbol); }} className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors" title={`Delete ${group.symbol}`}>
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -1964,7 +1991,7 @@ function App() {
                                   <td colSpan={visibleColumns.size + 2} className="p-2">
                                     <div className="space-y-2">
                                       {group.fifoBuyLots.length === 0 ? (
-                                        <p className="text-[11px] text-gray-400 py-2 text-center">No buy entries found.</p>
+                                        <p className="text-[10px] text-gray-400 py-2 text-center">No buy entries found.</p>
                                       ) : (
                                         group.fifoBuyLots.map((lot, lotIdx) => (
                                           <div key={`lot-${lot.buy.id}`} className="bg-white border border-gray-200 rounded-lg p-2 shadow-xs">
@@ -1992,7 +2019,7 @@ function App() {
                                                   </div>
                                                 </div>
 
-                                                <table className="w-full text-left text-[11px] whitespace-nowrap">
+                                                <table className="w-full text-left text-[10px] whitespace-nowrap">
                                                   <thead>
                                                     <tr className="text-[9px] text-gray-400 uppercase border-b border-gray-100">
                                                       <th className="pb-1 font-medium">Type</th>
@@ -2132,7 +2159,7 @@ function App() {
                                               {/* Right Column: Sell Positions */}
                                               <div>
                                                 <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-gray-100">
-                                                  <div className="flex items-center gap-1.5 font-semibold text-[11px] text-red-800">
+                                                  <div className="flex items-center gap-1.5 font-semibold text-[10px] text-red-800">
                                                     <ArrowDownCircle className="w-4 h-4 text-red-600" />
                                                     <span>Sell Positions</span>
                                                   </div>
@@ -2149,9 +2176,9 @@ function App() {
                                                 </div>
 
                                                 {lot.matchedSells.length === 0 ? (
-                                                  <p className="text-[11px] text-gray-400 py-2 text-center">No sell entries recorded yet.</p>
+                                                  <p className="text-[10px] text-gray-400 py-2 text-center">No sell entries recorded yet.</p>
                                                 ) : (
-                                                  <table className="w-full text-left text-[11px] whitespace-nowrap">
+                                                  <table className="w-full text-left text-[10px] whitespace-nowrap">
                                                     <thead>
                                                       <tr className="text-[9px] text-gray-400 uppercase border-b border-gray-100">
                                                         <th className="pb-1 font-medium">Type</th>
@@ -2225,7 +2252,7 @@ function App() {
                 </div>
 
                 {symbolGroups.length > 0 && (
-                  <div className="px-4 py-2 border-t border-gray-200 bg-gray-50/50 text-[11px] text-gray-500 flex justify-between items-center">
+                  <div className="px-4 py-2 border-t border-gray-200 bg-gray-50/50 text-[10px] text-gray-500 flex justify-between items-center">
                     <span>Click a row to expand transactions</span>
                   </div>
                 )}
