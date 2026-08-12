@@ -39,6 +39,7 @@ app.get("/api/search", async (req, res) => {
 
 // Prices endpoint
 app.get("/api/prices", async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
     try {
         const symbolsParam = req.query.symbols;
         if (!symbolsParam) {
