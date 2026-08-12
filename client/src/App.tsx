@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, GripVertical, Info, User, LogOut, PieChart, Folder } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, GripVertical, Info, User, LogOut, PieChart, Folder, Download, Upload } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabaseClient'
 import { Auth } from './components/Auth'
@@ -139,6 +140,8 @@ function App() {
   const currentFilters = activePortfolioId && portfolioFilters[activePortfolioId] 
     ? portfolioFilters[activePortfolioId] 
     : { filterType: 'open' as const, searchSelectedSymbols: [] as string[], sortField: null as string | null, sortDirection: 'desc' as const };
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filterType = currentFilters.filterType;
   const searchSelectedSymbols = currentFilters.searchSelectedSymbols;
@@ -1137,6 +1140,156 @@ function App() {
   const totalPnLPercent = maxNetInvested > 0 ? (totalPnL / maxNetInvested) * 100 : 0;
   const unrealizedPnLPercent = totalInvestment > 0 ? (totalUnrealizedPnL / totalInvestment) * 100 : 0;
 
+  const exportToExcel = () => {
+    if (!activePortfolio || filteredSymbolGroups.length === 0) return;
+
+    // 1. Create Summary Sheet Data
+    const summaryData = filteredSymbolGroups.map(group => {
+      const currentPrice = livePrices[group.symbol]?.price || 0;
+      const currentValue = group.netQty * currentPrice;
+      const pnl = currentValue - group.netCostBasis;
+      const pnlPct = group.netCostBasis > 0 ? (pnl / group.netCostBasis) * 100 : 0;
+      
+      return {
+        Ticker: group.symbol,
+        'Total Quantity': group.netQty,
+        'Avg Buy Price': group.avgBuyPrice,
+        'Current Price': currentPrice,
+        'Invested Value': group.netCostBasis,
+        'Current Value': currentValue,
+        'P&L': pnl,
+        'P&L %': pnlPct
+      };
+    });
+
+    // 2. Create Details Sheet Data
+    const detailsData: any[] = [];
+    filteredSymbolGroups.forEach(group => {
+      group.events.forEach(ev => {
+        if (ev.type === 'BUY') {
+          detailsData.push({
+            Type: 'BUY',
+            Date: ev.raw.entry_date,
+            Ticker: group.symbol,
+            Quantity: ev.raw.quantity,
+            Price: ev.raw.entry_price,
+            'Total Amount': ev.raw.quantity * ev.raw.entry_price
+          });
+        } else if (ev.type === 'SELL') {
+          detailsData.push({
+            Type: 'SELL',
+            Date: ev.raw.exit_date,
+            Ticker: group.symbol,
+            Quantity: ev.raw.quantity,
+            Price: ev.raw.exit_price,
+            'Total Amount': ev.raw.quantity * ev.raw.exit_price
+          });
+        }
+      });
+    });
+
+    // 3. Create Workbook
+    const wb = XLSX.utils.book_new();
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    const wsDetails = XLSX.utils.json_to_sheet(detailsData);
+
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+    XLSX.utils.book_append_sheet(wb, wsDetails, 'Details');
+
+    XLSX.writeFile(wb, `${activePortfolio.name}_Export.xlsx`);
+  };
+
+  const importFromExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const bstr = evt.target?.result;
+      const wb = XLSX.read(bstr, { type: 'binary' });
+
+      const wsDetailsName = wb.SheetNames.find(n => n.toLowerCase() === 'details');
+      if (!wsDetailsName) {
+        alert('Could not find a "Details" sheet in the uploaded Excel file. Please upload a file with the correct format.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      const wsDetails = wb.Sheets[wsDetailsName];
+      const data: any[] = XLSX.utils.sheet_to_json(wsDetails);
+
+      if (data.length === 0) {
+        alert('The "Details" sheet is empty.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      const portfolioName = prompt('Enter a name for the imported portfolio:', file.name.replace(/\.[^/.]+$/, ""));
+      if (!portfolioName) {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const { data: newPortfolio, error: portfolioError } = await supabase
+          .from('portfolios')
+          .insert([{ name: portfolioName }])
+          .select()
+          .single();
+
+        if (portfolioError) throw portfolioError;
+
+        const buysToInsert: any[] = [];
+        const sellsToInsert: any[] = [];
+
+        data.forEach(row => {
+          const type = row['Type']?.toString().toUpperCase();
+          const symbol = row['Ticker'];
+          const quantity = Number(row['Quantity']);
+          const price = Number(row['Price']);
+          
+          let parsedDate;
+          const dateStr = row['Date'];
+          if (typeof dateStr === 'number') {
+            const date = new Date(Math.round((dateStr - 25569) * 86400 * 1000));
+            parsedDate = date.toISOString().split('T')[0];
+          } else if (typeof dateStr === 'string') {
+            parsedDate = new Date(dateStr).toISOString().split('T')[0];
+          } else {
+             parsedDate = new Date().toISOString().split('T')[0];
+          }
+
+          if (type === 'BUY') {
+            buysToInsert.push({ portfolio_id: newPortfolio.id, symbol, quantity, entry_price: price, entry_date: parsedDate });
+          } else if (type === 'SELL') {
+            sellsToInsert.push({ portfolio_id: newPortfolio.id, symbol, quantity, exit_price: price, exit_date: parsedDate });
+          }
+        });
+
+        if (buysToInsert.length > 0) {
+          const { error: buysError } = await supabase.from('stocks').insert(buysToInsert);
+          if (buysError) throw buysError;
+        }
+
+        if (sellsToInsert.length > 0) {
+          const { error: sellsError } = await supabase.from('sold_stocks').insert(sellsToInsert);
+          if (sellsError) throw sellsError;
+        }
+
+        await fetchData();
+        setActivePortfolioId(newPortfolio.id);
+      } catch (err) {
+        console.error('Import Error:', err);
+        alert('Failed to import portfolio. Please check console for details.');
+      } finally {
+        setLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   if (!session) {
     return <Auth />;
   }
@@ -1235,13 +1388,29 @@ function App() {
                 <Folder className="w-5 h-5 shrink-0" />
                 <p className={`text-[10px] font-semibold uppercase tracking-wide transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>Portfolios</p>
               </div>
-              <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="text-gray-400 hover:text-zinc-900 transition-colors"
-                title="Create Portfolio"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept=".xlsx, .xls"
+                  onChange={importFromExcel}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-gray-400 hover:text-zinc-900 transition-colors"
+                  title="Import Portfolio"
+                >
+                  <Upload className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="text-gray-400 hover:text-zinc-900 transition-colors"
+                  title="Create Portfolio"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <nav className="mt-1">
@@ -1624,6 +1793,16 @@ function App() {
                     >
                       <ArrowUpDown className="w-3 h-3" />
                       {expandedSymbols.size > 0 ? 'Collapse All' : 'Expand All'}
+                    </button>
+                    <div className="w-px h-3 bg-gray-300 mx-1"></div>
+
+                    <button
+                      onClick={exportToExcel}
+                      disabled={filteredSymbolGroups.length === 0}
+                      className="text-xs font-medium text-gray-600 hover:text-zinc-900 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Download className="w-3 h-3" />
+                      Export
                     </button>
                   </div>
                 </div>
