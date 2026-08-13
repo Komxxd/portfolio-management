@@ -14,6 +14,7 @@ import { CorporateActionModal } from './components/CorporateActionModal'
 import { CorporateActionsViewerModal } from './components/CorporateActionsViewerModal'
 import { AssetSearch } from './components/AssetSearch'
 import { PortfolioInfoModal } from './components/PortfolioInfoModal'
+import { RebalanceModal } from './components/RebalanceModal'
 import { ConfirmationModal } from './components/ConfirmationModal'
 import { RecycleBinModal } from './components/RecycleBinModal'
 
@@ -128,6 +129,7 @@ function App() {
   const [soldStocks, setSoldStocks] = useState<SoldStock[]>([]);
   const [activePortfolioId, setActivePortfolioId] = useState<string | null>(null);
   const [isPortfolioInfoModalOpen, setIsPortfolioInfoModalOpen] = useState(false);
+  const [isRebalanceModalOpen, setIsRebalanceModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [addStockPortfolioId, setAddStockPortfolioId] = useState<string | null>(null);
   const [sellStockPortfolioId, setSellStockPortfolioId] = useState<string | null>(null);
@@ -1781,6 +1783,12 @@ function App() {
                     >
                       − Sell New Asset
                     </button>
+                    <button
+                      onClick={() => setIsRebalanceModalOpen(true)}
+                      className="text-xs font-medium text-orange-600 hover:text-orange-800 transition-colors"
+                    >
+                      Rebalance
+                    </button>
                     <div className="w-px h-3 bg-gray-300 mx-1"></div>
                     <button
                       onClick={() => setCorporateActionType('bonus')}
@@ -2345,6 +2353,17 @@ function App() {
           requireInputToConfirm={confirmationConfig.requireInputToConfirm}
         />
       )}
+
+      <RebalanceModal
+        isOpen={isRebalanceModalOpen}
+        onClose={() => setIsRebalanceModalOpen(false)}
+        portfolioId={activePortfolioId || ''}
+        symbolGroups={filteredSymbolGroups}
+        totalCurrentValue={totalCurrentValue}
+        onSuccess={() => {
+          fetchData();
+        }}
+      />
     </div>
   )
 }
