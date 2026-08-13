@@ -29,6 +29,7 @@ const ALL_COLUMNS = [
   { id: 'unrealizedPnLPct', label: 'Unrealized %' },
   { id: 'realizedPnL', label: 'Realized PnL' },
   { id: 'realizedPnLPct', label: 'Realized %' },
+  { id: 'totalDividend', label: 'Dividend' },
   { id: 'brokerage', label: 'Brokerage' },
   { id: 'govtTax', label: 'Govt Tax' },
   { id: 'totalPnL', label: 'Total PnL' },
@@ -801,6 +802,7 @@ function App() {
 
     const openLots: any[] = [];
     const stockCashFlows: { date: number; amount: number }[] = [];
+    let stockTotalDividend = 0;
     
     events.forEach(ev => {
       if (ev.type === 'BUY') {
@@ -937,6 +939,7 @@ function App() {
         });
         
         if (totalDividendReceived > 0) {
+          stockTotalDividend += totalDividendReceived;
           stockCashFlows.push({
             date: new Date(b.entry_date).getTime(),
             amount: totalDividendReceived
@@ -1012,6 +1015,7 @@ function App() {
       events,
       openLots: fifoBuyLots,
       stockCashFlows,
+      totalDividend: stockTotalDividend,
       xirr
     };
   });
@@ -1199,7 +1203,8 @@ function App() {
         'Invested Value': group.netCostBasis,
         'Current Value': currentValue,
         'P&L': pnl,
-        'P&L %': pnlPct
+        'P&L %': pnlPct,
+        'Total Dividend': group.totalDividend
       };
     });
 
@@ -2036,6 +2041,18 @@ function App() {
                                                 </span>
                                               );
                                             })()
+                                          ) : (
+                                            <span className="text-gray-300">—</span>
+                                          )}
+                                        </td>
+                                      );
+                                    case 'totalDividend':
+                                      return (
+                                        <td key="totalDividend" className="px-2 py-1.5 text-[9px] truncate">
+                                          {group.totalDividend > 0 ? (
+                                            <span className="font-medium text-green-600">
+                                              ₹{fmt(group.totalDividend)}
+                                            </span>
                                           ) : (
                                             <span className="text-gray-300">—</span>
                                           )}
