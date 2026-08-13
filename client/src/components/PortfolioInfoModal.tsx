@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, Info, X } from 'lucide-react';
+import { RefreshCw, Info, X, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface PortfolioInfoModalProps {
   symbols: { symbol: string; name: string }[];
@@ -100,6 +101,30 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose }: PortfolioInfoMo
     displayEvents = events.filter(e => e.type === 'SPLIT');
   }
 
+  const exportCorporateActions = () => {
+    if (displayEvents.length === 0) return;
+    
+    const data = displayEvents.map(event => {
+      const stockName = symbols.find(s => s.symbol === event.symbol)?.name || '';
+      const typeStr = event.type === 'DIVIDEND' ? 'Dividend' : 'Split/Bonus';
+      const dateStr = formatDate(event.date);
+      const valStr = event.type === 'DIVIDEND' ? event.amount : `${event.numerator}:${event.denominator}`;
+      
+      return {
+        Symbol: event.symbol,
+        'Stock Name': stockName,
+        Type: typeStr,
+        Date: dateStr,
+        'Amount/Ratio': valStr
+      };
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'Corporate Actions');
+    XLSX.writeFile(wb, `portfolio_corporate_actions_${activeTab}.xlsx`);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col h-[500px]">
@@ -131,14 +156,26 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose }: PortfolioInfoMo
             ))}
           </div>
           
-          <button
-            onClick={() => fetchCorporateActions(true)}
-            disabled={loading || symbols.length === 0}
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-zinc-900 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={exportCorporateActions}
+              disabled={loading || displayEvents.length === 0}
+              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-zinc-900 transition-colors disabled:opacity-50"
+              title="Download Corporate Actions as Excel"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download
+            </button>
+            <div className="w-px h-3 bg-gray-300"></div>
+            <button
+              onClick={() => fetchCorporateActions(true)}
+              disabled={loading || symbols.length === 0}
+              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-zinc-900 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 bg-white">
