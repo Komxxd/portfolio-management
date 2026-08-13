@@ -2440,12 +2440,16 @@ function App() {
         isOpen={viewCorporateActionsSymbol !== null}
         onClose={() => setViewCorporateActionsSymbol(null)}
         symbol={viewCorporateActionsSymbol || ''}
+        portfolioId={activePortfolioId || ''}
+        onSuccess={fetchData}
       />
 
       <PortfolioInfoModal
         isOpen={isPortfolioInfoModalOpen}
         onClose={() => setIsPortfolioInfoModalOpen(false)}
         symbols={allSymbols.map(sym => ({ symbol: sym, name: livePrices[sym]?.name || '' }))}
+        portfolioId={activePortfolioId || ''}
+        onSuccess={fetchData}
       />
 
       <RecycleBinModal

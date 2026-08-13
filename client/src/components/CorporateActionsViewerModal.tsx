@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import { X, RefreshCw } from 'lucide-react';
+import { X, RefreshCw, Plus } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 interface CorporateActionModalProps {
   isOpen: boolean;
   onClose: () => void;
   symbol: string;
+  portfolioId: string;
+  onSuccess: () => void;
 }
 
 interface DividendEvent {
@@ -20,8 +23,9 @@ interface SplitEvent {
 }
 
 
-export function CorporateActionsViewerModal({ isOpen, onClose, symbol }: CorporateActionModalProps) {
+export function CorporateActionsViewerModal({ isOpen, onClose, symbol, portfolioId, onSuccess }: CorporateActionModalProps) {
   const [loading, setLoading] = useState(false);
+  const [addingEventId, setAddingEventId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [dividends, setDividends] = useState<DividendEvent[]>([]);
   const [splits, setSplits] = useState<SplitEvent[]>([]);
@@ -100,6 +104,63 @@ export function CorporateActionsViewerModal({ isOpen, onClose, symbol }: Corpora
     displayEvents = displayEvents.filter(e => e.type === 'SPLIT');
   }
 
+  const handleAdd = async (event: UnifiedEvent, idx: number) => {
+    const eventId = `${event.date}-${idx}`;
+    setAddingEventId(eventId);
+    
+    try {
+      let entryPrice = 0;
+      let quantity = 0;
+      
+      if (event.type === 'DIVIDEND') {
+        entryPrice = -2;
+        quantity = event.amount;
+      } else if (event.type === 'SPLIT') {
+        entryPrice = -1;
+        quantity = event.numerator / event.denominator;
+      }
+
+      // Check if we hold shares on or before this date
+      const { data: buyData, error: buyError } = await supabase
+        .from('stocks')
+        .select('entry_date')
+        .eq('portfolio_id', portfolioId)
+        .eq('symbol', symbol)
+        .gt('entry_price', 0)
+        .order('entry_date', { ascending: true })
+        .limit(1);
+
+      if (buyError) throw buyError;
+      if (!buyData || buyData.length === 0) {
+        throw new Error(`You must have at least one buy position for ${symbol} before adding this ${event.type.toLowerCase()}.`);
+      }
+
+      const firstBuyDate = new Date(buyData[0].entry_date).getTime();
+      const actionDate = new Date(event.date).getTime();
+
+      if (actionDate < firstBuyDate) {
+        throw new Error(`This ${event.type.toLowerCase()} date (${new Date(event.date).toLocaleDateString()}) is before your first buy date (${new Date(buyData[0].entry_date).toLocaleDateString()}). It cannot be added.`);
+      }
+
+      const { error } = await supabase.from('stocks').insert({
+        portfolio_id: portfolioId,
+        symbol: symbol,
+        quantity: quantity,
+        entry_price: entryPrice,
+        entry_date: new Date(event.date).toISOString().split('T')[0],
+        brokerage: 0,
+        govt_tax: 0
+      });
+
+      if (error) throw error;
+      onSuccess();
+    } catch (err: any) {
+      alert(err.message || 'Failed to add corporate action');
+    } finally {
+      setAddingEventId(null);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col h-[500px]">
@@ -172,15 +233,25 @@ export function CorporateActionsViewerModal({ isOpen, onClose, symbol }: Corpora
                       <div className="text-xs text-gray-500">{formatDate(event.date)}</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-zinc-900">
-                      {event.type === 'DIVIDEND' 
-                        ? `₹${event.amount?.toFixed(2)}` 
-                        : `${event.numerator}:${event.denominator}`}
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-zinc-900">
+                        {event.type === 'DIVIDEND' 
+                          ? `₹${event.amount?.toFixed(2)}` 
+                          : `${event.numerator}:${event.denominator}`}
+                      </div>
+                      <div className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider">
+                        {event.type === 'DIVIDEND' ? 'Per Share' : 'Ratio'}
+                      </div>
                     </div>
-                    <div className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider">
-                      {event.type === 'DIVIDEND' ? 'Per Share' : 'Ratio'}
-                    </div>
+                    <button
+                      onClick={() => handleAdd(event, idx)}
+                      disabled={addingEventId === `${event.date}-${idx}`}
+                      className="p-1.5 ml-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors disabled:opacity-50"
+                      title="Add to portfolio"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               ))}
