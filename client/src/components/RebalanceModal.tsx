@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { X, RefreshCw, AlertCircle, ArrowRight, Check } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
@@ -66,7 +66,7 @@ export function RebalanceModal({ isOpen, onClose, portfolioId, symbolGroups, tot
     });
   }, [symbolGroups, totalCurrentValue]);
 
-  const { totalCashRequired, totalCashGenerated, netCash } = useMemo(() => {
+  const { netCash } = useMemo(() => {
     let required = 0;
     let generated = 0;
     trades.forEach(t => {

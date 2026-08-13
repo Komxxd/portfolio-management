@@ -1225,6 +1225,33 @@ function App() {
             Price: ev.raw.exit_price,
             'Total Amount': ev.raw.quantity * ev.raw.exit_price
           });
+        } else if (ev.type === 'DIVIDEND') {
+          detailsData.push({
+            Type: 'DIVIDEND',
+            Date: ev.raw.entry_date,
+            Ticker: group.symbol,
+            Quantity: '-',
+            Price: ev.raw.quantity,
+            'Total Amount': '-'
+          });
+        } else if (ev.type === 'SPLIT') {
+          detailsData.push({
+            Type: 'SPLIT',
+            Date: ev.raw.entry_date,
+            Ticker: group.symbol,
+            Quantity: ev.raw.quantity,
+            Price: '-',
+            'Total Amount': '-'
+          });
+        } else if (ev.type === 'BONUS') {
+          detailsData.push({
+            Type: 'BONUS',
+            Date: ev.raw.entry_date,
+            Ticker: group.symbol,
+            Quantity: ev.raw.quantity,
+            Price: '-',
+            'Total Amount': '-'
+          });
         }
       });
     });
@@ -1287,9 +1314,24 @@ function App() {
         data.forEach(row => {
           const type = row['Type']?.toString().toUpperCase();
           const symbol = row['Ticker'];
-          const quantity = Number(row['Quantity']);
-          const price = Number(row['Price']);
           
+          let rawQty = 0;
+          let rawPrice = 0;
+
+          if (type === 'DIVIDEND') {
+            rawQty = Number(row['Price']); // Dividend amount per share was exported in the 'Price' column
+            rawPrice = -2;
+          } else if (type === 'SPLIT') {
+            rawQty = Number(row['Quantity']); // Multiplier was exported in the 'Quantity' column
+            rawPrice = -1;
+          } else if (type === 'BONUS') {
+            rawQty = Number(row['Quantity']); // Multiplier was exported in the 'Quantity' column
+            rawPrice = 0;
+          } else {
+            rawQty = Number(row['Quantity']);
+            rawPrice = Number(row['Price']);
+          }
+
           let parsedDate;
           const dateStr = row['Date'];
           if (typeof dateStr === 'number') {
@@ -1301,10 +1343,10 @@ function App() {
              parsedDate = new Date().toISOString().split('T')[0];
           }
 
-          if (type === 'BUY') {
-            buysToInsert.push({ portfolio_id: newPortfolio.id, symbol, quantity, entry_price: price, entry_date: parsedDate });
+          if (type === 'BUY' || type === 'DIVIDEND' || type === 'SPLIT' || type === 'BONUS') {
+            buysToInsert.push({ portfolio_id: newPortfolio.id, symbol, quantity: rawQty, entry_price: rawPrice, entry_date: parsedDate });
           } else if (type === 'SELL') {
-            sellsToInsert.push({ portfolio_id: newPortfolio.id, symbol, quantity, exit_price: price, exit_date: parsedDate });
+            sellsToInsert.push({ portfolio_id: newPortfolio.id, symbol, quantity: rawQty, exit_price: rawPrice, exit_date: parsedDate });
           }
         });
 
