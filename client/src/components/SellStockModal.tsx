@@ -7,6 +7,8 @@ interface SellStockModalProps {
   onClose: () => void;
   onAdded: () => void;
   portfolioId: string | null;
+  initialSymbol?: string;
+  initialPrice?: number;
 }
 
 interface OwnedStock {
@@ -17,12 +19,12 @@ interface OwnedStock {
   entryPrice: number;    // for reference display
 }
 
-export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellStockModalProps) {
+export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialSymbol, initialPrice }: SellStockModalProps) {
   const [ownedStocks, setOwnedStocks] = useState<OwnedStock[]>([]);
   const [loadingStocks, setLoadingStocks] = useState(false);
 
-  const [selectedSymbol, setSelectedSymbol] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSymbol, setSelectedSymbol] = useState(initialSymbol || '');
+  const [searchQuery, setSearchQuery] = useState(initialSymbol || '');
   const [showDropdown, setShowDropdown] = useState(false);
   const [quantity, setQuantity] = useState('');
   const [exitPrice, setExitPrice] = useState('');
@@ -76,11 +78,11 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
     const fetchOwnedStocks = async () => {
       setLoadingStocks(true);
       setOwnedStocks([]);
-      setSelectedSymbol('');
-      setSearchQuery('');
+      setSelectedSymbol(initialSymbol || '');
+      setSearchQuery(initialSymbol || '');
       setShowDropdown(false);
       setQuantity('');
-      setExitPrice('');
+      setExitPrice(initialPrice ? initialPrice.toString() : '');
       setBrokerage('0');
       setGovtTax('0');
       setExitDate(new Date().toISOString().split('T')[0]);
@@ -146,6 +148,26 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
   }, [isOpen, portfolioId]);
 
   if (!isOpen || !portfolioId) return null;
+
+  const handleSelectStock = async (stockSymbol: string) => {
+    setSelectedSymbol(stockSymbol);
+    setSearchQuery(stockSymbol);
+    setQuantity('');
+    setShowDropdown(false);
+
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${apiBase}/api/prices?symbols=${encodeURIComponent(stockSymbol)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data[stockSymbol]) {
+          setExitPrice(data[stockSymbol].price.toString());
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching live price:', err);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,12 +263,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId }: SellSt
                           <button
                             key={s.symbol}
                             type="button"
-                            onClick={() => {
-                              setSelectedSymbol(s.symbol);
-                              setSearchQuery(s.symbol);
-                              setQuantity('');
-                              setShowDropdown(false);
-                            }}
+                            onClick={() => handleSelectStock(s.symbol)}
                             className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between group transition-colors"
                           >
                             <div className="font-semibold text-sm text-zinc-900 group-hover:text-orange-600 transition-colors">

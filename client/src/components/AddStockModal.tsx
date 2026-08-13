@@ -7,6 +7,8 @@ interface AddStockModalProps {
   onClose: () => void;
   onAdded: () => void;
   portfolioId: string | null;
+  initialSymbol?: string;
+  initialPrice?: number;
 }
 
 interface SearchResult {
@@ -15,9 +17,9 @@ interface SearchResult {
   exchange: string;
 }
 
-export function AddStockModal({ isOpen, onClose, onAdded, portfolioId }: AddStockModalProps) {
-  const [ticker, setTicker] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSymbol, initialPrice }: AddStockModalProps) {
+  const [ticker, setTicker] = useState(initialSymbol || '');
+  const [searchQuery, setSearchQuery] = useState(initialSymbol || '');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -31,6 +33,22 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId }: AddStoc
   const [error, setError] = useState('');
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSearchQuery(initialSymbol || '');
+      setTicker(initialSymbol || '');
+      setSearchResults([]);
+      setQuantity('');
+      setEntryPrice(initialPrice ? initialPrice.toString() : '');
+      setBrokerage('0');
+      setGovtTax('0');
+      setEntryDate(new Date().toISOString().split('T')[0]);
+      setError('');
+      setLoading(false);
+    }
+  }, [isOpen, initialSymbol, initialPrice]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -89,10 +107,23 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId }: AddStoc
 
   if (!isOpen || !portfolioId) return null;
 
-  const handleSelectStock = (result: SearchResult) => {
+  const handleSelectStock = async (result: SearchResult) => {
     setTicker(result.symbol);
     setSearchQuery(result.symbol);
     setShowDropdown(false);
+
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${apiBase}/api/prices?symbols=${encodeURIComponent(result.symbol)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data[result.symbol]) {
+          setEntryPrice(data[result.symbol].price.toString());
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching live price:', err);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

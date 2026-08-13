@@ -136,7 +136,11 @@ function App() {
   const [isRebalanceModalOpen, setIsRebalanceModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [addStockPortfolioId, setAddStockPortfolioId] = useState<string | null>(null);
+  const [addStockInitialSymbol, setAddStockInitialSymbol] = useState<string>('');
+  const [addStockInitialPrice, setAddStockInitialPrice] = useState<number | undefined>(undefined);
   const [sellStockPortfolioId, setSellStockPortfolioId] = useState<string | null>(null);
+  const [sellStockInitialSymbol, setSellStockInitialSymbol] = useState<string>('');
+  const [sellStockInitialPrice, setSellStockInitialPrice] = useState<number | undefined>(undefined);
   const [editStockId, setEditStockId] = useState<string | null>(null);
   const [editSoldStockId, setEditSoldStockId] = useState<string | null>(null);
   const [renamePortfolioId, setRenamePortfolioId] = useState<string | null>(null);
@@ -1964,6 +1968,32 @@ function App() {
                                                 <button
                                                   onClick={(e) => {
                                                     e.stopPropagation();
+                                                    setAddStockInitialSymbol(group.symbol);
+                                                    setAddStockInitialPrice(group.livePrice);
+                                                    setAddStockPortfolioId(activePortfolioId);
+                                                  }}
+                                                  className="text-green-600 hover:text-green-700 hover:underline transition-colors focus:outline-none"
+                                                  title={`Buy more ${group.symbol}`}
+                                                >
+                                                  Buy
+                                                </button>
+                                                <span>·</span>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSellStockInitialSymbol(group.symbol);
+                                                    setSellStockInitialPrice(group.livePrice);
+                                                    setSellStockPortfolioId(activePortfolioId);
+                                                  }}
+                                                  className="text-red-500 hover:text-red-700 hover:underline transition-colors focus:outline-none"
+                                                  title={`Sell ${group.symbol}`}
+                                                >
+                                                  Sell
+                                                </button>
+                                                <span>·</span>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
                                                     setViewCorporateActionsSymbol(group.symbol);
                                                   }}
                                                   className="text-blue-500 hover:text-blue-700 hover:underline transition-colors focus:outline-none"
@@ -2393,14 +2423,18 @@ function App() {
       <AddStockModal
         isOpen={!!addStockPortfolioId}
         portfolioId={addStockPortfolioId}
-        onClose={() => setAddStockPortfolioId(null)}
+        initialSymbol={addStockInitialSymbol}
+        initialPrice={addStockInitialPrice}
+        onClose={() => { setAddStockPortfolioId(null); setAddStockInitialSymbol(''); setAddStockInitialPrice(undefined); }}
         onAdded={fetchData}
       />
 
       <SellStockModal
         isOpen={!!sellStockPortfolioId}
         portfolioId={sellStockPortfolioId}
-        onClose={() => setSellStockPortfolioId(null)}
+        initialSymbol={sellStockInitialSymbol}
+        initialPrice={sellStockInitialPrice}
+        onClose={() => { setSellStockPortfolioId(null); setSellStockInitialSymbol(''); setSellStockInitialPrice(undefined); }}
         onAdded={fetchData}
       />
 
