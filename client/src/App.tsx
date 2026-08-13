@@ -26,10 +26,13 @@ const ALL_COLUMNS = [
   { id: 'livePrice', label: 'Live Price' },
   { id: 'currentValue', label: 'Current Value' },
   { id: 'unrealizedPnL', label: 'Unrealized PnL' },
+  { id: 'unrealizedPnLPct', label: 'Unrealized %' },
   { id: 'realizedPnL', label: 'Realized PnL' },
+  { id: 'realizedPnLPct', label: 'Realized %' },
   { id: 'brokerage', label: 'Brokerage' },
   { id: 'govtTax', label: 'Govt Tax' },
   { id: 'totalPnL', label: 'Total PnL' },
+  { id: 'totalPnLPct', label: 'Total PnL %' },
   { id: 'xirr', label: 'XIRR' },
   { id: 'portfolioWeight', label: '% Invested' },
   { id: 'currentValueWeight', label: '% Current Value' }
@@ -353,7 +356,23 @@ function App() {
     
     const missingCols = ALL_COLUMNS.map(c => c.id).filter(id => !order.includes(id));
     if (missingCols.length > 0) {
-      order = [...order, ...missingCols];
+      missingCols.forEach(missingCol => {
+        let inserted = false;
+        if (missingCol === 'unrealizedPnLPct') {
+          const idx = order.indexOf('unrealizedPnL');
+          if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
+        } else if (missingCol === 'realizedPnLPct') {
+          const idx = order.indexOf('realizedPnL');
+          if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
+        } else if (missingCol === 'totalPnLPct') {
+          const idx = order.indexOf('totalPnL');
+          if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
+        }
+        
+        if (!inserted) {
+          order.push(missingCol);
+        }
+      });
     }
     return order;
   })();
@@ -1839,13 +1858,13 @@ function App() {
                   <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
                     <thead className="sticky top-0 z-10 bg-white shadow-sm">
                       <tr className="border-b border-gray-200 divide-x divide-gray-200">
-                        <th className="px-2 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-gray-500 w-6 bg-white"></th>
+                        <th className="px-2 py-1.5 text-[8px] uppercase tracking-wider font-semibold text-gray-500 w-6 bg-white"></th>
                         {activeColumnOrder.map(colId => {
                           if (!visibleColumns.has(colId)) return null;
                           const col = ALL_COLUMNS.find(c => c.id === colId)!;
                           return <SortHeader key={col.id} field={col.id} label={col.label} />;
                         })}
-                        <th className="px-2 py-1.5 text-[9px] text-right w-8 bg-white"></th>
+                        <th className="px-2 py-1.5 text-[8px] text-right w-8 bg-white"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1881,15 +1900,15 @@ function App() {
                                         <td key="symbol" className="px-2 py-1.5 truncate">
                                           <div className="flex items-center gap-1.5 overflow-hidden">
                                             <div className="min-w-0 flex-1">
-                                              <div className="font-semibold text-[10px] text-zinc-900 flex items-center gap-1.5 truncate">
+                                              <div className="font-semibold text-[9px] text-zinc-900 flex items-center gap-1.5 truncate">
                                                 <span className="truncate">{group.symbol}</span>
                                                 {group.companyName && (
-                                                  <span className="font-normal text-[10px] text-gray-500 truncate" title={group.companyName}>
+                                                  <span className="font-normal text-[9px] text-gray-500 truncate" title={group.companyName}>
                                                     {group.companyName}
                                                   </span>
                                                 )}
                                               </div>
-                                              <div className="text-[9px] text-gray-400 mt-0.5 truncate flex items-center gap-1.5">
+                                              <div className="text-[8px] text-gray-400 mt-0.5 truncate flex items-center gap-1.5">
                                                 <span>
                                                   {group.totalBoughtQty.toLocaleString()} bought
                                                   {group.totalSoldQty > 0 && <> · <span className="text-red-400">{group.totalSoldQty.toLocaleString()} sold</span></>}
@@ -1911,41 +1930,48 @@ function App() {
                                         </td>
                                       );
                                     case 'netQty':
-                                      return <td key="netQty" className="px-2 py-1.5 text-[10px] font-semibold text-zinc-900 truncate">{group.netQty.toLocaleString()}</td>;
+                                      return <td key="netQty" className="px-2 py-1.5 text-[9px] font-semibold text-zinc-900 truncate">{group.netQty.toLocaleString()}</td>;
                                     case 'avgBuyPrice':
-                                      return <td key="avgBuyPrice" className="px-2 py-1.5 text-[10px] text-gray-600 truncate">₹{fmt(group.avgBuyPrice)}</td>;
+                                      return <td key="avgBuyPrice" className="px-2 py-1.5 text-[9px] text-gray-600 truncate">₹{fmt(group.avgBuyPrice)}</td>;
                                     case 'netCostBasis':
-                                      return <td key="netCostBasis" className="px-2 py-1.5 text-[10px] text-gray-600 truncate" title="Avg buy price × remaining shares — money still at work">₹{fmt(group.netCostBasis)}</td>;
+                                      return <td key="netCostBasis" className="px-2 py-1.5 text-[9px] text-gray-600 truncate" title="Avg buy price × remaining shares — money still at work">₹{fmt(group.netCostBasis)}</td>;
                                     case 'portfolioWeight':
                                       const weight = totalInvestment > 0 ? (group.netCostBasis / totalInvestment) * 100 : 0;
                                       return (
-                                        <td key="portfolioWeight" className="px-2 py-1.5 text-[10px] text-gray-600 truncate">
+                                        <td key="portfolioWeight" className="px-2 py-1.5 text-[9px] text-gray-600 truncate">
                                           {weight.toFixed(2)}%
                                         </td>
                                       );
                                     case 'currentValueWeight':
                                       const cvWeight = totalCurrentValue > 0 ? (group.currentValue / totalCurrentValue) * 100 : 0;
                                       return (
-                                        <td key="currentValueWeight" className="px-2 py-1.5 text-[10px] text-gray-600 truncate">
+                                        <td key="currentValueWeight" className="px-2 py-1.5 text-[9px] text-gray-600 truncate">
                                           {cvWeight.toFixed(2)}%
                                         </td>
                                       );
                                     case 'livePrice':
-                                      return <td key="livePrice" className="px-2 py-1.5 text-[10px] font-medium text-zinc-900 truncate">₹{fmt(group.livePrice)}</td>;
+                                      return <td key="livePrice" className="px-2 py-1.5 text-[9px] font-medium text-zinc-900 truncate">₹{fmt(group.livePrice)}</td>;
                                     case 'currentValue':
-                                      return <td key="currentValue" className="px-2 py-1.5 text-[10px] font-medium text-zinc-900 truncate">₹{fmt(group.currentValue)}</td>;
+                                      return <td key="currentValue" className="px-2 py-1.5 text-[9px] font-medium text-zinc-900 truncate">₹{fmt(group.currentValue)}</td>;
                                     case 'unrealizedPnL':
                                       return (
-                                        <td key="unrealizedPnL" className="px-2 py-1.5 text-[10px] truncate">
+                                        <td key="unrealizedPnL" className="px-2 py-1.5 text-[9px] truncate">
                                           <span className={`font-medium ${group.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                             {group.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(group.unrealizedPnL)}
                                           </span>
-                                          <span className="text-[9px] ml-1 text-gray-400">({group.unrealizedPct >= 0 ? '+' : ''}{group.unrealizedPct.toFixed(2)}%)</span>
+                                        </td>
+                                      );
+                                    case 'unrealizedPnLPct':
+                                      return (
+                                        <td key="unrealizedPnLPct" className="px-2 py-1.5 text-[9px] truncate">
+                                          <span className={`font-medium ${group.unrealizedPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {group.unrealizedPct >= 0 ? '+' : ''}{group.unrealizedPct.toFixed(2)}%
+                                          </span>
                                         </td>
                                       );
                                     case 'realizedPnL':
                                       return (
-                                        <td key="realizedPnL" className="px-2 py-1.5 text-[10px] truncate">
+                                        <td key="realizedPnL" className="px-2 py-1.5 text-[9px] truncate">
                                           {group.sells.length > 0 ? (
                                             <span className={`font-medium ${group.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                               {group.realizedPnL >= 0 ? '+' : ''}₹{fmt(group.realizedPnL)}
@@ -1955,30 +1981,58 @@ function App() {
                                           )}
                                         </td>
                                       );
+                                    case 'realizedPnLPct':
+                                      return (
+                                        <td key="realizedPnLPct" className="px-2 py-1.5 text-[9px] truncate">
+                                          {group.sells.length > 0 ? (
+                                            (() => {
+                                              const realizedCostBasis = group.totalBuyCost - group.netCostBasis;
+                                              const realizedPct = realizedCostBasis > 0 ? (group.realizedPnL / realizedCostBasis) * 100 : 0;
+                                              return (
+                                                <span className={`font-medium ${realizedPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                  {realizedPct >= 0 ? '+' : ''}{realizedPct.toFixed(2)}%
+                                                </span>
+                                              );
+                                            })()
+                                          ) : (
+                                            <span className="text-gray-300">—</span>
+                                          )}
+                                        </td>
+                                      );
                                     case 'brokerage':
-                                      return <td key="brokerage" className="px-2 py-1.5 text-[10px] text-gray-600 truncate">₹{fmt(group.totalBrokerage)}</td>;
+                                      return <td key="brokerage" className="px-2 py-1.5 text-[9px] text-gray-600 truncate">₹{fmt(group.totalBrokerage)}</td>;
                                     case 'govtTax':
-                                      return <td key="govtTax" className="px-2 py-1.5 text-[10px] text-gray-600 truncate">₹{fmt(group.totalGovtTax)}</td>;
+                                      return <td key="govtTax" className="px-2 py-1.5 text-[9px] text-gray-600 truncate">₹{fmt(group.totalGovtTax)}</td>;
                                     case 'totalPnL':
                                       return (
-                                        <td key="totalPnL" className="px-2 py-1.5 text-[10px] truncate">
+                                        <td key="totalPnL" className="px-2 py-1.5 text-[9px] truncate">
+                                          {(() => {
+                                            const total = group.unrealizedPnL + group.realizedPnL - group.totalBrokerage - group.totalGovtTax;
+                                            return (
+                                              <span className={`font-medium ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {total >= 0 ? '+' : ''}₹{fmt(total)}
+                                              </span>
+                                            );
+                                          })()}
+                                        </td>
+                                      );
+                                    case 'totalPnLPct':
+                                      return (
+                                        <td key="totalPnLPct" className="px-2 py-1.5 text-[9px] truncate">
                                           {(() => {
                                             const total = group.unrealizedPnL + group.realizedPnL - group.totalBrokerage - group.totalGovtTax;
                                             const totalPct = group.totalBuyCost > 0 ? (total / group.totalBuyCost) * 100 : 0;
                                             return (
-                                              <>
-                                                <span className={`font-medium ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                  {total >= 0 ? '+' : ''}₹{fmt(total)}
-                                                </span>
-                                                <span className="text-[9px] ml-1 text-gray-400">({totalPct >= 0 ? '+' : ''}{totalPct.toFixed(2)}%)</span>
-                                              </>
+                                              <span className={`font-medium ${totalPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {totalPct >= 0 ? '+' : ''}{totalPct.toFixed(2)}%
+                                              </span>
                                             );
                                           })()}
                                         </td>
                                       );
                                     case 'xirr':
                                       return (
-                                        <td key="xirr" className={`px-2 py-1.5 text-[10px] font-bold ${group.xirr >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
+                                        <td key="xirr" className={`px-2 py-1.5 text-[9px] font-bold ${group.xirr >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
                                           {group.xirr >= 0 ? '+' : ''}{(group.xirr * 100).toFixed(2)}%
                                         </td>
                                       );
