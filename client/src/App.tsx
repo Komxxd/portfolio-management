@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as XLSX from 'xlsx'
-import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, GripVertical, Info, User, LogOut, PieChart, Folder, Download, Upload, Home, LayoutDashboard } from 'lucide-react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, GripVertical, Info, User, LogOut, PieChart, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabaseClient'
 import { Auth } from './components/Auth'
@@ -545,6 +545,24 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleManualRefresh = async () => {
+    setPricesLoading(true);
+    await fetchData();
+    if (allStockSymbols) {
+      try {
+        const apiBase = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${apiBase}/api/prices?symbols=${encodeURIComponent(allStockSymbols)}&t=${Date.now()}`);
+        if (response.ok) {
+          const prices = await response.json();
+          setLivePrices(prev => ({ ...prev, ...prices }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch live prices', err);
+      }
+    }
+    setPricesLoading(false);
   };
 
   useEffect(() => {
@@ -1619,17 +1637,27 @@ function App() {
           )}
         </div>
 
-        <div className="relative group" ref={accountMenuRef}>
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors border ${
-              isAccountMenuOpen 
-                ? 'bg-zinc-900 text-white border-zinc-900' 
-                : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
-            }`}
+            onClick={handleManualRefresh}
+            disabled={pricesLoading}
+            className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors border bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 ${pricesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Refresh Portfolio & Prices"
           >
-            <User className="w-4 h-4" />
+            <RefreshCw className={`w-3.5 h-3.5 ${pricesLoading ? 'animate-spin text-zinc-900' : ''}`} />
           </button>
+
+          <div className="relative group" ref={accountMenuRef}>
+            <button
+              onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors border ${
+                isAccountMenuOpen 
+                  ? 'bg-zinc-900 text-white border-zinc-900' 
+                  : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+              }`}
+            >
+              <User className="w-4 h-4" />
+            </button>
 
           {/* Custom Tooltip */}
           {!isAccountMenuOpen && (
@@ -1657,6 +1685,7 @@ function App() {
               </div>
             </div>
           )}
+        </div>
         </div>
       </header>
 
