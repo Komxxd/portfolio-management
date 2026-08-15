@@ -1097,6 +1097,7 @@ function App() {
   let totalRealizedPnL = 0;
   let portfolioTotalBrokerage = 0;
   let portfolioTotalGovtTax = 0;
+  let portfolioTotalDividend = 0;
 
   const allTransactions: { date: number; amount: number }[] = [];
 
@@ -1107,6 +1108,7 @@ function App() {
     totalRealizedPnL += g.realizedPnL;
     portfolioTotalBrokerage += g.totalBrokerage;
     portfolioTotalGovtTax += g.totalGovtTax;
+    portfolioTotalDividend += g.totalDividend;
     
     g.stockCashFlows.forEach(cf => {
       allTransactions.push({
@@ -1254,6 +1256,7 @@ function App() {
     let homeTotalBrokerage = 0;
     let homeTotalGovtTax = 0;
     let homeTotalStocks = 0;
+    let homeTotalDividend = 0;
     const homeAllTransactions: { date: number; amount: number }[] = [];
 
     portfolios.forEach(portfolio => {
@@ -1349,7 +1352,7 @@ function App() {
         const totalBrokerage = buys.reduce((sum, b) => sum + Number(b.brokerage || 0), 0) + sells.reduce((sum, s) => sum + Number(s.brokerage || 0), 0);
         const totalGovtTax = buys.reduce((sum, b) => sum + Number(b.govt_tax || 0), 0) + sells.reduce((sum, s) => sum + Number(s.govt_tax || 0), 0);
 
-        return { symbol, netQty, netCostBasis, currentValue, unrealizedPnL, realizedPnL: fifoRealizedPnL, totalBrokerage, totalGovtTax, stockCashFlows, totalBoughtQty };
+        return { symbol, netQty, netCostBasis, currentValue, unrealizedPnL, realizedPnL: fifoRealizedPnL, totalBrokerage, totalGovtTax, stockCashFlows, totalBoughtQty, totalDividend: stockTotalDividend };
       });
 
       // Only count open positions for total stocks
@@ -1363,6 +1366,7 @@ function App() {
         homeTotalRealizedPnL += g.realizedPnL;
         homeTotalBrokerage += g.totalBrokerage;
         homeTotalGovtTax += g.totalGovtTax;
+        homeTotalDividend += g.totalDividend;
         g.stockCashFlows.forEach(cf => {
           homeAllTransactions.push({ date: cf.date, amount: -cf.amount });
         });
@@ -1397,6 +1401,7 @@ function App() {
       totalRealizedPnL: homeTotalRealizedPnL,
       totalPnL: homeTotalPnL,
       totalPnLPercent: homeTotalPnLPercent,
+      totalDividend: homeTotalDividend,
       xirr: homeXIRR,
     };
   }, [portfolios, stocks, soldStocks, livePrices]);
@@ -1975,6 +1980,14 @@ function App() {
                 </div>
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
                   <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Total Dividend</span>
+                  </div>
+                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${homeStats.totalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    ₹{homeStats.totalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
                     <span>Total PnL</span>
                   </div>
                   <div className={`text-sm font-bold truncate ${homeStats.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
@@ -2118,6 +2131,14 @@ function App() {
                   </div>
                   <div className={`text-sm font-bold truncate ${totalRealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {totalRealizedPnL >= 0 ? '+' : ''}₹{totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Total Dividend</span>
+                  </div>
+                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    ₹{portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
