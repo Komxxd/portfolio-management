@@ -1955,9 +1955,14 @@ function App() {
                   </div>
                   <div className={`text-sm font-bold truncate ${homeStats.totalUnrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${homeStats.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {homeStats.totalUnrealizedPnL >= 0 ? '+' : ''}₹{homeStats.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    <span className="text-[9px] font-medium ml-1 text-gray-500">
-                      ({homeStats.unrealizedPnLPercent >= 0 ? '+' : ''}{homeStats.unrealizedPnLPercent.toFixed(2)}%)
-                    </span>
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Unrealized %</span>
+                  </div>
+                  <div className={`text-sm font-bold truncate ${homeStats.unrealizedPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`${homeStats.unrealizedPnLPercent.toFixed(2)}%`}>
+                    {homeStats.unrealizedPnLPercent >= 0 ? '+' : ''}{homeStats.unrealizedPnLPercent.toFixed(2)}%
                   </div>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
@@ -1974,9 +1979,14 @@ function App() {
                   </div>
                   <div className={`text-sm font-bold truncate ${homeStats.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {homeStats.totalPnL >= 0 ? '+' : ''}₹{homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    <span className="text-[9px] font-medium ml-1 text-gray-500">
-                      ({homeStats.totalPnLPercent >= 0 ? '+' : ''}{homeStats.totalPnLPercent.toFixed(2)}%)
-                    </span>
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Total PnL %</span>
+                  </div>
+                  <div className={`text-sm font-bold truncate ${homeStats.totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`${homeStats.totalPnLPercent.toFixed(2)}%`}>
+                    {homeStats.totalPnLPercent >= 0 ? '+' : ''}{homeStats.totalPnLPercent.toFixed(2)}%
                   </div>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
@@ -2092,9 +2102,14 @@ function App() {
                   </div>
                   <div className={`text-sm font-bold truncate ${totalUnrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {totalUnrealizedPnL >= 0 ? '+' : ''}₹{totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    <span className="text-[9px] font-medium ml-1 text-gray-500">
-                      ({unrealizedPnLPercent >= 0 ? '+' : ''}{unrealizedPnLPercent.toFixed(2)}%)
-                    </span>
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Unrealized %</span>
+                  </div>
+                  <div className={`text-sm font-bold truncate ${unrealizedPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`${unrealizedPnLPercent.toFixed(2)}%`}>
+                    {unrealizedPnLPercent >= 0 ? '+' : ''}{unrealizedPnLPercent.toFixed(2)}%
                   </div>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
@@ -2111,9 +2126,14 @@ function App() {
                   </div>
                   <div className={`text-sm font-bold truncate ${totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {totalPnL >= 0 ? '+' : ''}₹{totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    <span className="text-[9px] font-medium ml-1 text-gray-500">
-                      ({totalPnLPercent >= 0 ? '+' : ''}{totalPnLPercent.toFixed(2)}%)
-                    </span>
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Total PnL %</span>
+                  </div>
+                  <div className={`text-sm font-bold truncate ${totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`${totalPnLPercent.toFixed(2)}%`}>
+                    {totalPnLPercent >= 0 ? '+' : ''}{totalPnLPercent.toFixed(2)}%
                   </div>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
