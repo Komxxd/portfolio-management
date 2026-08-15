@@ -60,7 +60,17 @@ app.get("/api/prices", async (req, res) => {
             if (q && q.symbol && q.regularMarketPrice) {
                 prices[q.symbol] = {
                     price: q.regularMarketPrice,
-                    name: q.shortName || q.longName || q.shortname || q.longname || q.symbol
+                    name: q.shortName || q.longName || q.shortname || q.longname || q.symbol,
+                    change: q.regularMarketChange,
+                    changePercent: q.regularMarketChangePercent,
+                    dayHigh: q.regularMarketDayHigh,
+                    dayLow: q.regularMarketDayLow,
+                    fiftyTwoWeekHigh: q.fiftyTwoWeekHigh,
+                    fiftyTwoWeekLow: q.fiftyTwoWeekLow,
+                    marketCap: q.marketCap,
+                    volume: q.regularMarketVolume,
+                    avgVolume: q.averageDailyVolume3Month,
+                    previousClose: q.regularMarketPreviousClose
                 };
             }
         });

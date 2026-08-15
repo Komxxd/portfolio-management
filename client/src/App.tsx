@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as XLSX from 'xlsx'
-import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, GripVertical, Info, User, LogOut, PieChart, Folder, Download, Upload } from 'lucide-react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, GripVertical, Info, User, LogOut, PieChart, Folder, Download, Upload, Home, LayoutDashboard } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabaseClient'
 import { Auth } from './components/Auth'
@@ -36,7 +36,19 @@ const ALL_COLUMNS = [
   { id: 'totalPnLPct', label: 'Total PnL %' },
   { id: 'xirr', label: 'XIRR' },
   { id: 'portfolioWeight', label: '% Invested' },
-  { id: 'currentValueWeight', label: '% Current Value' }
+  { id: 'currentValueWeight', label: '% Current Value' },
+  { id: 'priceChange', label: 'Change' },
+  { id: 'changePercent', label: 'Change %' },
+  { id: 'dayHigh', label: 'Day High' },
+  { id: 'dayLow', label: 'Day Low' },
+  { id: '52wkHigh', label: '52W High' },
+  { id: '52wkLow', label: '52W Low' },
+  { id: 'marketCap', label: 'Mkt Cap' },
+  { id: 'volume', label: 'Volume' },
+  { id: 'avgVolume', label: 'Avg Volume (3M)' },
+  { id: 'tradeValue', label: 'Trade Value' },
+  { id: 'dayGain', label: 'Day Gain' },
+  { id: 'dayGainPct', label: 'Day Gain %' }
 ];
 
 interface Portfolio {
@@ -132,6 +144,7 @@ function App() {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [soldStocks, setSoldStocks] = useState<SoldStock[]>([]);
   const [activePortfolioId, setActivePortfolioId] = useState<string | null>(null);
+  const [activePage, setActivePage] = useState<'home' | 'portfolio'>('portfolio');
   const [isPortfolioInfoModalOpen, setIsPortfolioInfoModalOpen] = useState(false);
   const [isRebalanceModalOpen, setIsRebalanceModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -456,7 +469,20 @@ function App() {
 
 
   // Real-time prices state
-  const [livePrices, setLivePrices] = useState<Record<string, { price: number; name: string }>>({});
+  const [livePrices, setLivePrices] = useState<Record<string, { 
+    price: number; 
+    name: string;
+    change?: number;
+    changePercent?: number;
+    dayHigh?: number;
+    dayLow?: number;
+    fiftyTwoWeekHigh?: number;
+    fiftyTwoWeekLow?: number;
+    marketCap?: number;
+    volume?: number;
+    avgVolume?: number;
+    previousClose?: number;
+  }>>({});
   const [pricesLoading, setPricesLoading] = useState(false);
 
   const fetchData = async () => {
@@ -718,19 +744,19 @@ function App() {
   const activeStocks = stocks.filter(s => s.portfolio_id === activePortfolioId);
   const activeSoldStocks = soldStocks.filter(s => s.portfolio_id === activePortfolioId);
 
-  // Fetch live prices whenever active stocks change
-  const activeStockSymbols = [...new Set(activeStocks.map(s => s.symbol))].sort().join(',');
+  // Fetch live prices for ALL symbols across all portfolios
+  const allStockSymbols = [...new Set(stocks.map(s => s.symbol))].sort().join(',');
 
   useEffect(() => {
     const fetchLivePrices = async (showLoading = false) => {
-      if (!activeStockSymbols) {
+      if (!allStockSymbols) {
         if (showLoading) setPricesLoading(false);
         return;
       }
       if (showLoading) setPricesLoading(true);
       try {
         const apiBase = import.meta.env.VITE_API_URL || '';
-        const response = await fetch(`${apiBase}/api/prices?symbols=${encodeURIComponent(activeStockSymbols)}&t=${Date.now()}`);
+        const response = await fetch(`${apiBase}/api/prices?symbols=${encodeURIComponent(allStockSymbols)}&t=${Date.now()}`);
         if (response.ok) {
           const prices = await response.json();
           setLivePrices(prev => ({ ...prev, ...prices }));
@@ -751,7 +777,7 @@ function App() {
     }, 60000);
 
     return () => clearInterval(intervalId);
-  }, [activeStockSymbols]);
+  }, [allStockSymbols]);
 
   const toggleSymbol = (symbol: string) => {
     setExpandedSymbols(prev => {
@@ -997,6 +1023,12 @@ function App() {
     }
     const xirr = calculateXIRR(xirrCashFlows);
 
+    const priceChange = livePrices[symbol]?.change || 0;
+    const changePercent = livePrices[symbol]?.changePercent || 0;
+    const dayGain = netQty * priceChange;
+    const dayGainPct = changePercent;
+    const tradeValue = livePrice * (livePrices[symbol]?.volume || 0);
+
     return {
       symbol,
       companyName,
@@ -1020,7 +1052,19 @@ function App() {
       openLots: fifoBuyLots,
       stockCashFlows,
       totalDividend: stockTotalDividend,
-      xirr
+      xirr,
+      priceChange,
+      changePercent,
+      dayHigh: livePrices[symbol]?.dayHigh,
+      dayLow: livePrices[symbol]?.dayLow,
+      fiftyTwoWeekHigh: livePrices[symbol]?.fiftyTwoWeekHigh,
+      fiftyTwoWeekLow: livePrices[symbol]?.fiftyTwoWeekLow,
+      marketCap: livePrices[symbol]?.marketCap,
+      volume: livePrices[symbol]?.volume,
+      avgVolume: livePrices[symbol]?.avgVolume,
+      tradeValue,
+      dayGain,
+      dayGainPct
     };
   });
 
@@ -1188,6 +1232,162 @@ function App() {
   const totalPnL = totalUnrealizedPnL + totalRealizedPnL - portfolioTotalBrokerage - portfolioTotalGovtTax;
   const totalPnLPercent = maxNetInvested > 0 ? (totalPnL / maxNetInvested) * 100 : 0;
   const unrealizedPnLPercent = totalInvestment > 0 ? (totalUnrealizedPnL / totalInvestment) * 100 : 0;
+
+  // ── Aggregated Home Stats (across all portfolios) ───────────────────────────
+  const homeStats = React.useMemo(() => {
+    let homeTotalInvestment = 0;
+    let homeTotalCurrentValue = 0;
+    let homeTotalUnrealizedPnL = 0;
+    let homeTotalRealizedPnL = 0;
+    let homeTotalBrokerage = 0;
+    let homeTotalGovtTax = 0;
+    let homeTotalStocks = 0;
+    const homeAllTransactions: { date: number; amount: number }[] = [];
+
+    portfolios.forEach(portfolio => {
+      const pStocks = stocks.filter(s => s.portfolio_id === portfolio.id);
+      const pSoldStocks = soldStocks.filter(s => s.portfolio_id === portfolio.id);
+      const pSymbols = [...new Set([...pStocks.map(s => s.symbol), ...pSoldStocks.map(s => s.symbol)])].sort();
+
+      const pSymbolGroups = pSymbols.map(symbol => {
+        const buys = pStocks.filter(s => s.symbol === symbol);
+        const sells = pSoldStocks.filter(s => s.symbol === symbol);
+        const totalBoughtQty = buys.reduce((sum, b) => Number(b.entry_price) > 0 ? sum + Number(b.quantity) : sum, 0);
+
+        const events: { type: 'BUY' | 'BONUS' | 'SPLIT' | 'DIVIDEND' | 'SELL'; date: number; raw: any }[] = [];
+        buys.forEach(b => {
+          if (Number(b.entry_price) === 0) events.push({ type: 'BONUS', date: new Date(b.entry_date).getTime(), raw: b });
+          else if (Number(b.entry_price) === -1) events.push({ type: 'SPLIT', date: new Date(b.entry_date).getTime(), raw: b });
+          else if (Number(b.entry_price) === -2) events.push({ type: 'DIVIDEND', date: new Date(b.entry_date).getTime(), raw: b });
+          else events.push({ type: 'BUY', date: new Date(b.entry_date).getTime(), raw: b });
+        });
+        sells.forEach(s => events.push({ type: 'SELL', date: new Date(s.exit_date).getTime(), raw: s }));
+        events.sort((a, b) => a.date - b.date || (a.type === 'SELL' ? 1 : -1));
+
+        const openLots: any[] = [];
+        let stockTotalDividend = 0;
+        const stockCashFlows: { date: number; amount: number }[] = [];
+
+        events.forEach(ev => {
+          if (ev.type === 'BUY') {
+            const b = ev.raw;
+            const qty = Number(b.quantity);
+            const price = Number(b.entry_price);
+            const brokerage = Number(b.brokerage || 0);
+            const govtTax = Number(b.govt_tax || 0);
+            openLots.push({ buyQty: qty, remainingQty: qty, entryPrice: price, cost: qty * price, soldQty: 0, realizedPnL: 0, brokerage, govtTax });
+            stockCashFlows.push({ date: new Date(b.entry_date).getTime(), amount: -(qty * price + brokerage + govtTax) });
+          } else if (ev.type === 'SELL') {
+            const s = ev.raw;
+            let sellQty = Number(s.quantity);
+            const exitPrice = Number(s.exit_price);
+            const brokerage = Number(s.brokerage || 0);
+            const govtTax = Number(s.govt_tax || 0);
+            const proceeds = sellQty * exitPrice;
+            stockCashFlows.push({ date: new Date(s.exit_date).getTime(), amount: proceeds - brokerage - govtTax });
+            for (const lot of openLots) {
+              if (sellQty <= 0) break;
+              if (lot.remainingQty <= 0) continue;
+              const matchQty = Math.min(lot.remainingQty, sellQty);
+              const costBasis = matchQty * lot.entryPrice;
+              lot.realizedPnL += matchQty * exitPrice - costBasis;
+              lot.remainingQty -= matchQty;
+              lot.soldQty += matchQty;
+              sellQty -= matchQty;
+            }
+          } else if (ev.type === 'BONUS') {
+            const b = ev.raw;
+            const bonusQty = Number(b.quantity);
+            openLots.push({ buyQty: bonusQty, remainingQty: bonusQty, entryPrice: 0, cost: 0, soldQty: 0, realizedPnL: 0, brokerage: 0, govtTax: 0 });
+          } else if (ev.type === 'SPLIT') {
+            const b = ev.raw;
+            const multiplier = Number(b.quantity);
+            openLots.forEach(lot => {
+              if (lot.remainingQty > 0) {
+                lot.buyQty *= multiplier;
+                lot.remainingQty *= multiplier;
+                lot.entryPrice = lot.cost / lot.buyQty;
+              }
+            });
+          } else if (ev.type === 'DIVIDEND') {
+            const b = ev.raw;
+            const dividendPerShare = Number(b.quantity);
+            let totalDivReceived = 0;
+            openLots.forEach(lot => {
+              if (lot.remainingQty > 0) {
+                const divAmount = lot.remainingQty * dividendPerShare;
+                totalDivReceived += divAmount;
+                lot.realizedPnL += divAmount;
+              }
+            });
+            if (totalDivReceived > 0) {
+              stockTotalDividend += totalDivReceived;
+              stockCashFlows.push({ date: new Date(b.entry_date).getTime(), amount: totalDivReceived });
+            }
+          }
+        });
+
+        const netQty = openLots.reduce((sum: number, lot: any) => sum + lot.remainingQty, 0);
+        const netCostBasis = openLots.reduce((sum: number, lot: any) => sum + (lot.remainingQty * lot.entryPrice), 0);
+        const avgBuyPrice = netQty > 0 ? netCostBasis / netQty : 0;
+        const livePrice = livePrices[symbol]?.price !== undefined ? livePrices[symbol].price : avgBuyPrice;
+        const currentValue = netQty * livePrice;
+        const unrealizedPnL = currentValue - netCostBasis;
+        const fifoRealizedPnL = openLots.reduce((sum: number, lot: any) => sum + lot.realizedPnL, 0);
+        const totalBrokerage = buys.reduce((sum, b) => sum + Number(b.brokerage || 0), 0) + sells.reduce((sum, s) => sum + Number(s.brokerage || 0), 0);
+        const totalGovtTax = buys.reduce((sum, b) => sum + Number(b.govt_tax || 0), 0) + sells.reduce((sum, s) => sum + Number(s.govt_tax || 0), 0);
+
+        return { symbol, netQty, netCostBasis, currentValue, unrealizedPnL, realizedPnL: fifoRealizedPnL, totalBrokerage, totalGovtTax, stockCashFlows, totalBoughtQty };
+      });
+
+      // Only count open positions for total stocks
+      const openGroups = pSymbolGroups.filter(g => g.netQty > 0);
+      homeTotalStocks += openGroups.length;
+
+      pSymbolGroups.forEach(g => {
+        homeTotalInvestment += g.netCostBasis;
+        homeTotalCurrentValue += g.currentValue;
+        homeTotalUnrealizedPnL += g.unrealizedPnL;
+        homeTotalRealizedPnL += g.realizedPnL;
+        homeTotalBrokerage += g.totalBrokerage;
+        homeTotalGovtTax += g.totalGovtTax;
+        g.stockCashFlows.forEach(cf => {
+          homeAllTransactions.push({ date: cf.date, amount: -cf.amount });
+        });
+      });
+    });
+
+    homeAllTransactions.sort((a, b) => a.date - b.date);
+    let homeMaxNetInvested = 0;
+    let homeCurrentInvested = 0;
+    homeAllTransactions.forEach(tx => {
+      homeCurrentInvested += tx.amount;
+      if (homeCurrentInvested > homeMaxNetInvested) homeMaxNetInvested = homeCurrentInvested;
+    });
+
+    const homeXirrCashFlows = homeAllTransactions.map(t => ({ date: t.date, amount: -t.amount }));
+    if (homeTotalCurrentValue > 0 || homeXirrCashFlows.length > 0) {
+      homeXirrCashFlows.push({ date: Date.now(), amount: homeTotalCurrentValue });
+    }
+    const homeXIRR = calculateXIRR(homeXirrCashFlows);
+
+    const homeTotalPnL = homeTotalUnrealizedPnL + homeTotalRealizedPnL - homeTotalBrokerage - homeTotalGovtTax;
+    const homeTotalPnLPercent = homeMaxNetInvested > 0 ? (homeTotalPnL / homeMaxNetInvested) * 100 : 0;
+    const homeUnrealizedPnLPercent = homeTotalInvestment > 0 ? (homeTotalUnrealizedPnL / homeTotalInvestment) * 100 : 0;
+
+    return {
+      totalStocks: homeTotalStocks,
+      maxNetInvested: homeMaxNetInvested,
+      totalInvestment: homeTotalInvestment,
+      totalCurrentValue: homeTotalCurrentValue,
+      totalUnrealizedPnL: homeTotalUnrealizedPnL,
+      unrealizedPnLPercent: homeUnrealizedPnLPercent,
+      totalRealizedPnL: homeTotalRealizedPnL,
+      totalPnL: homeTotalPnL,
+      totalPnLPercent: homeTotalPnLPercent,
+      xirr: homeXIRR,
+    };
+  }, [portfolios, stocks, soldStocks, livePrices]);
 
   const exportToExcel = () => {
     if (!activePortfolio || filteredSymbolGroups.length === 0) return;
@@ -1396,19 +1596,25 @@ function App() {
           </div>
           
           <span className="text-gray-300 font-light text-lg leading-none mb-0.5">/</span>
-          <button 
-            onClick={() => { if (sidebarMode !== 'expanded') setIsSidebarTemporarilyExpanded(prev => !prev); }}
-            className="text-sm font-medium text-gray-500 hover:text-zinc-900 transition-colors cursor-pointer"
-          >
-            Portfolios
-          </button>
-          
-          {activePortfolio && (
+          {activePage === 'home' ? (
+            <h2 className="text-sm font-semibold text-zinc-900 leading-tight">Home</h2>
+          ) : (
             <>
-              <span className="text-gray-300 font-light text-lg leading-none mb-0.5">/</span>
-              <h2 className="text-sm font-semibold text-zinc-900 leading-tight">
-                {activePortfolio.name}
-              </h2>
+              <button 
+                onClick={() => { if (sidebarMode !== 'expanded') setIsSidebarTemporarilyExpanded(prev => !prev); }}
+                className="text-sm font-medium text-gray-500 hover:text-zinc-900 transition-colors cursor-pointer"
+              >
+                Portfolios
+              </button>
+              
+              {activePortfolio && (
+                <>
+                  <span className="text-gray-300 font-light text-lg leading-none mb-0.5">/</span>
+                  <h2 className="text-sm font-semibold text-zinc-900 leading-tight">
+                    {activePortfolio.name}
+                  </h2>
+                </>
+              )}
             </>
           )}
         </div>
@@ -1470,8 +1676,40 @@ function App() {
 
 
         <div className="flex-1 overflow-y-auto pb-4 pt-2">
+          {/* Overview Section */}
           <div>
-            <div className="flex items-center justify-between pl-4 pr-4 mb-2 mt-2">
+            <div className="flex items-center pl-4 pr-4 mb-2 mt-2">
+              <div 
+                className="flex items-center gap-3 text-gray-400" 
+                onMouseEnter={(e) => handleSidebarTooltipEnter(e, "Overview")}
+                onMouseLeave={handleSidebarTooltipLeave}
+              >
+                <LayoutDashboard className="w-5 h-5 shrink-0" />
+                <p className={`text-[10px] font-semibold uppercase tracking-wide transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>Overview</p>
+              </div>
+            </div>
+            <nav className="mt-1">
+              <button
+                onClick={() => setActivePage('home')}
+                onMouseEnter={(e) => handleSidebarTooltipEnter(e, "Home")}
+                onMouseLeave={handleSidebarTooltipLeave}
+                className={`group w-full flex items-center pl-4 pr-2 py-1.5 text-xs transition-colors ${
+                  activePage === 'home'
+                    ? 'text-zinc-900 font-medium'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-3 truncate">
+                  <Home className={`w-5 h-5 shrink-0 transition-colors ${activePage === 'home' ? 'text-zinc-900' : 'text-gray-400 group-hover:text-gray-500'}`} />
+                  <span className={`truncate transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>Home</span>
+                </div>
+              </button>
+            </nav>
+          </div>
+
+          {/* Portfolios Section */}
+          <div>
+            <div className="flex items-center justify-between pl-4 pr-4 mb-2 mt-4">
               <div 
                 className="flex items-center gap-3 text-gray-400" 
                 onMouseEnter={(e) => handleSidebarTooltipEnter(e, "Portfolios")}
@@ -1514,19 +1752,19 @@ function App() {
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, portfolio.id)}
                   onDragEnd={() => setDraggedPortfolioId(null)}
-                  onClick={() => setActivePortfolioId(portfolio.id)}
+                  onClick={() => { setActivePortfolioId(portfolio.id); setActivePage('portfolio'); }}
                   onMouseEnter={(e) => handleSidebarTooltipEnter(e, portfolio.name)}
                   onMouseLeave={handleSidebarTooltipLeave}
                   className={`group w-full flex items-center justify-between pl-4 pr-2 py-1.5 text-xs transition-colors cursor-grab active:cursor-grabbing ${
                     draggedPortfolioId === portfolio.id ? 'opacity-50 border border-dashed border-gray-400' : ''
                   } ${
-                    activePortfolioId === portfolio.id
+                    activePortfolioId === portfolio.id && activePage === 'portfolio'
                       ? 'text-zinc-900 font-medium'
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-center gap-3 truncate">
-                    <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center text-[10px] font-bold transition-colors ${activePortfolioId === portfolio.id ? 'bg-zinc-900 text-white' : 'bg-gray-200 text-gray-500 group-hover:bg-gray-300'}`}>
+                    <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center text-[10px] font-bold transition-colors ${activePortfolioId === portfolio.id && activePage === 'portfolio' ? 'bg-zinc-900 text-white' : 'bg-gray-200 text-gray-500 group-hover:bg-gray-300'}`}>
                       {portfolio.name ? portfolio.name.charAt(0).toUpperCase() : 'P'}
                     </div>
                     <span className={`truncate transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>{portfolio.name}</span>
@@ -1653,6 +1891,127 @@ function App() {
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="w-8 h-8 border-2 border-gray-200 border-t-zinc-900 rounded-full animate-spin" />
+            </div>
+          ) : activePage === 'home' ? (
+            <div className="h-full flex flex-col overflow-y-auto">
+              {/* Stats Cards - same format as individual portfolio */}
+              <div className="flex flex-wrap gap-2 mb-4 [&>div]:flex-1 [&>div]:min-w-fit">
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Total Stocks</span>
+                  </div>
+                  <div className="text-sm font-bold text-zinc-900">{homeStats.totalStocks}</div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Max Investment</span>
+                  </div>
+                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${homeStats.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    ₹{homeStats.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Total Invested</span>
+                  </div>
+                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${homeStats.totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    ₹{homeStats.totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Current Value</span>
+                  </div>
+                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${homeStats.totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    ₹{homeStats.totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Unrealized PnL</span>
+                  </div>
+                  <div className={`text-sm font-bold truncate ${homeStats.totalUnrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${homeStats.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    {homeStats.totalUnrealizedPnL >= 0 ? '+' : ''}₹{homeStats.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <span className="text-[9px] font-medium ml-1 text-gray-500">
+                      ({homeStats.unrealizedPnLPercent >= 0 ? '+' : ''}{homeStats.unrealizedPnLPercent.toFixed(2)}%)
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Realized PnL</span>
+                  </div>
+                  <div className={`text-sm font-bold truncate ${homeStats.totalRealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${homeStats.totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    {homeStats.totalRealizedPnL >= 0 ? '+' : ''}₹{homeStats.totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>Total PnL</span>
+                  </div>
+                  <div className={`text-sm font-bold truncate ${homeStats.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                    {homeStats.totalPnL >= 0 ? '+' : ''}₹{homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <span className="text-[9px] font-medium ml-1 text-gray-500">
+                      ({homeStats.totalPnLPercent >= 0 ? '+' : ''}{homeStats.totalPnLPercent.toFixed(2)}%)
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                    <span>XIRR</span>
+                  </div>
+                  <div className={`text-sm font-bold truncate ${homeStats.xirr >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`${(homeStats.xirr * 100).toFixed(2)}%`}>
+                    {homeStats.xirr >= 0 ? '+' : ''}{(homeStats.xirr * 100).toFixed(2)}%
+                  </div>
+                </div>
+              </div>
+
+              {/* Portfolio List */}
+              {portfolios.length > 0 ? (
+                <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-100">
+                    <h3 className="text-sm font-semibold text-zinc-900">Your Portfolios</h3>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {portfolios.map(p => {
+                      const pStocks = stocks.filter(s => s.portfolio_id === p.id && Number(s.entry_price) > 0);
+                      const pSymbols = [...new Set(pStocks.map(s => s.symbol))];
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => { setActivePortfolioId(p.id); setActivePage('portfolio'); }}
+                          className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-zinc-900 text-white flex items-center justify-center text-xs font-bold">
+                              {p.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-zinc-900">{p.name}</p>
+                              <p className="text-[11px] text-gray-400">{pSymbols.length} asset{pSymbols.length !== 1 ? 's' : ''}</p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center flex-1 text-center">
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-6">
+                    <Briefcase className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-zinc-900 mb-2">No Portfolios Yet</h3>
+                  <p className="text-sm text-gray-500 mb-8">Create your first portfolio to start tracking your assets.</p>
+                  <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="bg-zinc-900 hover:bg-zinc-800 text-white font-medium px-6 py-2.5 rounded-lg transition-colors shadow-sm"
+                  >
+                    Create New Portfolio
+                  </button>
+                </div>
+              )}
             </div>
           ) : !activePortfolio ? (
             <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto">
@@ -2123,6 +2482,54 @@ function App() {
                                       return (
                                         <td key="xirr" className={`px-2 py-1.5 text-[9px] font-bold ${group.xirr >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
                                           {group.xirr >= 0 ? '+' : ''}{(group.xirr * 100).toFixed(2)}%
+                                        </td>
+                                      );
+                                    case 'priceChange':
+                                      return (
+                                        <td key="priceChange" className={`px-2 py-1.5 text-[9px] font-medium ${group.priceChange >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
+                                          {group.priceChange >= 0 ? '+' : ''}₹{fmt(group.priceChange)}
+                                        </td>
+                                      );
+                                    case 'changePercent':
+                                      return (
+                                        <td key="changePercent" className={`px-2 py-1.5 text-[9px] font-medium ${group.changePercent >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
+                                          {group.changePercent >= 0 ? '+' : ''}{group.changePercent.toFixed(2)}%
+                                        </td>
+                                      );
+                                    case 'dayHigh':
+                                      return <td key="dayHigh" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">{group.dayHigh ? `₹${fmt(group.dayHigh)}` : '—'}</td>;
+                                    case 'dayLow':
+                                      return <td key="dayLow" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">{group.dayLow ? `₹${fmt(group.dayLow)}` : '—'}</td>;
+                                    case '52wkHigh':
+                                      return <td key="52wkHigh" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">{group.fiftyTwoWeekHigh ? `₹${fmt(group.fiftyTwoWeekHigh)}` : '—'}</td>;
+                                    case '52wkLow':
+                                      return <td key="52wkLow" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">{group.fiftyTwoWeekLow ? `₹${fmt(group.fiftyTwoWeekLow)}` : '—'}</td>;
+                                    case 'marketCap':
+                                      return (
+                                        <td key="marketCap" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">
+                                          {group.marketCap ? `₹${(group.marketCap / 10000000).toFixed(2)} Cr` : '—'}
+                                        </td>
+                                      );
+                                    case 'volume':
+                                      return <td key="volume" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">{group.volume ? group.volume.toLocaleString() : '—'}</td>;
+                                    case 'avgVolume':
+                                      return <td key="avgVolume" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">{group.avgVolume ? group.avgVolume.toLocaleString() : '—'}</td>;
+                                    case 'tradeValue':
+                                      return (
+                                        <td key="tradeValue" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">
+                                          {group.tradeValue ? `₹${(group.tradeValue / 10000000).toFixed(2)} Cr` : '—'}
+                                        </td>
+                                      );
+                                    case 'dayGain':
+                                      return (
+                                        <td key="dayGain" className={`px-2 py-1.5 text-[9px] font-medium ${group.dayGain >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
+                                          {group.dayGain >= 0 ? '+' : ''}₹{fmt(group.dayGain)}
+                                        </td>
+                                      );
+                                    case 'dayGainPct':
+                                      return (
+                                        <td key="dayGainPct" className={`px-2 py-1.5 text-[9px] font-medium ${group.dayGainPct >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
+                                          {group.dayGainPct >= 0 ? '+' : ''}{group.dayGainPct.toFixed(2)}%
                                         </td>
                                       );
                                     default:
