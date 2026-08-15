@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { RefreshCw, Info, X, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '../supabaseClient';
-import { Plus } from 'lucide-react';
+import { Plus, Check } from 'lucide-react';
 
 interface PortfolioInfoModalProps {
   symbols: { symbol: string; name: string }[];
@@ -10,6 +10,7 @@ interface PortfolioInfoModalProps {
   onClose: () => void;
   portfolioId: string;
   onSuccess: () => void;
+  existingEvents?: { symbol: string; type: string; date: number; raw: any }[];
 }
 
 interface DividendEvent {
@@ -30,9 +31,10 @@ interface SplitEvent {
 
 type UnifiedEvent = DividendEvent | SplitEvent;
 
-export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSuccess }: PortfolioInfoModalProps) {
+export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSuccess, existingEvents = [] }: PortfolioInfoModalProps) {
   const [loading, setLoading] = useState(false);
   const [addingEventId, setAddingEventId] = useState<string | null>(null);
+  const [addedEvents, setAddedEvents] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [events, setEvents] = useState<UnifiedEvent[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'dividends' | 'splits' | 'bonuses'>('all');
@@ -42,6 +44,7 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSu
       fetchCorporateActions();
     } else if (!isOpen) {
       setEvents([]);
+      setAddedEvents(new Set());
     }
   }, [isOpen, symbols]);
 
@@ -96,6 +99,28 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSu
       year: 'numeric',
       month: 'short',
       day: 'numeric'
+    });
+  };
+
+  const isAlreadyAdded = (event: UnifiedEvent, idx: number) => {
+    if (addedEvents.has(`${event.symbol}-${event.date}-${idx}`)) return true;
+
+    const eventDateString = new Date(event.date).toISOString().split('T')[0];
+    return existingEvents.some(ex => {
+      if (ex.symbol !== event.symbol) return false;
+      
+      if (event.type === 'DIVIDEND' && ex.type !== 'DIVIDEND') return false;
+      if (event.type === 'SPLIT' && ex.type !== 'SPLIT' && ex.type !== 'BONUS') return false;
+
+      const exDateString = new Date(ex.date).toISOString().split('T')[0];
+      if (exDateString !== eventDateString) return false;
+
+      if (event.type === 'DIVIDEND') {
+        return Number(ex.raw?.quantity || 0) === event.amount;
+      } else {
+        const ratio = event.numerator / event.denominator;
+        return Number(ex.raw?.quantity || 0) === ratio;
+      }
     });
   };
 
@@ -155,6 +180,7 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSu
       });
 
       if (error) throw error;
+      setAddedEvents(prev => new Set(prev).add(`${event.symbol}-${event.date}-${idx}`));
       onSuccess();
     } catch (err: any) {
       alert(err.message || 'Failed to add corporate action');
@@ -305,11 +331,21 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSu
                     </div>
                     <button
                       onClick={() => handleAdd(event, idx)}
-                      disabled={addingEventId === `${event.symbol}-${idx}`}
-                      className="p-1.5 ml-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors disabled:opacity-50"
-                      title="Add to portfolio"
+                      disabled={addingEventId === `${event.symbol}-${idx}` || isAlreadyAdded(event, idx)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 ml-2 text-xs font-medium rounded-md transition-colors disabled:opacity-50 ${
+                        isAlreadyAdded(event, idx)
+                          ? 'bg-green-50 text-green-600 cursor-not-allowed'
+                          : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                      }`}
+                      title={isAlreadyAdded(event, idx) ? "Already added" : "Add to portfolio"}
                     >
-                      <Plus className="w-4 h-4" />
+                      {addingEventId === `${event.symbol}-${idx}` ? (
+                        <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> <span className="hidden sm:inline">Adding...</span></>
+                      ) : isAlreadyAdded(event, idx) ? (
+                        <><Check className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Added</span></>
+                      ) : (
+                        <><Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Add</span></>
+                      )}
                     </button>
                   </div>
                 </div>

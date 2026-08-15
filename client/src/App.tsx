@@ -2949,6 +2949,11 @@ function App() {
         symbol={viewCorporateActionsSymbol || ''}
         portfolioId={activePortfolioId || ''}
         onSuccess={fetchData}
+        existingEvents={
+          viewCorporateActionsSymbol 
+            ? symbolGroups.find(g => g.symbol === viewCorporateActionsSymbol)?.events || [] 
+            : []
+        }
       />
 
       <PortfolioInfoModal
@@ -2957,6 +2962,7 @@ function App() {
         symbols={allSymbols.map(sym => ({ symbol: sym, name: livePrices[sym]?.name || '' }))}
         portfolioId={activePortfolioId || ''}
         onSuccess={fetchData}
+        existingEvents={symbolGroups.flatMap(g => g.events.map(e => ({ ...e, symbol: g.symbol })))}
       />
 
       <RecycleBinModal

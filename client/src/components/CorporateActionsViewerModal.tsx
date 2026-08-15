@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, RefreshCw, Plus } from 'lucide-react';
+import { X, RefreshCw, Plus, Check } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 interface CorporateActionModalProps {
@@ -8,6 +8,7 @@ interface CorporateActionModalProps {
   symbol: string;
   portfolioId: string;
   onSuccess: () => void;
+  existingEvents?: { type: string; date: number; raw: any }[];
 }
 
 interface DividendEvent {
@@ -23,9 +24,10 @@ interface SplitEvent {
 }
 
 
-export function CorporateActionsViewerModal({ isOpen, onClose, symbol, portfolioId, onSuccess }: CorporateActionModalProps) {
+export function CorporateActionsViewerModal({ isOpen, onClose, symbol, portfolioId, onSuccess, existingEvents = [] }: CorporateActionModalProps) {
   const [loading, setLoading] = useState(false);
   const [addingEventId, setAddingEventId] = useState<string | null>(null);
+  const [addedEvents, setAddedEvents] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [dividends, setDividends] = useState<DividendEvent[]>([]);
   const [splits, setSplits] = useState<SplitEvent[]>([]);
@@ -97,6 +99,28 @@ export function CorporateActionsViewerModal({ isOpen, onClose, symbol, portfolio
     ...splits.map(s => ({ ...s, type: 'SPLIT' as const }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  const isAlreadyAdded = (event: UnifiedEvent, idx: number) => {
+    // Check if it was added in this session
+    if (addedEvents.has(`${event.date}-${idx}`)) return true;
+
+    // Check against existing database events
+    const eventDateString = new Date(event.date).toISOString().split('T')[0];
+    return existingEvents.some(ex => {
+      if (event.type === 'DIVIDEND' && ex.type !== 'DIVIDEND') return false;
+      if (event.type === 'SPLIT' && ex.type !== 'SPLIT' && ex.type !== 'BONUS') return false;
+
+      const exDateString = new Date(ex.date).toISOString().split('T')[0];
+      if (exDateString !== eventDateString) return false;
+
+      if (event.type === 'DIVIDEND') {
+        return Number(ex.raw.quantity) === event.amount;
+      } else {
+        const ratio = event.numerator / event.denominator;
+        return Number(ex.raw.quantity) === ratio;
+      }
+    });
+  };
+
   let displayEvents = allEvents;
   if (activeTab === 'dividends') {
     displayEvents = displayEvents.filter(e => e.type === 'DIVIDEND');
@@ -153,6 +177,7 @@ export function CorporateActionsViewerModal({ isOpen, onClose, symbol, portfolio
       });
 
       if (error) throw error;
+      setAddedEvents(prev => new Set(prev).add(`${event.date}-${idx}`));
       onSuccess();
     } catch (err: any) {
       alert(err.message || 'Failed to add corporate action');
@@ -246,11 +271,21 @@ export function CorporateActionsViewerModal({ isOpen, onClose, symbol, portfolio
                     </div>
                     <button
                       onClick={() => handleAdd(event, idx)}
-                      disabled={addingEventId === `${event.date}-${idx}`}
-                      className="p-1.5 ml-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors disabled:opacity-50"
-                      title="Add to portfolio"
+                      disabled={addingEventId === `${event.date}-${idx}` || isAlreadyAdded(event, idx)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 ml-2 text-xs font-medium rounded-md transition-colors disabled:opacity-50 ${
+                        isAlreadyAdded(event, idx)
+                          ? 'bg-green-50 text-green-600 cursor-not-allowed'
+                          : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                      }`}
+                      title={isAlreadyAdded(event, idx) ? "Already added" : "Add to portfolio"}
                     >
-                      <Plus className="w-4 h-4" />
+                      {addingEventId === `${event.date}-${idx}` ? (
+                        <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> <span>Adding...</span></>
+                      ) : isAlreadyAdded(event, idx) ? (
+                        <><Check className="w-3.5 h-3.5" /> <span>Added</span></>
+                      ) : (
+                        <><Plus className="w-3.5 h-3.5" /> <span>Add</span></>
+                      )}
                     </button>
                   </div>
                 </div>
