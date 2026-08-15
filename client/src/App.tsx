@@ -18,6 +18,19 @@ import { RebalanceModal } from './components/RebalanceModal'
 import { ConfirmationModal } from './components/ConfirmationModal'
 import { RecycleBinModal } from './components/RecycleBinModal'
 
+const ALL_SUMMARY_STATS = [
+  { id: 'totalStocks', label: 'Total Stocks' },
+  { id: 'maxInvestment', label: 'Max Investment' },
+  { id: 'invested', label: 'Invested' },
+  { id: 'currentValue', label: 'Current Value' },
+  { id: 'unrealizedPnL', label: 'Unrealized PnL' },
+  { id: 'realizedPnL', label: 'Realized PnL' },
+  { id: 'dividend', label: 'Dividend' },
+  { id: 'totalPnL', label: 'Total PnL' },
+  { id: 'dayGain', label: 'Day Gain' },
+  { id: 'xirr', label: 'XIRR' }
+];
+
 const ALL_COLUMNS = [
   { id: 'symbol', label: 'Symbol' },
   { id: 'netQty', label: 'Net Qty' },
@@ -266,6 +279,38 @@ function App() {
     localStorage.setItem('sidebarMode', sidebarMode);
   }, [sidebarMode]);
   
+  const [visibleSummaryStats, setVisibleSummaryStats] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('visibleSummaryStats');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return new Set(parsed);
+      } catch (e) {}
+    }
+    return new Set(ALL_SUMMARY_STATS.map(s => s.id));
+  });
+  const [isSummaryDropdownOpen, setIsSummaryDropdownOpen] = useState(false);
+
+  const toggleSummaryStat = (id: string) => {
+    setVisibleSummaryStats(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      localStorage.setItem('visibleSummaryStats', JSON.stringify(Array.from(newSet)));
+      return newSet;
+    });
+  };
+
+  const resetSummaryStats = () => {
+    const defaultStats = new Set(ALL_SUMMARY_STATS.map(s => s.id));
+    setVisibleSummaryStats(defaultStats);
+    localStorage.removeItem('visibleSummaryStats');
+    setIsSummaryDropdownOpen(false);
+  };
+
   const [portfolioVisibleColumns, setPortfolioVisibleColumns] = useState<Record<string, Set<string>>>(() => {
     const saved = localStorage.getItem('portfolioVisibleColumns');
     if (saved) {
@@ -498,6 +543,8 @@ function App() {
     previousClose?: number;
   }>>({});
   const [pricesLoading, setPricesLoading] = useState(false);
+
+  const calculationTime = React.useMemo(() => Date.now(), []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -863,7 +910,7 @@ function App() {
     events.sort((a, b) => a.date - b.date);
 
     const openLots: any[] = [];
-    const stockCashFlows: { date: number; amount: number }[] = [];
+    const stockCashFlows: { date: number; amount: number; activeInvestedDelta: number }[] = [];
     let stockTotalDividend = 0;
     
     events.forEach(ev => {
@@ -889,17 +936,20 @@ function App() {
 
         stockCashFlows.push({
           date: new Date(b.entry_date).getTime(),
-          amount: -((qty * price) + Number(b.brokerage || 0) + Number(b.govt_tax || 0))
+          amount: -((qty * price) + Number(b.brokerage || 0) + Number(b.govt_tax || 0)),
+          activeInvestedDelta: qty * price
         });
       } else if (ev.type === 'SELL') {
         const s = ev.raw as SoldStock;
         let needed = Number(s.quantity);
         const exitPrice = Number(s.exit_price);
         
-        stockCashFlows.push({
+        const sellCashFlow = {
           date: new Date(s.exit_date).getTime(),
-          amount: (needed * exitPrice) - Number(s.brokerage || 0) - Number(s.govt_tax || 0)
-        });
+          amount: (needed * exitPrice) - Number(s.brokerage || 0) - Number(s.govt_tax || 0),
+          activeInvestedDelta: 0
+        };
+        stockCashFlows.push(sellCashFlow);
         
         for (const lot of openLots) {
           if (needed <= 0) break;
@@ -912,6 +962,7 @@ function App() {
           const allocatedGovtTax = (takeQty / Number(s.quantity)) * Number(s.govt_tax || 0);
 
           const realPnL = takeQty * (exitPrice - lot.entryPrice);
+          sellCashFlow.activeInvestedDelta -= (takeQty * lot.entryPrice);
           
           lot.matchedSells.push({
             sellId: s.id,
@@ -998,7 +1049,8 @@ function App() {
           stockTotalDividend += totalDividendReceived;
           stockCashFlows.push({
             date: new Date(b.entry_date).getTime(),
-            amount: totalDividendReceived
+            amount: totalDividendReceived,
+            activeInvestedDelta: 0
           });
         }
       }
@@ -1043,8 +1095,9 @@ function App() {
     const xirrCashFlows = [...stockCashFlows];
     if (currentValue > 0 || xirrCashFlows.length > 0) {
       xirrCashFlows.push({
-        date: Date.now(),
-        amount: currentValue
+        date: calculationTime,
+        amount: currentValue,
+        activeInvestedDelta: 0
       });
     }
     const xirr = calculateXIRR(xirrCashFlows);
@@ -1112,8 +1165,10 @@ function App() {
   let portfolioTotalBrokerage = 0;
   let portfolioTotalGovtTax = 0;
   let portfolioTotalDividend = 0;
+  let portfolioTotalDayGain = 0;
+  let portfolioRealizedCostBasis = 0;
 
-  const allTransactions: { date: number; amount: number }[] = [];
+  const allTransactions: { date: number; amount: number; activeInvestedDelta: number }[] = [];
 
   filteredSymbolGroups.forEach(g => {
     totalInvestment += g.netCostBasis;
@@ -1123,11 +1178,14 @@ function App() {
     portfolioTotalBrokerage += g.totalBrokerage;
     portfolioTotalGovtTax += g.totalGovtTax;
     portfolioTotalDividend += g.totalDividend;
+    portfolioTotalDayGain += g.dayGain;
+    portfolioRealizedCostBasis += (g.totalBuyCost - g.netCostBasis);
     
     g.stockCashFlows.forEach(cf => {
       allTransactions.push({
         date: cf.date,
-        amount: -cf.amount
+        amount: -cf.amount,
+        activeInvestedDelta: cf.activeInvestedDelta
       });
     });
   });
@@ -1136,7 +1194,7 @@ function App() {
   let maxNetInvested = 0;
   let currentInvested = 0;
   allTransactions.forEach(tx => {
-    currentInvested += tx.amount;
+    currentInvested += tx.activeInvestedDelta;
     if (currentInvested > maxNetInvested) {
       maxNetInvested = currentInvested;
     }
@@ -1148,7 +1206,7 @@ function App() {
   }));
   if (totalCurrentValue > 0 || xirrCashFlows.length > 0) {
     xirrCashFlows.push({
-      date: Date.now(),
+      date: calculationTime,
       amount: totalCurrentValue
     });
   }
@@ -1265,9 +1323,12 @@ function App() {
     setDraggedPortfolioId(null);
   };
 
-  const totalPnL = totalUnrealizedPnL + totalRealizedPnL - portfolioTotalBrokerage - portfolioTotalGovtTax;
+  const totalPnL = totalUnrealizedPnL + totalRealizedPnL + portfolioTotalDividend - portfolioTotalBrokerage - portfolioTotalGovtTax;
   const totalPnLPercent = maxNetInvested > 0 ? (totalPnL / maxNetInvested) * 100 : 0;
   const unrealizedPnLPercent = totalInvestment > 0 ? (totalUnrealizedPnL / totalInvestment) * 100 : 0;
+  const portfolioRealizedPct = portfolioRealizedCostBasis > 0 ? (totalRealizedPnL / portfolioRealizedCostBasis) * 100 : 0;
+  const portfolioPreviousValue = totalCurrentValue - portfolioTotalDayGain;
+  const portfolioDayGainPct = portfolioPreviousValue > 0 ? (portfolioTotalDayGain / portfolioPreviousValue) * 100 : 0;
 
   // ── Aggregated Home Stats (across all portfolios) ───────────────────────────
   const homeStats = React.useMemo(() => {
@@ -1303,7 +1364,7 @@ function App() {
 
         const openLots: any[] = [];
         let stockTotalDividend = 0;
-        const stockCashFlows: { date: number; amount: number }[] = [];
+        const stockCashFlows: { date: number; amount: number; activeInvestedDelta: number }[] = [];
 
         events.forEach(ev => {
           if (ev.type === 'BUY') {
@@ -1313,7 +1374,7 @@ function App() {
             const brokerage = Number(b.brokerage || 0);
             const govtTax = Number(b.govt_tax || 0);
             openLots.push({ buyQty: qty, remainingQty: qty, entryPrice: price, cost: qty * price, soldQty: 0, realizedPnL: 0, brokerage, govtTax });
-            stockCashFlows.push({ date: new Date(b.entry_date).getTime(), amount: -(qty * price + brokerage + govtTax) });
+            stockCashFlows.push({ date: new Date(b.entry_date).getTime(), amount: -(qty * price + brokerage + govtTax), activeInvestedDelta: qty * price });
           } else if (ev.type === 'SELL') {
             const s = ev.raw;
             let sellQty = Number(s.quantity);
@@ -1321,7 +1382,10 @@ function App() {
             const brokerage = Number(s.brokerage || 0);
             const govtTax = Number(s.govt_tax || 0);
             const proceeds = sellQty * exitPrice;
-            stockCashFlows.push({ date: new Date(s.exit_date).getTime(), amount: proceeds - brokerage - govtTax });
+            
+            const sellCashFlow = { date: new Date(s.exit_date).getTime(), amount: proceeds - brokerage - govtTax, activeInvestedDelta: 0 };
+            stockCashFlows.push(sellCashFlow);
+            
             for (const lot of openLots) {
               if (sellQty <= 0) break;
               if (lot.remainingQty <= 0) continue;
@@ -1331,6 +1395,7 @@ function App() {
               lot.remainingQty -= matchQty;
               lot.soldQty += matchQty;
               sellQty -= matchQty;
+              sellCashFlow.activeInvestedDelta -= costBasis;
             }
           } else if (ev.type === 'BONUS') {
             const b = ev.raw;
@@ -1359,7 +1424,7 @@ function App() {
             });
             if (totalDivReceived > 0) {
               stockTotalDividend += totalDivReceived;
-              stockCashFlows.push({ date: new Date(b.entry_date).getTime(), amount: totalDivReceived });
+              stockCashFlows.push({ date: new Date(b.entry_date).getTime(), amount: totalDivReceived, activeInvestedDelta: 0 });
             }
           }
         });
@@ -1405,7 +1470,7 @@ function App() {
 
     const homeXirrCashFlows = homeAllTransactions.map(t => ({ date: t.date, amount: -t.amount }));
     if (homeTotalCurrentValue > 0 || homeXirrCashFlows.length > 0) {
-      homeXirrCashFlows.push({ date: Date.now(), amount: homeTotalCurrentValue });
+      homeXirrCashFlows.push({ date: calculationTime, amount: homeTotalCurrentValue });
     }
     const homeXIRR = calculateXIRR(homeXirrCashFlows);
 
@@ -1954,89 +2019,89 @@ function App() {
             <div className="h-full flex flex-col overflow-y-auto">
               {/* Stats Cards - same format as individual portfolio */}
               <div className="flex flex-wrap gap-px bg-surface-hover border-y border-divider mb-4 shadow-sm [&>div]:flex-1 [&>div]:min-w-fit">
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
+                <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                  <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
                     <span>Total Stocks</span>
                   </div>
-                  <div className="text-sm font-bold text-primary">{homeStats.totalStocks}</div>
+                  <div className="text-xs font-bold text-primary">{homeStats.totalStocks}</div>
                 </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
+                <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                  <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
                     <span>Max Investment</span>
                   </div>
-                  <div className="text-sm font-bold text-primary truncate" title={`₹${homeStats.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-xs font-bold text-primary truncate" title={`₹${homeStats.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{homeStats.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
+                <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                  <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
                     <span>Total Invested</span>
                   </div>
-                  <div className="text-sm font-bold text-primary truncate" title={`₹${homeStats.totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-xs font-bold text-primary truncate" title={`₹${homeStats.totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{homeStats.totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
+                <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                  <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
                     <span>Current Value</span>
                   </div>
-                  <div className="text-sm font-bold text-primary truncate" title={`₹${homeStats.totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-xs font-bold text-primary truncate" title={`₹${homeStats.totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{homeStats.totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
+                <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                  <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
                     <span>Unrealized PnL</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${homeStats.totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${homeStats.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className={`text-xs font-bold truncate ${homeStats.totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${homeStats.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {homeStats.totalUnrealizedPnL >= 0 ? '+' : ''}₹{homeStats.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
+                <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                  <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
                     <span>Unrealized %</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${homeStats.unrealizedPnLPercent >= 0 ? 'text-success' : 'text-danger'}`} title={`${homeStats.unrealizedPnLPercent.toFixed(2)}%`}>
+                  <div className={`text-xs font-bold truncate ${homeStats.unrealizedPnLPercent >= 0 ? 'text-success' : 'text-danger'}`} title={`${homeStats.unrealizedPnLPercent.toFixed(2)}%`}>
                     {homeStats.unrealizedPnLPercent >= 0 ? '+' : ''}{homeStats.unrealizedPnLPercent.toFixed(2)}%
                   </div>
                 </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
+                <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                  <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
                     <span>Realized PnL</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${homeStats.totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${homeStats.totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className={`text-xs font-bold truncate ${homeStats.totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${homeStats.totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {homeStats.totalRealizedPnL >= 0 ? '+' : ''}₹{homeStats.totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
+                <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                  <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
                     <span>Total Dividend</span>
                   </div>
-                  <div className="text-sm font-bold text-primary truncate" title={`₹${homeStats.totalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-xs font-bold text-primary truncate" title={`₹${homeStats.totalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{homeStats.totalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
+                <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                  <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
                     <span>Total PnL</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${homeStats.totalPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className={`text-xs font-bold truncate ${homeStats.totalPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {homeStats.totalPnL >= 0 ? '+' : ''}₹{homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
+                <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                  <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
                     <span>Total PnL %</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${homeStats.totalPnLPercent >= 0 ? 'text-success' : 'text-danger'}`} title={`${homeStats.totalPnLPercent.toFixed(2)}%`}>
+                  <div className={`text-xs font-bold truncate ${homeStats.totalPnLPercent >= 0 ? 'text-success' : 'text-danger'}`} title={`${homeStats.totalPnLPercent.toFixed(2)}%`}>
                     {homeStats.totalPnLPercent >= 0 ? '+' : ''}{homeStats.totalPnLPercent.toFixed(2)}%
                   </div>
                 </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
+                <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                  <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
                     <span>XIRR</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${homeStats.xirr >= 0 ? 'text-success' : 'text-danger'}`} title={`${(homeStats.xirr * 100).toFixed(2)}%`}>
+                  <div className={`text-xs font-bold truncate ${homeStats.xirr >= 0 ? 'text-success' : 'text-danger'}`} title={`${(homeStats.xirr * 100).toFixed(2)}%`}>
                     {homeStats.xirr >= 0 ? '+' : ''}{(homeStats.xirr * 100).toFixed(2)}%
                   </div>
                 </div>
@@ -2107,93 +2172,165 @@ function App() {
             </div>
           ) : (
             <div className="w-full flex flex-col h-full min-h-0">
-              {/* Stats Cards */}
-              <div className="flex flex-wrap gap-2 mb-4 [&>div]:flex-1 [&>div]:min-w-fit">
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
-                    <span>Total Stocks</span>
-                  </div>
-                  <div className="text-sm font-bold text-primary">{filteredSymbolGroups.length}</div>
+              {/* Stats Cards & Customize */}
+              <div className="flex gap-2 mb-4">
+                <div className="flex flex-wrap gap-2 flex-1 [&>div]:flex-1 [&>div]:min-w-fit">
+                  {visibleSummaryStats.has('totalStocks') && (
+                    <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+                        <span>Total Stocks</span>
+                      </div>
+                      <div className="text-xs font-bold text-primary">{filteredSymbolGroups.length}</div>
+                    </div>
+                  )}
+                  {visibleSummaryStats.has('maxInvestment') && (
+                    <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+                        <span>Max Investment</span>
+                      </div>
+                      <div className="text-xs font-bold text-primary truncate" title={`₹${maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                        ₹{maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  )}
+                  {visibleSummaryStats.has('invested') && (
+                    <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+                        <span>Invested</span>
+                      </div>
+                      <div className="text-xs font-bold text-primary truncate" title={`₹${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                        ₹{totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  )}
+                  {visibleSummaryStats.has('currentValue') && (
+                    <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+                        <span>Current Value</span>
+                      </div>
+                      <div className="text-xs font-bold text-primary truncate" title={`₹${totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                        ₹{totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  )}
+                  {visibleSummaryStats.has('unrealizedPnL') && (
+                    <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+                        <span>
+                          Unrealized PnL{' '}
+                          <span className={unrealizedPnLPercent >= 0 ? 'text-success' : 'text-danger'}>
+                            ({unrealizedPnLPercent >= 0 ? '+' : ''}{unrealizedPnLPercent.toFixed(2)}%)
+                          </span>
+                        </span>
+                      </div>
+                      <div className={`text-xs font-bold truncate ${totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                        {totalUnrealizedPnL >= 0 ? '+' : ''}₹{totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  )}
+                  {visibleSummaryStats.has('realizedPnL') && (
+                    <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+                        <span>
+                          Realized PnL{' '}
+                          {portfolioRealizedCostBasis > 0 && (
+                            <span className={portfolioRealizedPct >= 0 ? 'text-success' : 'text-danger'}>
+                              ({portfolioRealizedPct >= 0 ? '+' : ''}{portfolioRealizedPct.toFixed(2)}%)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className={`text-xs font-bold truncate ${totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                        {totalRealizedPnL >= 0 ? '+' : ''}₹{totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  )}
+                  {visibleSummaryStats.has('dividend') && (
+                    <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+                        <span>Dividend</span>
+                      </div>
+                      <div className={`text-xs font-bold truncate text-primary`} title={`₹${portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                        ₹{portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  )}
+                  {visibleSummaryStats.has('totalPnL') && (
+                    <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+                        <span>
+                          Total PnL{' '}
+                          <span className={totalPnLPercent >= 0 ? 'text-success' : 'text-danger'}>
+                            ({totalPnLPercent >= 0 ? '+' : ''}{totalPnLPercent.toFixed(2)}%)
+                          </span>
+                        </span>
+                      </div>
+                      <div className={`text-xs font-bold truncate ${totalPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                        {totalPnL >= 0 ? '+' : ''}₹{totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  )}
+                  {visibleSummaryStats.has('dayGain') && (
+                    <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+                        <span>
+                          Day Gain{' '}
+                          <span className={portfolioDayGainPct >= 0 ? 'text-success' : 'text-danger'}>
+                            ({portfolioDayGainPct >= 0 ? '+' : ''}{portfolioDayGainPct.toFixed(2)}%)
+                          </span>
+                        </span>
+                      </div>
+                      <div className={`text-xs font-bold truncate ${portfolioTotalDayGain >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${portfolioTotalDayGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                        {portfolioTotalDayGain >= 0 ? '+' : ''}₹{portfolioTotalDayGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  )}
+                  {visibleSummaryStats.has('xirr') && (
+                    <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm">
+                      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+                        <span>XIRR</span>
+                      </div>
+                      <div className={`text-xs font-bold truncate ${portfolioXIRR >= 0 ? 'text-success' : 'text-danger'}`} title={`${(portfolioXIRR * 100).toFixed(2)}%`}>
+                        {portfolioXIRR >= 0 ? '+' : ''}{(portfolioXIRR * 100).toFixed(2)}%
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
-                    <span>Max Investment</span>
-                  </div>
-                  <div className="text-sm font-bold text-primary truncate" title={`₹${maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-                    ₹{maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
-                    <span>Total Invested</span>
-                  </div>
-                  <div className="text-sm font-bold text-primary truncate" title={`₹${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-                    ₹{totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
-                    <span>Current Value</span>
-                  </div>
-                  <div className="text-sm font-bold text-primary truncate" title={`₹${totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-                    ₹{totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
-                    <span>Unrealized PnL</span>
-                  </div>
-                  <div className={`text-sm font-bold truncate ${totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-                    {totalUnrealizedPnL >= 0 ? '+' : ''}₹{totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
-                    <span>Unrealized %</span>
-                  </div>
-                  <div className={`text-sm font-bold truncate ${unrealizedPnLPercent >= 0 ? 'text-success' : 'text-danger'}`} title={`${unrealizedPnLPercent.toFixed(2)}%`}>
-                    {unrealizedPnLPercent >= 0 ? '+' : ''}{unrealizedPnLPercent.toFixed(2)}%
-                  </div>
-                </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
-                    <span>Realized PnL</span>
-                  </div>
-                  <div className={`text-sm font-bold truncate ${totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-                    {totalRealizedPnL >= 0 ? '+' : ''}₹{totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
-                    <span>Total Dividend</span>
-                  </div>
-                  <div className="text-sm font-bold text-primary truncate" title={`₹${portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-                    ₹{portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
-                    <span>Total PnL</span>
-                  </div>
-                  <div className={`text-sm font-bold truncate ${totalPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-                    {totalPnL >= 0 ? '+' : ''}₹{totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
-                    <span>Total PnL %</span>
-                  </div>
-                  <div className={`text-sm font-bold truncate ${totalPnLPercent >= 0 ? 'text-success' : 'text-danger'}`} title={`${totalPnLPercent.toFixed(2)}%`}>
-                    {totalPnLPercent >= 0 ? '+' : ''}{totalPnLPercent.toFixed(2)}%
-                  </div>
-                </div>
-                <div className="bg-background px-3 py-2 flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
-                    <span>XIRR</span>
-                  </div>
-                  <div className={`text-sm font-bold truncate ${portfolioXIRR >= 0 ? 'text-success' : 'text-danger'}`} title={`${(portfolioXIRR * 100).toFixed(2)}%`}>
-                    {portfolioXIRR >= 0 ? '+' : ''}{(portfolioXIRR * 100).toFixed(2)}%
-                  </div>
+
+                <div className="relative shrink-0 flex">
+                  <button
+                    onClick={() => setIsSummaryDropdownOpen(!isSummaryDropdownOpen)}
+                    className="flex items-center justify-center w-10 bg-background hover:bg-surface-hover border border-divider rounded-md text-secondary hover:text-primary transition-colors"
+                    title="Customize Summary"
+                  >
+                    <Columns className="w-4 h-4" />
+                  </button>
+                  {isSummaryDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setIsSummaryDropdownOpen(false)} />
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 z-20 py-1 max-h-64 overflow-y-auto">
+                        <div className="border-b border-divider p-1 mb-0.5 space-y-0.5">
+                          <button
+                            onClick={resetSummaryStats}
+                            className="w-full flex items-center justify-center px-2 py-1 text-[9px] uppercase tracking-wider font-semibold text-secondary hover:text-secondary hover:bg-background rounded transition-colors"
+                          >
+                            Reset to Default
+                          </button>
+                        </div>
+                        {ALL_SUMMARY_STATS.map(stat => (
+                          <div
+                            key={stat.id}
+                            className="w-full flex items-center px-2 py-1 text-[9px] text-left hover:bg-background text-primary transition-colors"
+                          >
+                            <div className="w-4 flex justify-center mr-1 shrink-0 cursor-pointer" onClick={() => toggleSummaryStat(stat.id)}>
+                              {visibleSummaryStats.has(stat.id) && <Check className="w-3 h-3 text-primary" />}
+                            </div>
+                            <span className="flex-1 cursor-pointer select-none" onClick={() => toggleSummaryStat(stat.id)}>{stat.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -2261,16 +2398,16 @@ function App() {
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setIsColumnsDropdownOpen(false)} />
                           <div className="absolute left-0 mt-1 w-48 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 shadow-black/40 z-20 py-1 max-h-64 overflow-y-auto">
-                            <div className="border-b border-divider p-1 mb-1 space-y-1">
+                            <div className="border-b border-divider p-1 mb-0.5 space-y-0.5">
                               <button
                                 onClick={applyColumnLayoutToAll}
-                                className="w-full flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-blue-400 hover:text-blue-800 hover:bg-blue-500/10 rounded transition-colors"
+                                className="w-full flex items-center justify-center px-2 py-1 text-[9px] uppercase tracking-wider font-semibold text-blue-400 hover:text-blue-800 hover:bg-blue-500/10 rounded transition-colors"
                               >
                                 Apply to All Portfolios
                               </button>
                               <button
                                 onClick={resetColumns}
-                                className="w-full flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-secondary hover:text-secondary hover:bg-background rounded transition-colors"
+                                className="w-full flex items-center justify-center px-2 py-1 text-[9px] uppercase tracking-wider font-semibold text-secondary hover:text-secondary hover:bg-background rounded transition-colors"
                               >
                                 Reset to Default
                               </button>
@@ -2280,7 +2417,7 @@ function App() {
                               return (
                                 <div
                                   key={col.id}
-                                  className="w-full flex items-center px-3 py-1.5 text-[10px] text-left hover:bg-background text-primary transition-colors"
+                                  className="w-full flex items-center px-2 py-1 text-[9px] text-left hover:bg-background text-primary transition-colors"
                                 >
                                   <div className="w-4 flex justify-center mr-1 shrink-0 cursor-pointer" onClick={() => toggleColumn(col.id)}>
                                     {visibleColumns.has(col.id) && <Check className="w-3 h-3 text-primary" />}
@@ -2373,6 +2510,120 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
+                      {filteredSymbolGroups.length > 0 && (() => {
+                        const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        const unrealizedPct = totalInvestment > 0 ? (totalUnrealizedPnL / totalInvestment) * 100 : 0;
+                        const totalNetPnL = totalUnrealizedPnL + totalRealizedPnL + portfolioTotalDividend - portfolioTotalBrokerage - portfolioTotalGovtTax;
+                        
+                        const portfolioRealizedPct = portfolioRealizedCostBasis > 0 ? (totalRealizedPnL / portfolioRealizedCostBasis) * 100 : 0;
+                        const totalNetPct = maxNetInvested > 0 ? (totalNetPnL / maxNetInvested) * 100 : 0;
+                        
+                        return (
+                          <tr className="border-b-[3px] border-divider bg-surface-hover/50 font-semibold shadow-sm">
+                            <td className="px-2 py-1.5 text-[10px]"></td>
+                            {activeColumnOrder.map(colId => {
+                              if (!visibleColumns.has(colId)) return null;
+                              switch (colId) {
+                                case 'symbol':
+                                  return <td key="symbol" className="px-2 py-1.5 text-[10px] text-primary uppercase tracking-wider">Total</td>;
+                                case 'netCostBasis':
+                                  return <td key="netCostBasis" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">₹{fmt(totalInvestment)}</td>;
+                                case 'currentValue':
+                                  return <td key="currentValue" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">₹{fmt(totalCurrentValue)}</td>;
+                                case 'unrealizedPnL':
+                                  return (
+                                    <td key="unrealizedPnL" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                      <span className={totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
+                                        {totalUnrealizedPnL >= 0 ? '+' : ''}₹{fmt(totalUnrealizedPnL)}
+                                      </span>
+                                    </td>
+                                  );
+                                case 'unrealizedPnLPct':
+                                  return (
+                                    <td key="unrealizedPnLPct" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                      <span className={unrealizedPct >= 0 ? 'text-success' : 'text-danger'}>
+                                        {unrealizedPct >= 0 ? '+' : ''}{unrealizedPct.toFixed(2)}%
+                                      </span>
+                                    </td>
+                                  );
+                                case 'realizedPnL':
+                                  return (
+                                    <td key="realizedPnL" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                      <span className={totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
+                                        {totalRealizedPnL >= 0 ? '+' : ''}₹{fmt(totalRealizedPnL)}
+                                      </span>
+                                    </td>
+                                  );
+                                case 'realizedPnLPct':
+                                  return (
+                                    <td key="realizedPnLPct" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                      {portfolioRealizedCostBasis > 0 ? (
+                                        <span className={portfolioRealizedPct >= 0 ? 'text-success' : 'text-danger'}>
+                                          {portfolioRealizedPct >= 0 ? '+' : ''}{portfolioRealizedPct.toFixed(2)}%
+                                        </span>
+                                      ) : (
+                                        <span className="text-tertiary">—</span>
+                                      )}
+                                    </td>
+                                  );
+                                case 'totalDividend':
+                                  return (
+                                    <td key="totalDividend" className="px-2 py-1.5 text-[10px] text-right font-mono text-success">
+                                      ₹{fmt(portfolioTotalDividend)}
+                                    </td>
+                                  );
+                                case 'brokerage':
+                                  return <td key="brokerage" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">₹{fmt(portfolioTotalBrokerage)}</td>;
+                                case 'govtTax':
+                                  return <td key="govtTax" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">₹{fmt(portfolioTotalGovtTax)}</td>;
+                                case 'totalPnL':
+                                  return (
+                                    <td key="totalPnL" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                      <span className={totalNetPnL >= 0 ? 'text-success' : 'text-danger'}>
+                                        {totalNetPnL >= 0 ? '+' : ''}₹{fmt(totalNetPnL)}
+                                      </span>
+                                    </td>
+                                  );
+                                case 'totalPnLPct':
+                                  return (
+                                    <td key="totalPnLPct" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                      <span className={totalNetPct >= 0 ? 'text-success' : 'text-danger'}>
+                                        {totalNetPct >= 0 ? '+' : ''}{totalNetPct.toFixed(2)}%
+                                      </span>
+                                    </td>
+                                  );
+                                case 'xirr':
+                                  return (
+                                    <td key="xirr" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                      <span className={portfolioXIRR >= 0 ? 'text-success' : 'text-danger'}>
+                                        {portfolioXIRR >= 0 ? '+' : ''}{(portfolioXIRR * 100).toFixed(2)}%
+                                      </span>
+                                    </td>
+                                  );
+                                case 'dayGain':
+                                  return (
+                                    <td key="dayGain" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                      <span className={portfolioTotalDayGain >= 0 ? 'text-success' : 'text-danger'}>
+                                        {portfolioTotalDayGain >= 0 ? '+' : ''}₹{fmt(portfolioTotalDayGain)}
+                                      </span>
+                                    </td>
+                                  );
+                                case 'dayGainPct':
+                                  return (
+                                    <td key="dayGainPct" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                      <span className={portfolioDayGainPct >= 0 ? 'text-success' : 'text-danger'}>
+                                        {portfolioDayGainPct >= 0 ? '+' : ''}{portfolioDayGainPct.toFixed(2)}%
+                                      </span>
+                                    </td>
+                                  );
+                                default:
+                                  return <td key={colId} className="px-2 py-1.5 text-[10px] text-right font-mono text-tertiary">—</td>;
+                              }
+                            })}
+                            <td className="px-2 py-1.5 text-[10px]"></td>
+                          </tr>
+                        );
+                      })()}
                       {filteredSymbolGroups.length === 0 ? (
                         <tr>
                           <td colSpan={visibleColumns.size + 2} className="px-3 py-6 text-center text-secondary text-[10px]">
@@ -2550,7 +2801,7 @@ function App() {
                                       return (
                                         <td key="totalPnL" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
                                           {(() => {
-                                            const total = group.unrealizedPnL + group.realizedPnL - group.totalBrokerage - group.totalGovtTax;
+                                            const total = group.unrealizedPnL + group.realizedPnL + group.totalDividend - group.totalBrokerage - group.totalGovtTax;
                                             return (
                                               <span className={`font-medium ${total >= 0 ? 'text-success' : 'text-danger'}`}>
                                                 {total >= 0 ? '+' : ''}₹{fmt(total)}
@@ -2563,7 +2814,7 @@ function App() {
                                       return (
                                         <td key="totalPnLPct" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
                                           {(() => {
-                                            const total = group.unrealizedPnL + group.realizedPnL - group.totalBrokerage - group.totalGovtTax;
+                                            const total = group.unrealizedPnL + group.realizedPnL + group.totalDividend - group.totalBrokerage - group.totalGovtTax;
                                             const totalPct = group.totalBuyCost > 0 ? (total / group.totalBuyCost) * 100 : 0;
                                             return (
                                               <span className={`font-medium ${totalPct >= 0 ? 'text-success' : 'text-danger'}`}>
