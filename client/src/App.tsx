@@ -334,37 +334,9 @@ function App() {
   }, [portfolioColumnOrder]);
 
   const visibleColumns = (() => {
-    let cols = (activePortfolioId && portfolioVisibleColumns[activePortfolioId]) 
+    return (activePortfolioId && portfolioVisibleColumns[activePortfolioId]) 
       ? new Set(portfolioVisibleColumns[activePortfolioId]) 
       : new Set(ALL_COLUMNS.map(c => c.id));
-    
-    // Auto-enable new columns if they are not explicitly disabled
-    const saved = localStorage.getItem('portfolioVisibleColumns');
-    if (activePortfolioId && saved && portfolioVisibleColumns[activePortfolioId]) {
-
-      const isMissingInvested = !portfolioVisibleColumns[activePortfolioId].has('portfolioWeight') && 
-        !(JSON.parse(saved)[activePortfolioId] || []).includes('portfolioWeight');
-      const isMissingCV = !portfolioVisibleColumns[activePortfolioId].has('currentValueWeight') && 
-        !(JSON.parse(saved)[activePortfolioId] || []).includes('currentValueWeight');
-        
-      if (isMissingInvested || isMissingCV) {
-        if (isMissingInvested) cols.add('portfolioWeight');
-        if (isMissingCV) cols.add('currentValueWeight');
-        setPortfolioVisibleColumns(prev => ({
-          ...prev,
-          [activePortfolioId]: cols
-        }));
-        
-        setPortfolioColumnOrder(prev => {
-          const currentOrder = prev[activePortfolioId] || ALL_COLUMNS.map(c => c.id);
-          const newOrder = [...currentOrder];
-          if (isMissingInvested && !newOrder.includes('portfolioWeight')) newOrder.push('portfolioWeight');
-          if (isMissingCV && !newOrder.includes('currentValueWeight')) newOrder.push('currentValueWeight');
-          return { ...prev, [activePortfolioId]: newOrder };
-        });
-      }
-    }
-    return cols;
   })();
 
   const activeColumnOrder = (() => {
@@ -425,9 +397,33 @@ function App() {
     });
   };
 
+  const applyColumnLayoutToAll = () => {
+    if (!activePortfolioId) return;
+    
+    const currentOrder = activeColumnOrder;
+    const currentVisible = portfolioVisibleColumns[activePortfolioId] || new Set(ALL_COLUMNS.map(c => c.id));
+    const currentWidths = portfolioColumnWidths[activePortfolioId] || {};
+
+    const newOrderState: Record<string, string[]> = {};
+    const newVisibleState: Record<string, Set<string>> = {};
+    const newWidthsState: Record<string, Record<string, number>> = {};
+
+    portfolios.forEach(p => {
+      newOrderState[p.id] = [...currentOrder];
+      newVisibleState[p.id] = new Set(currentVisible);
+      newWidthsState[p.id] = { ...currentWidths };
+    });
+
+    setPortfolioColumnOrder(newOrderState);
+    setPortfolioVisibleColumns(newVisibleState);
+    setPortfolioColumnWidths(newWidthsState);
+    setIsColumnsDropdownOpen(false);
+  };
+
   const handleColumnDragStart = (e: React.DragEvent, id: string) => {
     setDraggedColId(id);
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
   };
 
   const handleColumnDragOver = (e: React.DragEvent) => {
@@ -440,7 +436,7 @@ function App() {
     if (!draggedColId || draggedColId === targetId || !activePortfolioId) return;
 
     setPortfolioColumnOrder(prev => {
-      const currentOrder = prev[activePortfolioId] || ALL_COLUMNS.map(c => c.id);
+      const currentOrder = activeColumnOrder;
       const draggedIdx = currentOrder.indexOf(draggedColId);
       const targetIdx = currentOrder.indexOf(targetId);
       
@@ -1179,13 +1175,18 @@ function App() {
     setResizingCol({ id, startX: e.clientX, startWidth: currentWidth });
   };
 
-  const SortHeader = ({ field, label }: { field: string, label: string }) => {
+  const renderSortHeader = (field: string, label: string) => {
     const width = activeColumnWidths[field] || (field === 'symbol' ? 180 : 100);
     return (
       <th 
-        className={`px-3 py-2 text-[9px] uppercase tracking-wider font-semibold text-gray-500 cursor-pointer bg-white hover:bg-gray-100 transition-colors select-none group relative ${resizingCol?.id === field ? 'bg-gray-100' : ''}`}
+        key={field}
+        className={`px-3 py-2 text-[9px] uppercase tracking-wider font-semibold text-gray-500 cursor-pointer bg-white hover:bg-gray-100 transition-colors select-none group relative ${resizingCol?.id === field ? 'bg-gray-100' : ''} ${draggedColId === field ? 'opacity-50' : ''}`}
         style={{ width, minWidth: width, maxWidth: width }}
         onClick={() => handleSort(field)}
+        draggable={true}
+        onDragStart={(e) => handleColumnDragStart(e, field)}
+        onDragOver={handleColumnDragOver}
+        onDrop={(e) => handleColumnDrop(e, field)}
       >
         <div className="flex items-center gap-1 overflow-hidden">
           <span className="truncate">{label}</span>
@@ -2231,7 +2232,13 @@ function App() {
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setIsColumnsDropdownOpen(false)} />
                           <div className="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 max-h-64 overflow-y-auto">
-                            <div className="border-b border-gray-100 p-1 mb-1">
+                            <div className="border-b border-gray-100 p-1 mb-1 space-y-1">
+                              <button
+                                onClick={applyColumnLayoutToAll}
+                                className="w-full flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                              >
+                                Apply to All Portfolios
+                              </button>
                               <button
                                 onClick={resetColumns}
                                 className="w-full flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded transition-colors"
@@ -2244,13 +2251,8 @@ function App() {
                               return (
                                 <div
                                   key={col.id}
-                                  draggable
-                                  onDragStart={(e) => handleColumnDragStart(e, col.id)}
-                                  onDragOver={handleColumnDragOver}
-                                  onDrop={(e) => handleColumnDrop(e, col.id)}
-                                  className={`w-full flex items-center px-3 py-1.5 text-[10px] text-left hover:bg-gray-50 text-zinc-900 cursor-move transition-colors ${draggedColId === col.id ? 'opacity-50' : ''}`}
+                                  className="w-full flex items-center px-3 py-1.5 text-[10px] text-left hover:bg-gray-50 text-zinc-900 transition-colors"
                                 >
-                                  <GripVertical className="w-3 h-3 text-gray-400 mr-2 shrink-0" />
                                   <div className="w-4 flex justify-center mr-1 shrink-0 cursor-pointer" onClick={() => toggleColumn(col.id)}>
                                     {visibleColumns.has(col.id) && <Check className="w-3 h-3 text-zinc-900" />}
                                   </div>
@@ -2336,7 +2338,7 @@ function App() {
                         {activeColumnOrder.map(colId => {
                           if (!visibleColumns.has(colId)) return null;
                           const col = ALL_COLUMNS.find(c => c.id === colId)!;
-                          return <SortHeader key={col.id} field={col.id} label={col.label} />;
+                          return renderSortHeader(col.id, col.label);
                         })}
                         <th className="px-2 py-1.5 text-[8px] text-right w-8 bg-white"></th>
                       </tr>
