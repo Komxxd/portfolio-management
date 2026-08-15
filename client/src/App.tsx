@@ -966,13 +966,7 @@ function App() {
             totalDividendReceived += dividendAmount;
             lot.realizedPnL += dividendAmount;
             
-            lot.history.push({
-              id: b.id,
-              type: 'DIVIDEND',
-              date: b.entry_date,
-              qty: dividendPerShare,
-              price: dividendAmount
-            });
+            // We no longer push to lot.history for DIVIDEND so it only shows on the sell side
             
             lot.matchedSells.push({
               sellId: b.id,
