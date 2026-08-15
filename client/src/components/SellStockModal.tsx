@@ -201,30 +201,30 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="bg-white w-full max-w-md rounded-xl p-6 relative shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-overlay backdrop-blur-sm">
+      <div className="bg-surface w-full max-w-md rounded-lg p-6 relative shadow-2xl shadow-black/50">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-4 right-4 text-tertiary hover:text-secondary transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
 
-        <h2 className="text-xl font-semibold mb-1 text-zinc-900 tracking-tight">Sell Asset</h2>
-        <p className="text-sm text-gray-500 mb-6">Select from your holdings and enter exit details.</p>
+        <h2 className="text-xl font-semibold mb-1 text-primary tracking-tight">Sell Asset</h2>
+        <p className="text-sm text-secondary mb-6">Select from your holdings and enter exit details.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
 
             {/* Owned Stocks Dropdown */}
             <div>
-              <label htmlFor="sell-symbol" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="sell-symbol" className="block text-sm font-medium text-secondary mb-1">
                 Select Asset to Sell
               </label>
 
               {loadingStocks ? (
-                <div className="flex items-center gap-2 py-2 text-sm text-gray-400">
-                  <div className="w-4 h-4 border-2 border-gray-200 border-t-zinc-900 rounded-full animate-spin" />
+                <div className="flex items-center gap-2 py-2 text-sm text-tertiary">
+                  <div className="w-4 h-4 border-2 border-divider border-t-zinc-900 rounded-full animate-spin" />
                   Loading your holdings…
                 </div>
               ) : ownedStocks.length === 0 ? (
@@ -235,7 +235,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
               ) : (
                 <div className="relative" ref={dropdownRef}>
                   <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                    <Search className="pointer-events-none absolute left-3 top-2.5 w-4 h-4 text-tertiary" />
                     <input
                       type="text"
                       id="sell-symbol"
@@ -247,29 +247,29 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
                         setShowDropdown(true);
                       }}
                       onFocus={() => setShowDropdown(true)}
-                      className="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-8 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow placeholder-gray-400"
+                      className="w-full bg-surface border border-divider rounded-lg pl-9 pr-8 py-2 text-sm text-primary focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow placeholder-gray-400"
                       placeholder="Search or select asset to sell"
                       autoComplete="off"
                     />
-                    <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 w-4 h-4 text-gray-400" />
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 w-4 h-4 text-tertiary" />
                   </div>
                   
                   {showDropdown && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto divide-y divide-gray-100">
+                    <div className="absolute z-10 w-full mt-1 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 shadow-black/40 max-h-60 overflow-auto divide-y divide-divider">
                       {filteredStocks.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-gray-500 text-center">No matching assets found</div>
+                        <div className="px-4 py-3 text-sm text-secondary text-center">No matching assets found</div>
                       ) : (
                         filteredStocks.map((s) => (
                           <button
                             key={s.symbol}
                             type="button"
                             onClick={() => handleSelectStock(s.symbol)}
-                            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between group transition-colors"
+                            className="w-full text-left px-4 py-2 hover:bg-background flex items-center justify-between group transition-colors"
                           >
-                            <div className="font-semibold text-sm text-zinc-900 group-hover:text-orange-600 transition-colors">
+                            <div className="font-semibold text-sm text-primary group-hover:text-orange-600 transition-colors">
                               {s.symbol}
                             </div>
-                            <div className="text-[10px] text-gray-500 bg-gray-100 px-2 py-1 rounded uppercase tracking-wider">
+                            <div className="text-[10px] text-secondary bg-surface-hover px-2 py-1 rounded uppercase tracking-wider">
                               Available: {s.available.toLocaleString()}
                             </div>
                           </button>
@@ -282,17 +282,17 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
 
               {/* Holding hint */}
               {selectedStock && (
-                <p className="mt-1.5 text-[11px] text-gray-400">
-                  Bought: <span className="font-medium text-zinc-600">{selectedStock.totalBought.toLocaleString()}</span>
-                  &nbsp;·&nbsp; Sold: <span className="font-medium text-zinc-600">{selectedStock.totalSold.toLocaleString()}</span>
-                  &nbsp;·&nbsp; Available: <span className="font-medium text-green-600">{selectedStock.available.toLocaleString()}</span>
+                <p className="mt-1.5 text-[11px] text-tertiary">
+                  Bought: <span className="font-medium text-secondary">{selectedStock.totalBought.toLocaleString()}</span>
+                  &nbsp;·&nbsp; Sold: <span className="font-medium text-secondary">{selectedStock.totalSold.toLocaleString()}</span>
+                  &nbsp;·&nbsp; Available: <span className="font-medium text-success">{selectedStock.available.toLocaleString()}</span>
                 </p>
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="exitDate" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="exitDate" className="block text-sm font-medium text-secondary mb-1">
                   Exit Date
                 </label>
                 <input
@@ -300,12 +300,12 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
                   id="exitDate"
                   value={exitDate}
                   onChange={(e) => setExitDate(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                  className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                 />
               </div>
 
               <div>
-                <label htmlFor="exitPrice" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="exitPrice" className="block text-sm font-medium text-secondary mb-1">
                   Exit Price (₹)
                 </label>
                 <input
@@ -313,7 +313,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
                   id="exitPrice"
                   value={exitPrice}
                   onChange={(e) => setExitPrice(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                  className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                   placeholder="150.00"
                   step="any"
                   min="0"
@@ -323,10 +323,10 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
 
               <div className="col-span-2 grid grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="sell-quantity" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="sell-quantity" className="block text-sm font-medium text-secondary mb-1">
                     Quantity
                     {selectedStock && (
-                      <span className="ml-1 text-[10px] font-normal text-gray-400">
+                      <span className="ml-1 text-[10px] font-normal text-tertiary">
                         (max {selectedStock.available.toLocaleString()})
                       </span>
                     )}
@@ -337,10 +337,10 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                     max={selectedStock?.available}
-                    className={`w-full bg-white border rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 transition-shadow ${
+                    className={`w-full bg-surface border rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 transition-shadow ${
                       qtyExceedsHolding
                         ? 'border-red-400 focus:ring-red-400 focus:border-red-400'
-                        : 'border-gray-200 focus:ring-zinc-900 focus:border-zinc-900'
+                        : 'border-divider focus:ring-zinc-900 focus:border-zinc-900'
                     }`}
                     placeholder="0.00"
                     step="any"
@@ -348,7 +348,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
                     disabled={!selectedSymbol}
                   />
                   {qtyExceedsHolding && (
-                    <p className="mt-1 text-[11px] text-red-500 flex items-center gap-1">
+                    <p className="mt-1 text-[11px] text-danger flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       Exceeds available holding of {selectedStock!.available.toLocaleString()}
                     </p>
@@ -356,7 +356,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
                 </div>
 
                 <div>
-                  <label htmlFor="brokerage" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="brokerage" className="block text-sm font-medium text-secondary mb-1">
                     Brokerage (₹)
                   </label>
                   <input
@@ -364,7 +364,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
                     id="brokerage"
                     value={brokerage}
                     onChange={(e) => setBrokerage(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                     placeholder="0.00"
                     step="any"
                     min="0"
@@ -373,7 +373,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
                 </div>
 
                 <div>
-                  <label htmlFor="govtTax" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="govtTax" className="block text-sm font-medium text-secondary mb-1">
                     Govt Tax (₹)
                   </label>
                   <input
@@ -381,7 +381,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
                     id="govtTax"
                     value={govtTax}
                     onChange={(e) => setGovtTax(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                     placeholder="0.00"
                     step="any"
                     min="0"
@@ -392,13 +392,13 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
             </div>
           </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-danger text-sm">{error}</p>}
 
-          <div className="pt-4 flex justify-end gap-2 border-t border-gray-100 mt-2">
+          <div className="pt-4 flex justify-end gap-2 border-t border-divider mt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 border border-transparent rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-secondary hover:bg-background border border-transparent rounded-lg transition-colors"
             >
               Cancel
             </button>
@@ -413,7 +413,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
                 qtyExceedsHolding ||
                 ownedStocks.length === 0
               }
-              className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
+              className="bg-danger hover:bg-danger/80 text-primary text-sm font-medium py-2 px-4 rounded-lg  transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

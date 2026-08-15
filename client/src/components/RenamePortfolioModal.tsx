@@ -58,21 +58,21 @@ export function RenamePortfolioModal({ isOpen, onClose, onRenamed, portfolioId, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="bg-white w-full max-w-md rounded-xl p-6 relative shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-overlay backdrop-blur-sm">
+      <div className="bg-surface w-full max-w-md rounded-lg p-6 relative shadow-2xl shadow-black/50">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-4 right-4 text-tertiary hover:text-secondary transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
 
-        <h2 className="text-xl font-semibold mb-1 text-zinc-900 tracking-tight">Rename Portfolio</h2>
-        <p className="text-sm text-gray-500 mb-6">Enter a new name for your portfolio.</p>
+        <h2 className="text-xl font-semibold mb-1 text-primary tracking-tight">Rename Portfolio</h2>
+        <p className="text-sm text-secondary mb-6">Enter a new name for your portfolio.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="rename" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="rename" className="block text-sm font-medium text-secondary mb-1">
               Portfolio Name
             </label>
             <input
@@ -80,26 +80,26 @@ export function RenamePortfolioModal({ isOpen, onClose, onRenamed, portfolioId, 
               id="rename"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+              className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
               placeholder="e.g. Long-term Hold"
               autoFocus
             />
           </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-danger text-sm">{error}</p>}
 
           <div className="pt-2 flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 border border-transparent rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-secondary hover:bg-background border border-transparent rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !name.trim() || name.trim() === currentName}
-              className="bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-medium py-2 px-4 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
+              className="bg-surface hover:bg-zinc-800 text-primary text-sm font-medium py-2 px-4 rounded-lg  transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

@@ -167,14 +167,14 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 bg-overlay backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-surface rounded-lg shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-          <h2 className="text-xl font-bold text-zinc-900">{titles[type]}</h2>
+        <div className="px-6 py-4 border-b border-divider flex items-center justify-between shrink-0">
+          <h2 className="text-xl font-bold text-primary">{titles[type]}</h2>
           <button
             onClick={onClose}
-            className="p-2 -mr-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+            className="p-2 -mr-2 text-tertiary hover:text-secondary rounded-full hover:bg-surface-hover transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -184,7 +184,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
           {/* Content */}
           <div className="p-6 flex-1 overflow-y-auto">
             {error && (
-              <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-100">
+              <div className="mb-4 p-3 bg-danger/10 text-danger text-sm rounded-lg border border-danger/20">
                 {error}
               </div>
             )}
@@ -192,11 +192,11 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
             {type === 'bonus' || type === 'split' || type === 'dividend' ? (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-secondary mb-1">
                     Asset Symbol
                   </label>
                   <div className="relative" ref={dropdownRef}>
-                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Search className="w-4 h-4 text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       value={searchQuery}
@@ -207,12 +207,12 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
                       }}
                       onFocus={() => setShowDropdown(true)}
                       placeholder="Search asset you own..."
-                      className="w-full pl-9 pr-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
+                      className="w-full pl-9 pr-3 py-2 bg-surface border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
                       required
                     />
                     
                     {showDropdown && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      <div className="absolute z-10 w-full mt-1 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 shadow-black/40 max-h-48 overflow-y-auto">
                         {filteredSymbols.length > 0 ? (
                           filteredSymbols.map(sym => (
                             <div
@@ -222,13 +222,13 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
                                 setSearchQuery(sym);
                                 setShowDropdown(false);
                               }}
-                              className="px-3 py-2 cursor-pointer hover:bg-gray-50 text-sm font-medium text-zinc-900 transition-colors"
+                              className="px-3 py-2 cursor-pointer hover:bg-background text-sm font-medium text-primary transition-colors"
                             >
                               {sym}
                             </div>
                           ))
                         ) : (
-                          <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                          <div className="px-3 py-2 text-sm text-secondary text-center">
                             No matching assets found
                           </div>
                         )}
@@ -238,28 +238,28 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-secondary mb-1">
                     {type === 'bonus' ? 'Entry Date' : type === 'split' ? 'Split Date' : 'Dividend Date'}
                   </label>
                   <input
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
+                    className="w-full px-3 py-2 bg-surface border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
                     required
                   />
                 </div>
 
                 {type === 'bonus' ? (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Bonus Qty <span className="text-xs text-gray-400 font-normal ml-1">(Shares added)</span>
+                    <label className="block text-sm font-medium text-secondary mb-1">
+                      Bonus Qty <span className="text-xs text-tertiary font-normal ml-1">(Shares added)</span>
                     </label>
                     <input
                       type="number"
                       value={qty}
                       onChange={(e) => setQty(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
+                      className="w-full px-3 py-2 bg-surface border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
                       placeholder="e.g. 100"
                       min="0"
                       step="0.0001"
@@ -268,14 +268,14 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
                   </div>
                 ) : type === 'split' ? (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Split Factor <span className="text-xs text-gray-400 font-normal ml-1">(Multiplier, e.g. 2 for 1:2 split)</span>
+                    <label className="block text-sm font-medium text-secondary mb-1">
+                      Split Factor <span className="text-xs text-tertiary font-normal ml-1">(Multiplier, e.g. 2 for 1:2 split)</span>
                     </label>
                     <input
                       type="number"
                       value={splitFactor}
                       onChange={(e) => setSplitFactor(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
+                      className="w-full px-3 py-2 bg-surface border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
                       placeholder="e.g. 2"
                       min="0.0001"
                       step="any"
@@ -284,14 +284,14 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-secondary mb-1">
                       Dividend Per Share (₹)
                     </label>
                     <input
                       type="number"
                       value={dividend}
                       onChange={(e) => setDividend(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
+                      className="w-full px-3 py-2 bg-surface border border-gray-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 outline-none transition-all"
                       placeholder="e.g. 5.50"
                       min="0.01"
                       step="any"
@@ -302,25 +302,25 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <p className="text-gray-500 mb-2">Form fields will be added here.</p>
-                <p className="text-xs text-gray-400">This is a placeholder for {titles[type]}</p>
+                <p className="text-secondary mb-2">Form fields will be added here.</p>
+                <p className="text-xs text-tertiary">This is a placeholder for {titles[type]}</p>
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0 bg-gray-50/50">
+          <div className="px-6 py-4 border-t border-divider flex justify-end gap-3 shrink-0 bg-background/50">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-secondary bg-surface border border-gray-300 rounded-lg hover:bg-background transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting || (type !== 'bonus' && type !== 'split' && type !== 'dividend')}
-              className="px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-primary bg-surface rounded-lg hover:bg-zinc-800 transition-colors  disabled:opacity-50"
             >
               {submitting ? 'Processing...' : 'Submit'}
             </button>

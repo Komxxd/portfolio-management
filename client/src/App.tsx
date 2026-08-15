@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as XLSX from 'xlsx'
-import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, Info, User, LogOut, PieChart, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw } from 'lucide-react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, Info, User, LogOut, PieChart, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw, Sun, Moon } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabaseClient'
 import { Auth } from './components/Auth'
@@ -125,6 +125,19 @@ function calculateXIRR(cashFlows: { amount: number, date: number }[], guess = 0.
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
+  
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('portfolioTheme') as 'dark' | 'light') || 'dark';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('portfolioTheme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -287,11 +300,13 @@ function App() {
   });
 
   const [resizingCol, setResizingCol] = useState<{ id: string, startX: number, startWidth: number } | null>(null);
+  const hasDraggedRef = useRef(false);
 
   useEffect(() => {
     if (!resizingCol || !activePortfolioId) return;
 
     const handleMouseMove = (e: MouseEvent) => {
+      hasDraggedRef.current = true;
       const deltaX = e.clientX - resizingCol.startX;
       const newWidth = Math.max(50, resizingCol.startWidth + deltaX);
       setPortfolioColumnWidths(prev => ({
@@ -305,6 +320,9 @@ function App() {
 
     const handleMouseUp = () => {
       setResizingCol(null);
+      setTimeout(() => {
+        hasDraggedRef.current = false;
+      }, 0);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -1159,6 +1177,7 @@ function App() {
   }
 
   const handleSort = (field: string) => {
+    if (hasDraggedRef.current) return;
     if (sortField === field) {
       setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
@@ -1177,10 +1196,12 @@ function App() {
 
   const renderSortHeader = (field: string, label: string) => {
     const width = activeColumnWidths[field] || (field === 'symbol' ? 180 : 100);
+    const isNumber = field !== 'symbol';
+    
     return (
       <th 
         key={field}
-        className={`px-3 py-2 text-[9px] uppercase tracking-wider font-semibold text-gray-500 cursor-pointer bg-white hover:bg-gray-100 transition-colors select-none group relative ${resizingCol?.id === field ? 'bg-gray-100' : ''} ${draggedColId === field ? 'opacity-50' : ''}`}
+        className={`px-3 py-2 text-[9px] uppercase tracking-wider font-semibold text-secondary cursor-pointer bg-surface hover:bg-surface-hover transition-colors select-none group relative ${resizingCol?.id === field ? 'bg-surface-hover' : ''} ${draggedColId === field ? 'opacity-50' : ''} ${isNumber ? 'text-right' : 'text-left'}`}
         style={{ width, minWidth: width, maxWidth: width }}
         onClick={() => handleSort(field)}
         draggable={true}
@@ -1188,17 +1209,17 @@ function App() {
         onDragOver={handleColumnDragOver}
         onDrop={(e) => handleColumnDrop(e, field)}
       >
-        <div className="flex items-center gap-1 overflow-hidden">
+        <div className={`flex items-center gap-1 overflow-hidden ${isNumber ? 'justify-end' : 'justify-start'}`}>
           <span className="truncate">{label}</span>
           {sortField === field ? (
-            sortDirection === 'asc' ? <ChevronUp className="w-3 h-3 text-zinc-900 shrink-0" /> : <ChevronDown className="w-3 h-3 text-zinc-900 shrink-0" />
+            sortDirection === 'asc' ? <ChevronUp className="w-3 h-3 text-primary shrink-0" /> : <ChevronDown className="w-3 h-3 text-primary shrink-0" />
           ) : (
-            <ArrowUpDown className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
+            <ArrowUpDown className="w-3 h-3 text-tertiary group-hover:text-secondary transition-colors shrink-0" />
           )}
         </div>
         
         {/* Custom Tooltip */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block z-50 whitespace-nowrap bg-zinc-900 text-white text-[10px] font-medium px-2 py-1 rounded border border-zinc-700 pointer-events-none normal-case tracking-normal">
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block z-50 whitespace-nowrap bg-surface text-primary text-[10px] font-medium px-2 py-1 rounded border border-divider pointer-events-none normal-case tracking-normal">
           {label}
         </div>
 
@@ -1605,30 +1626,30 @@ function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-background text-primary font-sans overflow-hidden">
       {/* Unified Top Header */}
-      <header className="h-12 bg-white border-b border-gray-200 px-4 flex items-center justify-between shrink-0 z-10">
+      <header className="h-12 bg-surface border-b border-divider px-4 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-3">
           <div className="flex items-center shrink-0">
-            <PieChart className="w-5 h-5 text-zinc-900" />
+            <PieChart className="w-5 h-5 text-primary" />
           </div>
           
-          <span className="text-gray-300 font-light text-lg leading-none mb-0.5">/</span>
+          <span className="text-tertiary font-light text-lg leading-none mb-0.5">/</span>
           {activePage === 'home' ? (
-            <h2 className="text-sm font-semibold text-zinc-900 leading-tight">Home</h2>
+            <h2 className="text-sm font-semibold text-primary leading-tight">Home</h2>
           ) : (
             <>
               <button 
                 onClick={() => { if (sidebarMode !== 'expanded') setIsSidebarTemporarilyExpanded(prev => !prev); }}
-                className="text-sm font-medium text-gray-500 hover:text-zinc-900 transition-colors cursor-pointer"
+                className="text-sm font-medium text-secondary hover:text-primary transition-colors cursor-pointer"
               >
                 Portfolios
               </button>
               
               {activePortfolio && (
                 <>
-                  <span className="text-gray-300 font-light text-lg leading-none mb-0.5">/</span>
-                  <h2 className="text-sm font-semibold text-zinc-900 leading-tight">
+                  <span className="text-tertiary font-light text-lg leading-none mb-0.5">/</span>
+                  <h2 className="text-sm font-semibold text-primary leading-tight">
                     {activePortfolio.name}
                   </h2>
                 </>
@@ -1639,12 +1660,20 @@ function App() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="w-7 h-7 rounded-full flex items-center justify-center transition-colors border bg-surface-hover text-secondary border-divider hover:bg-divider"
+            title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+          </button>
+          
+          <button
             onClick={handleManualRefresh}
             disabled={pricesLoading}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors border bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 ${pricesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors border bg-surface-hover text-secondary border-divider hover:bg-divider ${pricesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             title="Refresh Portfolio & Prices"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${pricesLoading ? 'animate-spin text-zinc-900' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${pricesLoading ? 'animate-spin text-primary' : ''}`} />
           </button>
 
           <div className="relative group" ref={accountMenuRef}>
@@ -1652,8 +1681,8 @@ function App() {
               onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
               className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors border ${
                 isAccountMenuOpen 
-                  ? 'bg-zinc-900 text-white border-zinc-900' 
-                  : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                  ? 'bg-surface text-primary border-zinc-900' 
+                  : 'bg-surface-hover text-secondary border-divider hover:bg-divider'
               }`}
             >
               <User className="w-4 h-4" />
@@ -1661,23 +1690,23 @@ function App() {
 
           {/* Custom Tooltip */}
           {!isAccountMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 whitespace-nowrap bg-zinc-900 text-white text-[10px] font-medium px-2 py-1 rounded border border-zinc-700">
+            <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 whitespace-nowrap bg-surface text-primary text-[10px] font-medium px-2 py-1 rounded border border-divider">
               Account Settings
             </div>
           )}
 
           {isAccountMenuOpen && (
-            <div className="absolute right-0 mt-2 min-w-[240px] max-w-sm bg-white border border-gray-200 rounded-lg py-1 z-50 shadow-lg shadow-gray-400/30">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wide">Signed in as</p>
-                <p className="text-xs font-medium text-gray-900 truncate">
+            <div className="absolute right-0 mt-2 min-w-[240px] max-w-sm bg-surface border border-divider rounded-lg py-1 z-50 shadow-2xl shadow-black/50 shadow-black/40 shadow-gray-400/30">
+              <div className="px-4 py-3 border-b border-divider">
+                <p className="text-[10px] text-secondary mb-0.5 uppercase tracking-wide">Signed in as</p>
+                <p className="text-xs font-medium text-primary truncate">
                   {session?.user?.email}
                 </p>
               </div>
               <div className="py-1">
                 <button
                   onClick={() => supabase.auth.signOut()}
-                  className="w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-zinc-900 flex items-center gap-2"
+                  className="w-full text-left px-4 py-2 text-xs text-secondary hover:bg-background hover:text-primary flex items-center gap-2"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   Sign out
@@ -1698,9 +1727,9 @@ function App() {
             setIsSidebarHovered(false);
             setIsSidebarTemporarilyExpanded(false);
           }}
-          className={`bg-white border-r border-gray-200 flex flex-col shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${isActuallyExpanded ? 'w-56' : 'w-12'}`}
+          className={`bg-surface border-r border-divider flex flex-col shrink-0 transition-all duration-300 ease-in-out overflow-hidden ${isActuallyExpanded ? 'w-56' : 'w-12'}`}
         >
-          <div className="w-56 flex flex-col h-full bg-white">
+          <div className="w-56 flex flex-col h-full bg-surface">
 
 
 
@@ -1709,7 +1738,7 @@ function App() {
           <div>
             <div className="flex items-center pl-4 pr-4 mb-2 mt-2">
               <div 
-                className="flex items-center gap-3 text-gray-400" 
+                className="flex items-center gap-3 text-tertiary" 
                 onMouseEnter={(e) => handleSidebarTooltipEnter(e, "Overview")}
                 onMouseLeave={handleSidebarTooltipLeave}
               >
@@ -1724,12 +1753,12 @@ function App() {
                 onMouseLeave={handleSidebarTooltipLeave}
                 className={`group w-full flex items-center pl-4 pr-2 py-1.5 text-xs transition-colors ${
                   activePage === 'home'
-                    ? 'text-zinc-900 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50'
+                    ? 'text-primary font-medium'
+                    : 'text-secondary hover:bg-background'
                 }`}
               >
                 <div className="flex items-center gap-3 truncate">
-                  <Home className={`w-5 h-5 shrink-0 transition-colors ${activePage === 'home' ? 'text-zinc-900' : 'text-gray-400 group-hover:text-gray-500'}`} />
+                  <Home className={`w-5 h-5 shrink-0 transition-colors ${activePage === 'home' ? 'text-primary' : 'text-tertiary group-hover:text-secondary'}`} />
                   <span className={`truncate transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>Home</span>
                 </div>
               </button>
@@ -1740,7 +1769,7 @@ function App() {
           <div>
             <div className="flex items-center justify-between pl-4 pr-4 mb-2 mt-4">
               <div 
-                className="flex items-center gap-3 text-gray-400" 
+                className="flex items-center gap-3 text-tertiary" 
                 onMouseEnter={(e) => handleSidebarTooltipEnter(e, "Portfolios")}
                 onMouseLeave={handleSidebarTooltipLeave}
               >
@@ -1757,14 +1786,14 @@ function App() {
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-gray-400 hover:text-zinc-900 transition-colors"
+                  className="text-tertiary hover:text-primary transition-colors"
                   title="Import Portfolio"
                 >
                   <Upload className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="text-gray-400 hover:text-zinc-900 transition-colors"
+                  className="text-tertiary hover:text-primary transition-colors"
                   title="Create Portfolio"
                 >
                   <Plus className="w-4 h-4" />
@@ -1788,12 +1817,12 @@ function App() {
                     draggedPortfolioId === portfolio.id ? 'opacity-50 border border-dashed border-gray-400' : ''
                   } ${
                     activePortfolioId === portfolio.id && activePage === 'portfolio'
-                      ? 'text-zinc-900 font-medium'
-                      : 'text-gray-600 hover:bg-gray-50'
+                      ? 'text-primary font-medium'
+                      : 'text-secondary hover:bg-background'
                   }`}
                 >
                   <div className="flex items-center gap-3 truncate">
-                    <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center text-[10px] font-bold transition-colors ${activePortfolioId === portfolio.id && activePage === 'portfolio' ? 'bg-zinc-900 text-white' : 'bg-gray-200 text-gray-500 group-hover:bg-gray-300'}`}>
+                    <div className={`w-5 h-5 shrink-0 rounded flex items-center justify-center text-[10px] font-bold transition-colors ${activePortfolioId === portfolio.id && activePage === 'portfolio' ? 'bg-surface text-primary' : 'bg-divider text-secondary group-hover:bg-divider-hover'}`}>
                       {portfolio.name ? portfolio.name.charAt(0).toUpperCase() : 'P'}
                     </div>
                     <span className={`truncate transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>{portfolio.name}</span>
@@ -1804,7 +1833,7 @@ function App() {
                         e.stopPropagation();
                         setRenamePortfolioId(portfolio.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-zinc-100 hover:text-zinc-600 rounded text-gray-400 transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-divider hover:text-secondary rounded text-tertiary transition-all"
                       title="Rename Portfolio"
                     >
                       <Pencil className="w-3 h-3" />
@@ -1814,7 +1843,7 @@ function App() {
                         e.stopPropagation();
                         handleCopyPortfolio(portfolio.id, portfolio.name);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-blue-100 hover:text-blue-600 rounded text-gray-400 transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-blue-500/20 hover:text-blue-400 rounded text-tertiary transition-all"
                       title="Copy Portfolio"
                     >
                       <Copy className="w-3 h-3" />
@@ -1824,7 +1853,7 @@ function App() {
                         e.stopPropagation();
                         handleDeletePortfolio(portfolio.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 hover:text-red-600 rounded text-gray-400 transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-danger/20 hover:text-danger rounded text-tertiary transition-all"
                       title="Delete Portfolio"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -1834,7 +1863,7 @@ function App() {
               ))}
 
               {portfolios.length === 0 && (
-                <div className={`pl-4 py-2 text-xs text-gray-400 transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>
+                <div className={`pl-4 py-2 text-xs text-tertiary transition-opacity duration-300 ${isActuallyExpanded ? 'opacity-100' : 'opacity-0'}`}>
                   No portfolios yet.
                 </div>
               )}
@@ -1843,7 +1872,7 @@ function App() {
         </div>
         <div className="mt-auto flex flex-col relative" ref={sidebarMenuRef}>
           <div 
-            className="pl-4 py-3 flex items-center gap-3 text-gray-400 cursor-pointer hover:text-zinc-900 transition-colors" 
+            className="pl-4 py-3 flex items-center gap-3 text-tertiary cursor-pointer hover:text-primary transition-colors" 
             onClick={() => setIsRecycleBinModalOpen(true)}
             onMouseEnter={(e) => handleSidebarTooltipEnter(e, "Recycle Bin")}
             onMouseLeave={handleSidebarTooltipLeave}
@@ -1854,7 +1883,7 @@ function App() {
           <div className="pl-4 pb-4 pt-1 flex items-center">
             <button
               onClick={() => setIsSidebarMenuOpen(!isSidebarMenuOpen)}
-              className="text-gray-400 hover:text-zinc-900 transition-colors"
+              className="text-tertiary hover:text-primary transition-colors"
               onMouseEnter={(e) => handleSidebarTooltipEnter(e, "Sidebar Control")}
               onMouseLeave={handleSidebarTooltipLeave}
             >
@@ -1863,28 +1892,28 @@ function App() {
           </div>
 
           {isSidebarMenuOpen && (
-            <div className="fixed left-4 bottom-12 min-w-[180px] bg-white border border-gray-200 rounded-lg py-1 z-50 shadow-lg shadow-gray-400/30">
-              <div className="px-3 py-2 border-b border-gray-100">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">Sidebar Control</p>
+            <div className="fixed left-4 bottom-12 min-w-[180px] bg-surface border border-divider rounded-lg py-1 z-50 shadow-2xl shadow-black/50 shadow-black/40 shadow-gray-400/30">
+              <div className="px-3 py-2 border-b border-divider">
+                <p className="text-[10px] text-secondary uppercase tracking-wide font-semibold">Sidebar Control</p>
               </div>
               <div className="py-1">
                 <button
                   onClick={() => { setSidebarMode('expanded'); setIsSidebarMenuOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-zinc-900 flex items-center justify-between"
+                  className="w-full text-left px-3 py-2 text-xs text-secondary hover:bg-background hover:text-primary flex items-center justify-between"
                 >
                   Expanded
                   {sidebarMode === 'expanded' && <Check className="w-3.5 h-3.5" />}
                 </button>
                 <button
                   onClick={() => { setSidebarMode('collapsed'); setIsSidebarMenuOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-zinc-900 flex items-center justify-between"
+                  className="w-full text-left px-3 py-2 text-xs text-secondary hover:bg-background hover:text-primary flex items-center justify-between"
                 >
                   Collapsed
                   {sidebarMode === 'collapsed' && <Check className="w-3.5 h-3.5" />}
                 </button>
                 <button
                   onClick={() => { setSidebarMode('hover'); setIsSidebarMenuOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-zinc-900 flex items-center justify-between"
+                  className="w-full text-left px-3 py-2 text-xs text-secondary hover:bg-background hover:text-primary flex items-center justify-between"
                 >
                   Expand on hover
                   {sidebarMode === 'hover' && <Check className="w-3.5 h-3.5" />}
@@ -1901,7 +1930,7 @@ function App() {
       {/* Custom Sidebar Tooltip */}
       {sidebarTooltip && !isActuallyExpanded && (
         <div 
-          className="fixed z-[100] bg-zinc-900 text-white text-[10px] px-2.5 py-1 rounded-md shadow-lg whitespace-nowrap pointer-events-none"
+          className="fixed z-[100] bg-surface text-primary text-[10px] px-2.5 py-1 rounded-md shadow-2xl shadow-black/50 shadow-black/40 whitespace-nowrap pointer-events-none"
           style={{
             top: sidebarTooltip.top,
             left: sidebarTooltip.left,
@@ -1909,7 +1938,7 @@ function App() {
           }}
         >
           {sidebarTooltip.text}
-          <div className="absolute top-1/2 -left-1 -mt-1 w-2 h-2 bg-zinc-900 rotate-45" />
+          <div className="absolute top-1/2 -left-1 -mt-1 w-2 h-2 bg-surface rotate-45" />
         </div>
       )}
 
@@ -1919,95 +1948,95 @@ function App() {
         <div className="flex-1 overflow-hidden p-2 md:p-4 flex flex-col min-h-0">
           {loading ? (
             <div className="flex items-center justify-center h-64">
-              <div className="w-8 h-8 border-2 border-gray-200 border-t-zinc-900 rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-divider border-t-zinc-900 rounded-full animate-spin" />
             </div>
           ) : activePage === 'home' ? (
             <div className="h-full flex flex-col overflow-y-auto">
               {/* Stats Cards - same format as individual portfolio */}
-              <div className="flex flex-wrap gap-2 mb-4 [&>div]:flex-1 [&>div]:min-w-fit">
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+              <div className="flex flex-wrap gap-px bg-surface-hover border-y border-divider mb-4 shadow-sm [&>div]:flex-1 [&>div]:min-w-fit">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Total Stocks</span>
                   </div>
-                  <div className="text-sm font-bold text-zinc-900">{homeStats.totalStocks}</div>
+                  <div className="text-sm font-bold text-primary">{homeStats.totalStocks}</div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Max Investment</span>
                   </div>
-                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${homeStats.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-sm font-bold text-primary truncate" title={`₹${homeStats.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{homeStats.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Total Invested</span>
                   </div>
-                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${homeStats.totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-sm font-bold text-primary truncate" title={`₹${homeStats.totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{homeStats.totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Current Value</span>
                   </div>
-                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${homeStats.totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-sm font-bold text-primary truncate" title={`₹${homeStats.totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{homeStats.totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Unrealized PnL</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${homeStats.totalUnrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${homeStats.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className={`text-sm font-bold truncate ${homeStats.totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${homeStats.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {homeStats.totalUnrealizedPnL >= 0 ? '+' : ''}₹{homeStats.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Unrealized %</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${homeStats.unrealizedPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`${homeStats.unrealizedPnLPercent.toFixed(2)}%`}>
+                  <div className={`text-sm font-bold truncate ${homeStats.unrealizedPnLPercent >= 0 ? 'text-success' : 'text-danger'}`} title={`${homeStats.unrealizedPnLPercent.toFixed(2)}%`}>
                     {homeStats.unrealizedPnLPercent >= 0 ? '+' : ''}{homeStats.unrealizedPnLPercent.toFixed(2)}%
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Realized PnL</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${homeStats.totalRealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${homeStats.totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className={`text-sm font-bold truncate ${homeStats.totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${homeStats.totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {homeStats.totalRealizedPnL >= 0 ? '+' : ''}₹{homeStats.totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Total Dividend</span>
                   </div>
-                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${homeStats.totalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-sm font-bold text-primary truncate" title={`₹${homeStats.totalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{homeStats.totalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Total PnL</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${homeStats.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className={`text-sm font-bold truncate ${homeStats.totalPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {homeStats.totalPnL >= 0 ? '+' : ''}₹{homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Total PnL %</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${homeStats.totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`${homeStats.totalPnLPercent.toFixed(2)}%`}>
+                  <div className={`text-sm font-bold truncate ${homeStats.totalPnLPercent >= 0 ? 'text-success' : 'text-danger'}`} title={`${homeStats.totalPnLPercent.toFixed(2)}%`}>
                     {homeStats.totalPnLPercent >= 0 ? '+' : ''}{homeStats.totalPnLPercent.toFixed(2)}%
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>XIRR</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${homeStats.xirr >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`${(homeStats.xirr * 100).toFixed(2)}%`}>
+                  <div className={`text-sm font-bold truncate ${homeStats.xirr >= 0 ? 'text-success' : 'text-danger'}`} title={`${(homeStats.xirr * 100).toFixed(2)}%`}>
                     {homeStats.xirr >= 0 ? '+' : ''}{(homeStats.xirr * 100).toFixed(2)}%
                   </div>
                 </div>
@@ -2015,11 +2044,11 @@ function App() {
 
               {/* Portfolio List */}
               {portfolios.length > 0 ? (
-                <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                  <div className="px-5 py-4 border-b border-gray-100">
-                    <h3 className="text-sm font-semibold text-zinc-900">Your Portfolios</h3>
+                <div className="bg-surface border border-divider rounded-lg  overflow-hidden">
+                  <div className="px-5 py-4 border-b border-divider">
+                    <h3 className="text-sm font-semibold text-primary">Your Portfolios</h3>
                   </div>
-                  <div className="divide-y divide-gray-100">
+                  <div className="divide-y divide-divider">
                     {portfolios.map(p => {
                       const pStocks = stocks.filter(s => s.portfolio_id === p.id && Number(s.entry_price) > 0);
                       const pSymbols = [...new Set(pStocks.map(s => s.symbol))];
@@ -2027,18 +2056,18 @@ function App() {
                         <button
                           key={p.id}
                           onClick={() => { setActivePortfolioId(p.id); setActivePage('portfolio'); }}
-                          className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-gray-50 transition-colors"
+                          className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-background transition-colors"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-zinc-900 text-white flex items-center justify-center text-xs font-bold">
+                            <div className="w-8 h-8 rounded-lg bg-surface text-primary flex items-center justify-center text-xs font-bold">
                               {p.name.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-zinc-900">{p.name}</p>
-                              <p className="text-[11px] text-gray-400">{pSymbols.length} asset{pSymbols.length !== 1 ? 's' : ''}</p>
+                              <p className="text-sm font-medium text-primary">{p.name}</p>
+                              <p className="text-[11px] text-tertiary">{pSymbols.length} asset{pSymbols.length !== 1 ? 's' : ''}</p>
                             </div>
                           </div>
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                          <ChevronRight className="w-4 h-4 text-tertiary" />
                         </button>
                       );
                     })}
@@ -2046,14 +2075,14 @@ function App() {
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center flex-1 text-center">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-6">
-                    <Briefcase className="w-8 h-8 text-gray-400" />
+                  <div className="w-16 h-16 bg-surface-hover rounded-xl flex items-center justify-center mb-6">
+                    <Briefcase className="w-8 h-8 text-tertiary" />
                   </div>
-                  <h3 className="text-xl font-bold text-zinc-900 mb-2">No Portfolios Yet</h3>
-                  <p className="text-sm text-gray-500 mb-8">Create your first portfolio to start tracking your assets.</p>
+                  <h3 className="text-xl font-bold text-primary mb-2">No Portfolios Yet</h3>
+                  <p className="text-sm text-secondary mb-8">Create your first portfolio to start tracking your assets.</p>
                   <button
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="bg-zinc-900 hover:bg-zinc-800 text-white font-medium px-6 py-2.5 rounded-lg transition-colors shadow-sm"
+                    className="bg-surface hover:bg-zinc-800 text-primary font-medium px-6 py-2.5 rounded-lg transition-colors "
                   >
                     Create New Portfolio
                   </button>
@@ -2062,16 +2091,16 @@ function App() {
             </div>
           ) : !activePortfolio ? (
             <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto">
-              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-6">
-                <Briefcase className="w-8 h-8 text-gray-400" />
+              <div className="w-16 h-16 bg-surface-hover rounded-xl flex items-center justify-center mb-6">
+                <Briefcase className="w-8 h-8 text-tertiary" />
               </div>
-              <h3 className="text-xl font-bold text-zinc-900 mb-2">No Portfolio Selected</h3>
-              <p className="text-sm text-gray-500 mb-8">
+              <h3 className="text-xl font-bold text-primary mb-2">No Portfolio Selected</h3>
+              <p className="text-sm text-secondary mb-8">
                 Select a portfolio from the sidebar or create a new one to start tracking your assets.
               </p>
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="bg-zinc-900 hover:bg-zinc-800 text-white font-medium px-6 py-2.5 rounded-lg transition-colors shadow-sm"
+                className="bg-surface hover:bg-zinc-800 text-primary font-medium px-6 py-2.5 rounded-lg transition-colors "
               >
                 Create New Portfolio
               </button>
@@ -2080,118 +2109,118 @@ function App() {
             <div className="w-full flex flex-col h-full min-h-0">
               {/* Stats Cards */}
               <div className="flex flex-wrap gap-2 mb-4 [&>div]:flex-1 [&>div]:min-w-fit">
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Total Stocks</span>
                   </div>
-                  <div className="text-sm font-bold text-zinc-900">{filteredSymbolGroups.length}</div>
+                  <div className="text-sm font-bold text-primary">{filteredSymbolGroups.length}</div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Max Investment</span>
                   </div>
-                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-sm font-bold text-primary truncate" title={`₹${maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Total Invested</span>
                   </div>
-                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-sm font-bold text-primary truncate" title={`₹${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Current Value</span>
                   </div>
-                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-sm font-bold text-primary truncate" title={`₹${totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Unrealized PnL</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${totalUnrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className={`text-sm font-bold truncate ${totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {totalUnrealizedPnL >= 0 ? '+' : ''}₹{totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Unrealized %</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${unrealizedPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`${unrealizedPnLPercent.toFixed(2)}%`}>
+                  <div className={`text-sm font-bold truncate ${unrealizedPnLPercent >= 0 ? 'text-success' : 'text-danger'}`} title={`${unrealizedPnLPercent.toFixed(2)}%`}>
                     {unrealizedPnLPercent >= 0 ? '+' : ''}{unrealizedPnLPercent.toFixed(2)}%
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Realized PnL</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${totalRealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className={`text-sm font-bold truncate ${totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {totalRealizedPnL >= 0 ? '+' : ''}₹{totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Total Dividend</span>
                   </div>
-                  <div className="text-sm font-bold text-zinc-900 truncate" title={`₹${portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className="text-sm font-bold text-primary truncate" title={`₹${portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     ₹{portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Total PnL</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`₹${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                  <div className={`text-sm font-bold truncate ${totalPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
                     {totalPnL >= 0 ? '+' : ''}₹{totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>Total PnL %</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${totalPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`${totalPnLPercent.toFixed(2)}%`}>
+                  <div className={`text-sm font-bold truncate ${totalPnLPercent >= 0 ? 'text-success' : 'text-danger'}`} title={`${totalPnLPercent.toFixed(2)}%`}>
                     {totalPnLPercent >= 0 ? '+' : ''}{totalPnLPercent.toFixed(2)}%
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-md px-3 py-2 shadow-sm flex flex-col justify-center">
-                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-gray-500 mb-0.5">
+                <div className="bg-background px-3 py-2 flex flex-col justify-center">
+                  <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-0.5">
                     <span>XIRR</span>
                   </div>
-                  <div className={`text-sm font-bold truncate ${portfolioXIRR >= 0 ? 'text-green-600' : 'text-red-600'}`} title={`${(portfolioXIRR * 100).toFixed(2)}%`}>
+                  <div className={`text-sm font-bold truncate ${portfolioXIRR >= 0 ? 'text-success' : 'text-danger'}`} title={`${(portfolioXIRR * 100).toFixed(2)}%`}>
                     {portfolioXIRR >= 0 ? '+' : ''}{(portfolioXIRR * 100).toFixed(2)}%
                   </div>
                 </div>
               </div>
 
               {/* Data Table */}
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
-                <div className="px-3 py-2 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
+              <div className="bg-surface border border-divider rounded-lg  overflow-hidden flex flex-col flex-1 min-h-0">
+                <div className="px-3 py-2 border-b border-divider flex justify-between items-center bg-surface shrink-0">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-base text-zinc-900">Assets</h3>
+                      <h3 className="font-semibold text-base text-primary">Assets</h3>
                       <button 
                         onClick={() => setIsPortfolioInfoModalOpen(true)}
-                        className="text-gray-400 hover:text-blue-500 transition-colors"
+                        className="text-tertiary hover:text-blue-500 transition-colors"
                         title="View Corporate Actions Timeline"
                       >
                         <Info className="w-4 h-4" />
                       </button>
                       {pricesLoading && (
-                        <div className="w-3.5 h-3.5 border-2 border-gray-200 border-t-zinc-900 rounded-full animate-spin" title="Updating live prices..." />
+                        <div className="w-3.5 h-3.5 border-2 border-divider border-t-zinc-900 rounded-full animate-spin" title="Updating live prices..." />
                       )}
                     </div>
-                    <div className="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+                    <div className="flex bg-surface-hover p-0.5 rounded-lg border border-divider">
                       {(['open', 'closed', 'all'] as const).map(type => (
                         <button
                           key={type}
                           onClick={() => setFilterType(type)}
                           className={`px-3 py-1 text-[10px] font-medium rounded-md capitalize transition-colors ${
-                            filterType === type ? 'bg-white text-zinc-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                            filterType === type ? 'bg-surface text-primary ' : 'text-secondary hover:text-secondary'
                           }`}
                         >
                           {type}
@@ -2212,7 +2241,7 @@ function App() {
                           setSortField(null);
                           setSearchSelectedSymbols([]);
                         }}
-                        className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-md shadow-sm text-[10px] font-medium text-gray-600 hover:text-zinc-900 transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 bg-surface border border-divider rounded-md  text-[10px] font-medium text-secondary hover:text-primary transition-colors"
                       >
                         <FilterX className="w-3 h-3" />
                         Clear
@@ -2222,7 +2251,7 @@ function App() {
                     <div className="relative">
                       <button
                         onClick={() => setIsColumnsDropdownOpen(!isColumnsDropdownOpen)}
-                        className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-md shadow-sm text-[10px] font-medium text-gray-600 hover:text-zinc-900 transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 bg-surface border border-divider rounded-md  text-[10px] font-medium text-secondary hover:text-primary transition-colors"
                       >
                         <Columns className="w-3 h-3" />
                         Columns
@@ -2231,17 +2260,17 @@ function App() {
                       {isColumnsDropdownOpen && (
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setIsColumnsDropdownOpen(false)} />
-                          <div className="absolute left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 max-h-64 overflow-y-auto">
-                            <div className="border-b border-gray-100 p-1 mb-1 space-y-1">
+                          <div className="absolute left-0 mt-1 w-48 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 shadow-black/40 z-20 py-1 max-h-64 overflow-y-auto">
+                            <div className="border-b border-divider p-1 mb-1 space-y-1">
                               <button
                                 onClick={applyColumnLayoutToAll}
-                                className="w-full flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                                className="w-full flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-blue-400 hover:text-blue-800 hover:bg-blue-500/10 rounded transition-colors"
                               >
                                 Apply to All Portfolios
                               </button>
                               <button
                                 onClick={resetColumns}
-                                className="w-full flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded transition-colors"
+                                className="w-full flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-wider font-semibold text-secondary hover:text-secondary hover:bg-background rounded transition-colors"
                               >
                                 Reset to Default
                               </button>
@@ -2251,10 +2280,10 @@ function App() {
                               return (
                                 <div
                                   key={col.id}
-                                  className="w-full flex items-center px-3 py-1.5 text-[10px] text-left hover:bg-gray-50 text-zinc-900 transition-colors"
+                                  className="w-full flex items-center px-3 py-1.5 text-[10px] text-left hover:bg-background text-primary transition-colors"
                                 >
                                   <div className="w-4 flex justify-center mr-1 shrink-0 cursor-pointer" onClick={() => toggleColumn(col.id)}>
-                                    {visibleColumns.has(col.id) && <Check className="w-3 h-3 text-zinc-900" />}
+                                    {visibleColumns.has(col.id) && <Check className="w-3 h-3 text-primary" />}
                                   </div>
                                   <span className="flex-1 cursor-pointer select-none" onClick={() => toggleColumn(col.id)}>{col.label}</span>
                                 </div>
@@ -2268,13 +2297,13 @@ function App() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setAddStockPortfolioId(activePortfolio.id)}
-                      className="text-xs font-medium text-gray-600 hover:text-zinc-900 transition-colors"
+                      className="text-xs font-medium text-secondary hover:text-primary transition-colors"
                     >
                       + Buy New Asset
                     </button>
                     <button
                       onClick={() => setSellStockPortfolioId(activePortfolio.id)}
-                      className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors"
+                      className="text-xs font-medium text-danger hover:text-danger transition-colors"
                     >
                       − Sell New Asset
                     </button>
@@ -2284,10 +2313,10 @@ function App() {
                     >
                       Rebalance
                     </button>
-                    <div className="w-px h-3 bg-gray-300 mx-1"></div>
+                    <div className="w-px h-3 bg-divider mx-1"></div>
                     <button
                       onClick={() => setCorporateActionType('bonus')}
-                      className="text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                      className="text-xs font-medium text-blue-400 hover:text-blue-800 transition-colors"
                     >
                       Add Bonus
                     </button>
@@ -2299,11 +2328,11 @@ function App() {
                     </button>
                     <button
                       onClick={() => setCorporateActionType('dividend')}
-                      className="text-xs font-medium text-green-600 hover:text-green-800 transition-colors"
+                      className="text-xs font-medium text-success hover:text-success transition-colors"
                     >
                       Add Dividend
                     </button>
-                    <div className="w-px h-3 bg-gray-300 mx-1"></div>
+                    <div className="w-px h-3 bg-divider mx-1"></div>
                     <button
                       onClick={() => {
                         if (expandedSymbols.size > 0) {
@@ -2312,17 +2341,17 @@ function App() {
                           setExpandedSymbols(new Set(filteredSymbolGroups.map(g => g.symbol)));
                         }
                       }}
-                      className="text-xs font-medium text-gray-500 hover:text-zinc-900 transition-colors flex items-center gap-1"
+                      className="text-xs font-medium text-secondary hover:text-primary transition-colors flex items-center gap-1"
                     >
                       <ArrowUpDown className="w-3 h-3" />
                       {expandedSymbols.size > 0 ? 'Collapse All' : 'Expand All'}
                     </button>
-                    <div className="w-px h-3 bg-gray-300 mx-1"></div>
+                    <div className="w-px h-3 bg-divider mx-1"></div>
 
                     <button
                       onClick={exportToExcel}
                       disabled={filteredSymbolGroups.length === 0}
-                      className="text-xs font-medium text-gray-600 hover:text-zinc-900 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-xs font-medium text-secondary hover:text-primary transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Download className="w-3 h-3" />
                       Export
@@ -2330,23 +2359,23 @@ function App() {
                   </div>
                 </div>
 
-                <div className="overflow-auto flex-1 bg-white">
+                <div className="overflow-auto flex-1 bg-surface">
                   <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
-                    <thead className="sticky top-0 z-10 bg-white shadow-sm">
-                      <tr className="border-b border-gray-200 divide-x divide-gray-200">
-                        <th className="px-2 py-1.5 text-[8px] uppercase tracking-wider font-semibold text-gray-500 w-6 bg-white"></th>
+                    <thead className="sticky top-0 z-10 bg-surface ">
+                      <tr className="border-b border-divider divide-x divide-divider">
+                        <th className="px-2 py-1.5 text-[8px] uppercase tracking-wider font-semibold text-secondary w-6 bg-surface"></th>
                         {activeColumnOrder.map(colId => {
                           if (!visibleColumns.has(colId)) return null;
                           const col = ALL_COLUMNS.find(c => c.id === colId)!;
                           return renderSortHeader(col.id, col.label);
                         })}
-                        <th className="px-2 py-1.5 text-[8px] text-right w-8 bg-white"></th>
+                        <th className="px-2 py-1.5 text-[8px] text-right w-8 bg-surface"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredSymbolGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={visibleColumns.size + 2} className="px-3 py-6 text-center text-gray-500 text-[10px]">
+                          <td colSpan={visibleColumns.size + 2} className="px-3 py-6 text-center text-secondary text-[10px]">
                             No assets found matching the filter.
                           </td>
                         </tr>
@@ -2359,10 +2388,10 @@ function App() {
                               {/* ── Summary row ── */}
                               <tr
                                 onClick={() => toggleSymbol(group.symbol)}
-                                className="border-b border-gray-200 divide-x divide-gray-200 hover:bg-gray-50 cursor-pointer transition-colors group"
+                                className="border-b border-divider divide-x divide-divider hover:bg-background cursor-pointer transition-colors group"
                               >
                                 <td className="pl-2 pr-1 py-1.5">
-                                  <span className="text-gray-400 group-hover:text-zinc-700 transition-colors">
+                                  <span className="text-tertiary group-hover:text-secondary transition-colors">
                                     {isExpanded
                                       ? <ChevronDown className="w-3 h-3" />
                                       : <ChevronRight className="w-3 h-3" />}
@@ -2376,18 +2405,18 @@ function App() {
                                         <td key="symbol" className="px-2 py-1.5 truncate">
                                           <div className="flex items-center gap-1.5 overflow-hidden">
                                             <div className="min-w-0 flex-1">
-                                              <div className="font-semibold text-[9px] text-zinc-900 flex items-center gap-1.5 truncate">
+                                              <div className="font-semibold text-[9px] text-primary flex items-center gap-1.5 truncate">
                                                 <span className="truncate">{group.symbol}</span>
                                                 {group.companyName && (
-                                                  <span className="font-normal text-[9px] text-gray-500 truncate" title={group.companyName}>
+                                                  <span className="font-normal text-[9px] text-secondary truncate" title={group.companyName}>
                                                     {group.companyName}
                                                   </span>
                                                 )}
                                               </div>
-                                              <div className="text-[8px] text-gray-400 mt-0.5 truncate flex items-center gap-1.5">
+                                              <div className="text-[8px] text-tertiary mt-0.5 truncate flex items-center gap-1.5">
                                                 <span>
                                                   {group.totalBoughtQty.toLocaleString()} bought
-                                                  {group.totalSoldQty > 0 && <> · <span className="text-red-400">{group.totalSoldQty.toLocaleString()} sold</span></>}
+                                                  {group.totalSoldQty > 0 && <> · <span className="text-danger">{group.totalSoldQty.toLocaleString()} sold</span></>}
                                                 </span>
                                                 <span>·</span>
                                                 <button
@@ -2397,7 +2426,7 @@ function App() {
                                                     setAddStockInitialPrice(group.livePrice);
                                                     setAddStockPortfolioId(activePortfolioId);
                                                   }}
-                                                  className="text-green-600 hover:text-green-700 hover:underline transition-colors focus:outline-none"
+                                                  className="text-success hover:text-success hover:underline transition-colors focus:outline-none"
                                                   title={`Buy more ${group.symbol}`}
                                                 >
                                                   Buy
@@ -2410,7 +2439,7 @@ function App() {
                                                     setSellStockInitialPrice(group.livePrice);
                                                     setSellStockPortfolioId(activePortfolioId);
                                                   }}
-                                                  className="text-red-500 hover:text-red-700 hover:underline transition-colors focus:outline-none"
+                                                  className="text-danger hover:text-danger hover:underline transition-colors focus:outline-none"
                                                   title={`Sell ${group.symbol}`}
                                                 >
                                                   Sell
@@ -2421,7 +2450,7 @@ function App() {
                                                     e.stopPropagation();
                                                     setViewCorporateActionsSymbol(group.symbol);
                                                   }}
-                                                  className="text-blue-500 hover:text-blue-700 hover:underline transition-colors focus:outline-none"
+                                                  className="text-blue-500 hover:text-blue-300 hover:underline transition-colors focus:outline-none"
                                                   title={`View Corporate Actions for ${group.symbol}`}
                                                 >
                                                   Corporate Actions
@@ -2432,98 +2461,98 @@ function App() {
                                         </td>
                                       );
                                     case 'netQty':
-                                      return <td key="netQty" className="px-2 py-1.5 text-[9px] font-semibold text-zinc-900 truncate">{group.netQty.toLocaleString()}</td>;
+                                      return <td key="netQty" className="px-2 py-1.5 text-[10px] font-mono text-right font-semibold text-primary truncate">{group.netQty.toLocaleString()}</td>;
                                     case 'avgBuyPrice':
-                                      return <td key="avgBuyPrice" className="px-2 py-1.5 text-[9px] text-gray-600 truncate">₹{fmt(group.avgBuyPrice)}</td>;
+                                      return <td key="avgBuyPrice" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">₹{fmt(group.avgBuyPrice)}</td>;
                                     case 'netCostBasis':
-                                      return <td key="netCostBasis" className="px-2 py-1.5 text-[9px] text-gray-600 truncate" title="Avg buy price × remaining shares — money still at work">₹{fmt(group.netCostBasis)}</td>;
+                                      return <td key="netCostBasis" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate" title="Avg buy price × remaining shares — money still at work">₹{fmt(group.netCostBasis)}</td>;
                                     case 'portfolioWeight':
                                       const weight = totalInvestment > 0 ? (group.netCostBasis / totalInvestment) * 100 : 0;
                                       return (
-                                        <td key="portfolioWeight" className="px-2 py-1.5 text-[9px] text-gray-600 truncate">
+                                        <td key="portfolioWeight" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">
                                           {weight.toFixed(2)}%
                                         </td>
                                       );
                                     case 'currentValueWeight':
                                       const cvWeight = totalCurrentValue > 0 ? (group.currentValue / totalCurrentValue) * 100 : 0;
                                       return (
-                                        <td key="currentValueWeight" className="px-2 py-1.5 text-[9px] text-gray-600 truncate">
+                                        <td key="currentValueWeight" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">
                                           {cvWeight.toFixed(2)}%
                                         </td>
                                       );
                                     case 'livePrice':
-                                      return <td key="livePrice" className="px-2 py-1.5 text-[9px] font-medium text-zinc-900 truncate">₹{fmt(group.livePrice)}</td>;
+                                      return <td key="livePrice" className="px-2 py-1.5 text-[10px] font-mono text-right font-medium text-primary truncate">₹{fmt(group.livePrice)}</td>;
                                     case 'currentValue':
-                                      return <td key="currentValue" className="px-2 py-1.5 text-[9px] font-medium text-zinc-900 truncate">₹{fmt(group.currentValue)}</td>;
+                                      return <td key="currentValue" className="px-2 py-1.5 text-[10px] font-mono text-right font-medium text-primary truncate">₹{fmt(group.currentValue)}</td>;
                                     case 'unrealizedPnL':
                                       return (
-                                        <td key="unrealizedPnL" className="px-2 py-1.5 text-[9px] truncate">
-                                          <span className={`font-medium ${group.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        <td key="unrealizedPnL" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
+                                          <span className={`font-medium ${group.unrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
                                             {group.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(group.unrealizedPnL)}
                                           </span>
                                         </td>
                                       );
                                     case 'unrealizedPnLPct':
                                       return (
-                                        <td key="unrealizedPnLPct" className="px-2 py-1.5 text-[9px] truncate">
-                                          <span className={`font-medium ${group.unrealizedPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        <td key="unrealizedPnLPct" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
+                                          <span className={`font-medium ${group.unrealizedPct >= 0 ? 'text-success' : 'text-danger'}`}>
                                             {group.unrealizedPct >= 0 ? '+' : ''}{group.unrealizedPct.toFixed(2)}%
                                           </span>
                                         </td>
                                       );
                                     case 'realizedPnL':
                                       return (
-                                        <td key="realizedPnL" className="px-2 py-1.5 text-[9px] truncate">
+                                        <td key="realizedPnL" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
                                           {group.sells.length > 0 ? (
-                                            <span className={`font-medium ${group.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            <span className={`font-medium ${group.realizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
                                               {group.realizedPnL >= 0 ? '+' : ''}₹{fmt(group.realizedPnL)}
                                             </span>
                                           ) : (
-                                            <span className="text-gray-300">—</span>
+                                            <span className="text-tertiary">—</span>
                                           )}
                                         </td>
                                       );
                                     case 'realizedPnLPct':
                                       return (
-                                        <td key="realizedPnLPct" className="px-2 py-1.5 text-[9px] truncate">
+                                        <td key="realizedPnLPct" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
                                           {group.sells.length > 0 ? (
                                             (() => {
                                               const realizedCostBasis = group.totalBuyCost - group.netCostBasis;
                                               const realizedPct = realizedCostBasis > 0 ? (group.realizedPnL / realizedCostBasis) * 100 : 0;
                                               return (
-                                                <span className={`font-medium ${realizedPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                <span className={`font-medium ${realizedPct >= 0 ? 'text-success' : 'text-danger'}`}>
                                                   {realizedPct >= 0 ? '+' : ''}{realizedPct.toFixed(2)}%
                                                 </span>
                                               );
                                             })()
                                           ) : (
-                                            <span className="text-gray-300">—</span>
+                                            <span className="text-tertiary">—</span>
                                           )}
                                         </td>
                                       );
                                     case 'totalDividend':
                                       return (
-                                        <td key="totalDividend" className="px-2 py-1.5 text-[9px] truncate">
+                                        <td key="totalDividend" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
                                           {group.totalDividend > 0 ? (
-                                            <span className="font-medium text-green-600">
+                                            <span className="font-medium text-success">
                                               ₹{fmt(group.totalDividend)}
                                             </span>
                                           ) : (
-                                            <span className="text-gray-300">—</span>
+                                            <span className="text-tertiary">—</span>
                                           )}
                                         </td>
                                       );
                                     case 'brokerage':
-                                      return <td key="brokerage" className="px-2 py-1.5 text-[9px] text-gray-600 truncate">₹{fmt(group.totalBrokerage)}</td>;
+                                      return <td key="brokerage" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">₹{fmt(group.totalBrokerage)}</td>;
                                     case 'govtTax':
-                                      return <td key="govtTax" className="px-2 py-1.5 text-[9px] text-gray-600 truncate">₹{fmt(group.totalGovtTax)}</td>;
+                                      return <td key="govtTax" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">₹{fmt(group.totalGovtTax)}</td>;
                                     case 'totalPnL':
                                       return (
-                                        <td key="totalPnL" className="px-2 py-1.5 text-[9px] truncate">
+                                        <td key="totalPnL" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
                                           {(() => {
                                             const total = group.unrealizedPnL + group.realizedPnL - group.totalBrokerage - group.totalGovtTax;
                                             return (
-                                              <span className={`font-medium ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                              <span className={`font-medium ${total >= 0 ? 'text-success' : 'text-danger'}`}>
                                                 {total >= 0 ? '+' : ''}₹{fmt(total)}
                                               </span>
                                             );
@@ -2532,12 +2561,12 @@ function App() {
                                       );
                                     case 'totalPnLPct':
                                       return (
-                                        <td key="totalPnLPct" className="px-2 py-1.5 text-[9px] truncate">
+                                        <td key="totalPnLPct" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
                                           {(() => {
                                             const total = group.unrealizedPnL + group.realizedPnL - group.totalBrokerage - group.totalGovtTax;
                                             const totalPct = group.totalBuyCost > 0 ? (total / group.totalBuyCost) * 100 : 0;
                                             return (
-                                              <span className={`font-medium ${totalPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                              <span className={`font-medium ${totalPct >= 0 ? 'text-success' : 'text-danger'}`}>
                                                 {totalPct >= 0 ? '+' : ''}{totalPct.toFixed(2)}%
                                               </span>
                                             );
@@ -2546,55 +2575,55 @@ function App() {
                                       );
                                     case 'xirr':
                                       return (
-                                        <td key="xirr" className={`px-2 py-1.5 text-[9px] font-bold ${group.xirr >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
+                                        <td key="xirr" className={`px-2 py-1.5 text-[9px] font-bold ${group.xirr >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {group.xirr >= 0 ? '+' : ''}{(group.xirr * 100).toFixed(2)}%
                                         </td>
                                       );
                                     case 'priceChange':
                                       return (
-                                        <td key="priceChange" className={`px-2 py-1.5 text-[9px] font-medium ${group.priceChange >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
+                                        <td key="priceChange" className={`px-2 py-1.5 text-[9px] font-medium ${group.priceChange >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {group.priceChange >= 0 ? '+' : ''}₹{fmt(group.priceChange)}
                                         </td>
                                       );
                                     case 'changePercent':
                                       return (
-                                        <td key="changePercent" className={`px-2 py-1.5 text-[9px] font-medium ${group.changePercent >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
+                                        <td key="changePercent" className={`px-2 py-1.5 text-[9px] font-medium ${group.changePercent >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {group.changePercent >= 0 ? '+' : ''}{group.changePercent.toFixed(2)}%
                                         </td>
                                       );
                                     case 'dayHigh':
-                                      return <td key="dayHigh" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">{group.dayHigh ? `₹${fmt(group.dayHigh)}` : '—'}</td>;
+                                      return <td key="dayHigh" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.dayHigh ? `₹${fmt(group.dayHigh)}` : '—'}</td>;
                                     case 'dayLow':
-                                      return <td key="dayLow" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">{group.dayLow ? `₹${fmt(group.dayLow)}` : '—'}</td>;
+                                      return <td key="dayLow" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.dayLow ? `₹${fmt(group.dayLow)}` : '—'}</td>;
                                     case '52wkHigh':
-                                      return <td key="52wkHigh" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">{group.fiftyTwoWeekHigh ? `₹${fmt(group.fiftyTwoWeekHigh)}` : '—'}</td>;
+                                      return <td key="52wkHigh" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.fiftyTwoWeekHigh ? `₹${fmt(group.fiftyTwoWeekHigh)}` : '—'}</td>;
                                     case '52wkLow':
-                                      return <td key="52wkLow" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">{group.fiftyTwoWeekLow ? `₹${fmt(group.fiftyTwoWeekLow)}` : '—'}</td>;
+                                      return <td key="52wkLow" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.fiftyTwoWeekLow ? `₹${fmt(group.fiftyTwoWeekLow)}` : '—'}</td>;
                                     case 'marketCap':
                                       return (
-                                        <td key="marketCap" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">
+                                        <td key="marketCap" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">
                                           {group.marketCap ? `₹${(group.marketCap / 10000000).toFixed(2)} Cr` : '—'}
                                         </td>
                                       );
                                     case 'volume':
-                                      return <td key="volume" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">{group.volume ? group.volume.toLocaleString() : '—'}</td>;
+                                      return <td key="volume" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.volume ? group.volume.toLocaleString() : '—'}</td>;
                                     case 'avgVolume':
-                                      return <td key="avgVolume" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">{group.avgVolume ? group.avgVolume.toLocaleString() : '—'}</td>;
+                                      return <td key="avgVolume" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.avgVolume ? group.avgVolume.toLocaleString() : '—'}</td>;
                                     case 'tradeValue':
                                       return (
-                                        <td key="tradeValue" className="px-2 py-1.5 text-[9px] text-zinc-900 truncate">
+                                        <td key="tradeValue" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">
                                           {group.tradeValue ? `₹${(group.tradeValue / 10000000).toFixed(2)} Cr` : '—'}
                                         </td>
                                       );
                                     case 'dayGain':
                                       return (
-                                        <td key="dayGain" className={`px-2 py-1.5 text-[9px] font-medium ${group.dayGain >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
+                                        <td key="dayGain" className={`px-2 py-1.5 text-[9px] font-medium ${group.dayGain >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {group.dayGain >= 0 ? '+' : ''}₹{fmt(group.dayGain)}
                                         </td>
                                       );
                                     case 'dayGainPct':
                                       return (
-                                        <td key="dayGainPct" className={`px-2 py-1.5 text-[9px] font-medium ${group.dayGainPct >= 0 ? 'text-green-600' : 'text-red-600'} truncate`}>
+                                        <td key="dayGainPct" className={`px-2 py-1.5 text-[9px] font-medium ${group.dayGainPct >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {group.dayGainPct >= 0 ? '+' : ''}{group.dayGainPct.toFixed(2)}%
                                         </td>
                                       );
@@ -2603,7 +2632,7 @@ function App() {
                                   }
                                 })}
                                 <td className="px-2 py-1.5 text-[10px] text-right">
-                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteAsset(group.symbol); }} className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors" title={`Delete ${group.symbol}`}>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteAsset(group.symbol); }} className="p-1 text-tertiary hover:text-danger rounded hover:bg-danger/10 transition-colors" title={`Delete ${group.symbol}`}>
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </td>
@@ -2611,28 +2640,28 @@ function App() {
 
                               {/* ── Expanded detail side-by-side FIFO section ── */}
                               {isExpanded && (
-                                <tr className="border-t border-b border-gray-200 bg-gray-50/70">
+                                <tr className="border-t border-b border-divider bg-background/70">
                                   <td colSpan={visibleColumns.size + 2} className="p-2">
                                     <div className="space-y-2">
                                       {group.fifoBuyLots.length === 0 ? (
-                                        <p className="text-[10px] text-gray-400 py-2 text-center">No buy entries found.</p>
+                                        <p className="text-[10px] text-tertiary py-2 text-center">No buy entries found.</p>
                                       ) : (
                                         group.fifoBuyLots.map((lot, lotIdx) => (
-                                          <div key={`lot-${lot.buy.id}`} className="bg-white border border-gray-200 rounded-lg p-2 shadow-xs">
+                                          <div key={`lot-${lot.buy.id}`} className="bg-surface border border-divider rounded-lg p-2 shadow-xs">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                               {/* Left Column: BUY Lot Details */}
-                                              <div className="pr-0 md:pr-2 border-b md:border-b-0 md:border-r border-gray-100 pb-2 md:pb-0">
-                                                <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-gray-100">
-                                                  <div className="flex items-center gap-1.5 font-semibold text-xs text-green-800">
-                                                    <ArrowUpCircle className="w-4 h-4 text-green-600" />
+                                              <div className="pr-0 md:pr-2 border-b md:border-b-0 md:border-r border-divider pb-2 md:pb-0">
+                                                <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-divider">
+                                                  <div className="flex items-center gap-1.5 font-semibold text-xs text-success">
+                                                    <ArrowUpCircle className="w-4 h-4 text-success" />
                                                     <span>Buy Position{group.fifoBuyLots.length > 1 ? ` #${lotIdx + 1}` : ''}</span>
                                                   </div>
                                                   <div className="flex items-center gap-2">
                                                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${lot.status === 'CLOSED'
-                                                        ? 'bg-gray-100 text-gray-600'
+                                                        ? 'bg-surface-hover text-secondary'
                                                         : lot.status === 'PARTIALLY_SOLD'
                                                           ? 'bg-amber-100 text-amber-700'
-                                                          : 'bg-green-100 text-green-700'
+                                                          : 'bg-success/20 text-success'
                                                       }`}>
                                                       {lot.status === 'CLOSED'
                                                         ? `CLOSED (${lot.buyQty}/${lot.buyQty} sold)`
@@ -2645,7 +2674,7 @@ function App() {
 
                                                 <table className="w-full text-left text-[10px] whitespace-nowrap">
                                                   <thead>
-                                                    <tr className="text-[9px] text-gray-400 uppercase border-b border-gray-100">
+                                                    <tr className="text-[9px] text-tertiary uppercase border-b border-divider">
                                                       <th className="pb-1 font-medium">Type</th>
                                                       <th className="pb-1 font-medium">Date</th>
                                                       <th className="pb-1 font-medium">Qty</th>
@@ -2660,23 +2689,23 @@ function App() {
                                                   <tbody>
                                                     {/* Current Combined State Row */}
                                                     {lot.history && lot.history.length > 0 && (
-                                                      <tr className="bg-blue-50/30">
+                                                      <tr className="bg-blue-500/10/30">
                                                         <td className="py-1">
-                                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-100 text-blue-700">COMBINED</span>
+                                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/20 text-blue-300">COMBINED</span>
                                                         </td>
-                                                        <td className="py-1 text-gray-500 font-medium">
+                                                        <td className="py-1 text-secondary font-medium">
                                                           {new Date(lot.history[lot.history.length - 1].date).toLocaleDateString()}
                                                         </td>
-                                                        <td className="py-1 font-bold text-gray-800">{lot.buyQty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}</td>
-                                                        <td className="py-1 text-gray-600 font-semibold">₹{fmt(lot.entryPrice)}</td>
-                                                        <td className="py-1 text-gray-600 font-medium">₹{fmt(lot.cost)}</td>
+                                                        <td className="py-1 font-bold text-primary">{lot.buyQty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}</td>
+                                                        <td className="py-1 text-secondary font-semibold">₹{fmt(lot.entryPrice)}</td>
+                                                        <td className="py-1 text-secondary font-medium">₹{fmt(lot.cost)}</td>
                                                         <td></td>
                                                         <td></td>
                                                         <td className="py-1 font-medium">
-                                                          <span className={lot.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                                          <span className={lot.unrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
                                                             {lot.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(lot.unrealizedPnL)}
                                                           </span>
-                                                          <span className="text-[9px] ml-1 text-gray-400">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
+                                                          <span className="text-[9px] ml-1 text-tertiary">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
                                                         </td>
                                                         <td className="py-1 text-right"></td>
                                                       </tr>
@@ -2690,51 +2719,51 @@ function App() {
                                                       const eventUnrealizedPct = eventCost > 0 ? (eventUnrealizedPnL / eventCost) * 100 : 0;
                                                       
                                                       return (
-                                                        <tr key={`${ev.type}-${idx}`} className="border-t border-gray-100">
+                                                        <tr key={`${ev.type}-${idx}`} className="border-t border-divider">
                                                           <td className="py-1">
                                                             {ev.type === 'BONUS' ? (
-                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-100 text-purple-700">BONUS</span>
+                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-500/20 text-purple-300">BONUS</span>
                                                             ) : ev.type === 'SPLIT' ? (
                                                               <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-700">SPLIT</span>
                                                             ) : ev.type === 'DIVIDEND' ? (
-                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-100 text-blue-700">DIVIDEND</span>
+                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/20 text-blue-300">DIVIDEND</span>
                                                             ) : (
-                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-green-100 text-green-700">BUY</span>
+                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-success/20 text-success">BUY</span>
                                                             )}
                                                           </td>
-                                                          <td className="py-1 text-gray-400">{new Date(ev.date).toLocaleDateString()}</td>
-                                                          <td className="py-1 font-medium text-gray-600">
+                                                          <td className="py-1 text-tertiary">{new Date(ev.date).toLocaleDateString()}</td>
+                                                          <td className="py-1 font-medium text-secondary">
                                                             {ev.type === 'SPLIT' 
                                                               ? `x${ev.qty.toFixed(2)}` 
                                                               : ev.qty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}
                                                           </td>
-                                                          <td className="py-1 text-gray-400">
+                                                          <td className="py-1 text-tertiary">
                                                             {ev.type === 'SPLIT' ? '—' : ev.type === 'DIVIDEND' ? `₹${fmt(ev.qty)}/sh` : (ev.price !== undefined ? `₹${fmt(ev.price)}` : '₹0.00')}
                                                           </td>
-                                                          <td className="py-1 text-gray-600 font-medium">{eventCost > 0 ? `₹${fmt(eventCost)}` : '—'}</td>
-                                                          <td className="py-1 text-gray-500 text-[10px]">
+                                                          <td className="py-1 text-secondary font-medium">{eventCost > 0 ? `₹${fmt(eventCost)}` : '—'}</td>
+                                                          <td className="py-1 text-secondary text-[10px]">
                                                             {ev.brokerage ? `₹${fmt(ev.brokerage)}` : '—'}
                                                           </td>
-                                                          <td className="py-1 text-gray-500 text-[10px]">
+                                                          <td className="py-1 text-secondary text-[10px]">
                                                             {ev.govtTax ? `₹${fmt(ev.govtTax)}` : '—'}
                                                           </td>
                                                           <td className="py-1 font-medium">
                                                             {isBuy ? (
                                                               <>
-                                                                <span className={eventUnrealizedPnL >= 0 ? 'text-green-500' : 'text-red-500'}>
+                                                                <span className={eventUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
                                                                   {eventUnrealizedPnL >= 0 ? '+' : ''}₹{fmt(eventUnrealizedPnL)}
                                                                 </span>
-                                                                <span className="text-[9px] ml-1 text-gray-400">({eventUnrealizedPct >= 0 ? '+' : ''}{eventUnrealizedPct.toFixed(2)}%)</span>
+                                                                <span className="text-[9px] ml-1 text-tertiary">({eventUnrealizedPct >= 0 ? '+' : ''}{eventUnrealizedPct.toFixed(2)}%)</span>
                                                               </>
                                                             ) : '—'}
                                                           </td>
                                                           <td className="py-1 text-right">
                                                             {ev.id && (
                                                               <div className="flex items-center justify-end gap-1">
-                                                                <button onClick={(e) => { e.stopPropagation(); setEditStockId(ev.id); }} className="p-1 text-gray-500 hover:text-zinc-900 rounded hover:bg-gray-100 transition-colors" title="Edit Entry">
+                                                                <button onClick={(e) => { e.stopPropagation(); setEditStockId(ev.id); }} className="p-1 text-secondary hover:text-primary rounded hover:bg-surface-hover transition-colors" title="Edit Entry">
                                                                   <Pencil className="w-3.5 h-3.5" />
                                                                 </button>
-                                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteStock(ev.id); }} className="p-1 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 transition-colors" title="Delete Entry">
+                                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteStock(ev.id); }} className="p-1 text-secondary hover:text-danger rounded hover:bg-danger/10 transition-colors" title="Delete Entry">
                                                                   <Trash2 className="w-3.5 h-3.5" />
                                                                 </button>
                                                               </div>
@@ -2749,27 +2778,27 @@ function App() {
                                                       <tr>
                                                         <td className="py-1">
                                                           {lot.entryPrice === 0 ? (
-                                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-100 text-purple-700">BONUS</span>
+                                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-500/20 text-purple-300">BONUS</span>
                                                           ) : (
-                                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-green-100 text-green-700">BUY</span>
+                                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-success/20 text-success">BUY</span>
                                                           )}
                                                         </td>
-                                                        <td className="py-1 text-gray-500">{new Date(lot.buy.entry_date).toLocaleDateString()}</td>
-                                                        <td className="py-1 font-medium text-gray-800">{lot.buyQty.toLocaleString()}</td>
-                                                        <td className="py-1 text-gray-600">₹{fmt(lot.entryPrice)}</td>
-                                                        <td className="py-1 text-gray-600 font-medium">₹{fmt(lot.cost)}</td>
+                                                        <td className="py-1 text-secondary">{new Date(lot.buy.entry_date).toLocaleDateString()}</td>
+                                                        <td className="py-1 font-medium text-primary">{lot.buyQty.toLocaleString()}</td>
+                                                        <td className="py-1 text-secondary">₹{fmt(lot.entryPrice)}</td>
+                                                        <td className="py-1 text-secondary font-medium">₹{fmt(lot.cost)}</td>
                                                         <td className="py-1 font-medium">
-                                                          <span className={lot.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                                          <span className={lot.unrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
                                                             {lot.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(lot.unrealizedPnL)}
                                                           </span>
-                                                          <span className="text-[9px] ml-1 text-gray-400">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
+                                                          <span className="text-[9px] ml-1 text-tertiary">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
                                                         </td>
                                                         <td className="py-1 text-right">
                                                           <div className="flex items-center justify-end gap-1">
-                                                            <button onClick={(e) => { e.stopPropagation(); setEditStockId(lot.buy.id); }} className="p-1 text-gray-500 hover:text-zinc-900 rounded hover:bg-gray-100 transition-colors" title="Edit Buy">
+                                                            <button onClick={(e) => { e.stopPropagation(); setEditStockId(lot.buy.id); }} className="p-1 text-secondary hover:text-primary rounded hover:bg-surface-hover transition-colors" title="Edit Buy">
                                                               <Pencil className="w-3.5 h-3.5" />
                                                             </button>
-                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteStock(lot.buy.id); }} className="p-1 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 transition-colors" title="Delete Buy">
+                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteStock(lot.buy.id); }} className="p-1 text-secondary hover:text-danger rounded hover:bg-danger/10 transition-colors" title="Delete Buy">
                                                               <Trash2 className="w-3.5 h-3.5" />
                                                             </button>
                                                           </div>
@@ -2782,17 +2811,17 @@ function App() {
 
                                               {/* Right Column: Sell Positions */}
                                               <div>
-                                                <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-gray-100">
-                                                  <div className="flex items-center gap-1.5 font-semibold text-[10px] text-red-800">
-                                                    <ArrowDownCircle className="w-4 h-4 text-red-600" />
+                                                <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-divider">
+                                                  <div className="flex items-center gap-1.5 font-semibold text-[10px] text-danger">
+                                                    <ArrowDownCircle className="w-4 h-4 text-danger" />
                                                     <span>Sell Positions</span>
                                                   </div>
                                                   <div className="flex items-center gap-2">
-                                                    <span className="text-[10px] text-gray-500 font-medium">
+                                                    <span className="text-[10px] text-secondary font-medium">
                                                       {lot.soldQty.toLocaleString()} / {lot.buyQty.toLocaleString()} sold
                                                     </span>
                                                     {lot.matchedSells.length > 0 && (
-                                                      <span className={`text-[10px] font-semibold ${lot.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                      <span className={`text-[10px] font-semibold ${lot.realizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
                                                         (Realized: {lot.realizedPnL >= 0 ? '+' : ''}₹{fmt(lot.realizedPnL)})
                                                       </span>
                                                     )}
@@ -2800,11 +2829,11 @@ function App() {
                                                 </div>
 
                                                 {lot.matchedSells.length === 0 ? (
-                                                  <p className="text-[10px] text-gray-400 py-2 text-center">No sell entries recorded yet.</p>
+                                                  <p className="text-[10px] text-tertiary py-2 text-center">No sell entries recorded yet.</p>
                                                 ) : (
                                                   <table className="w-full text-left text-[10px] whitespace-nowrap">
                                                     <thead>
-                                                      <tr className="text-[9px] text-gray-400 uppercase border-b border-gray-100">
+                                                      <tr className="text-[9px] text-tertiary uppercase border-b border-divider">
                                                         <th className="pb-1 font-medium">Type</th>
                                                         <th className="pb-1 font-medium">Date</th>
                                                         <th className="pb-1 font-medium">Qty</th>
@@ -2820,34 +2849,34 @@ function App() {
                                                       {lot.matchedSells.map((sellAlloc: any) => {
                                                         const realPnlPct = lot.entryPrice > 0 ? ((sellAlloc.exit_price - lot.entryPrice) / lot.entryPrice) * 100 : 0;
                                                         return (
-                                                          <tr key={`alloc-${sellAlloc.sellId}`} className="hover:bg-red-50/40 transition-colors">
+                                                          <tr key={`alloc-${sellAlloc.sellId}`} className="hover:bg-danger/10/40 transition-colors">
                                                             <td className="py-1">
                                                               {sellAlloc.type === 'DIVIDEND' ? (
-                                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-100 text-blue-700">DIVIDEND</span>
+                                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/20 text-blue-300">DIVIDEND</span>
                                                               ) : (
-                                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-red-100 text-red-700">SELL</span>
+                                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-danger/20 text-danger">SELL</span>
                                                               )}
                                                             </td>
-                                                            <td className="py-1 text-gray-500">{new Date(sellAlloc.exit_date).toLocaleDateString()}</td>
-                                                            <td className="py-1 font-medium text-gray-800">{sellAlloc.quantity.toLocaleString()}</td>
-                                                            <td className="py-1 text-gray-600">₹{fmt(sellAlloc.exit_price)}</td>
-                                                            <td className="py-1 text-gray-600 font-medium">₹{fmt(sellAlloc.proceeds)}</td>
-                                                            <td className="py-1 text-gray-500 text-[10px]">{sellAlloc.brokerage ? `₹${fmt(sellAlloc.brokerage)}` : '—'}</td>
-                                                            <td className="py-1 text-gray-500 text-[10px]">{sellAlloc.govtTax ? `₹${fmt(sellAlloc.govtTax)}` : '—'}</td>
+                                                            <td className="py-1 text-secondary">{new Date(sellAlloc.exit_date).toLocaleDateString()}</td>
+                                                            <td className="py-1 font-medium text-primary">{sellAlloc.quantity.toLocaleString()}</td>
+                                                            <td className="py-1 text-secondary">₹{fmt(sellAlloc.exit_price)}</td>
+                                                            <td className="py-1 text-secondary font-medium">₹{fmt(sellAlloc.proceeds)}</td>
+                                                            <td className="py-1 text-secondary text-[10px]">{sellAlloc.brokerage ? `₹${fmt(sellAlloc.brokerage)}` : '—'}</td>
+                                                            <td className="py-1 text-secondary text-[10px]">{sellAlloc.govtTax ? `₹${fmt(sellAlloc.govtTax)}` : '—'}</td>
                                                             <td className="py-1 font-medium">
-                                                              <span className={sellAlloc.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                                              <span className={sellAlloc.realizedPnL >= 0 ? 'text-success' : 'text-danger'}>
                                                                 {sellAlloc.realizedPnL >= 0 ? '+' : ''}₹{fmt(sellAlloc.realizedPnL)}
                                                               </span>
                                                               {sellAlloc.type !== 'DIVIDEND' && (
-                                                                <span className="text-[9px] ml-1 text-gray-400">({realPnlPct >= 0 ? '+' : ''}{realPnlPct.toFixed(2)}%)</span>
+                                                                <span className="text-[9px] ml-1 text-tertiary">({realPnlPct >= 0 ? '+' : ''}{realPnlPct.toFixed(2)}%)</span>
                                                               )}
                                                             </td>
                                                             <td className="py-1 text-right">
                                                               <div className="flex items-center justify-end gap-1">
-                                                                <button onClick={(e) => { e.stopPropagation(); sellAlloc.type === 'DIVIDEND' ? setEditStockId(sellAlloc.sellId) : setEditSoldStockId(sellAlloc.sellId); }} className="p-1 text-gray-500 hover:text-zinc-900 rounded hover:bg-gray-100 transition-colors" title={sellAlloc.type === 'DIVIDEND' ? "Edit Dividend" : "Edit Sell"}>
+                                                                <button onClick={(e) => { e.stopPropagation(); sellAlloc.type === 'DIVIDEND' ? setEditStockId(sellAlloc.sellId) : setEditSoldStockId(sellAlloc.sellId); }} className="p-1 text-secondary hover:text-primary rounded hover:bg-surface-hover transition-colors" title={sellAlloc.type === 'DIVIDEND' ? "Edit Dividend" : "Edit Sell"}>
                                                                   <Pencil className="w-3.5 h-3.5" />
                                                                 </button>
-                                                                <button onClick={(e) => { e.stopPropagation(); sellAlloc.type === 'DIVIDEND' ? handleDeleteStock(sellAlloc.sellId) : handleDeleteSoldStock(sellAlloc.sellId); }} className="p-1 text-gray-500 hover:text-red-600 rounded hover:bg-red-50 transition-colors" title={sellAlloc.type === 'DIVIDEND' ? "Delete Dividend" : "Delete Sell"}>
+                                                                <button onClick={(e) => { e.stopPropagation(); sellAlloc.type === 'DIVIDEND' ? handleDeleteStock(sellAlloc.sellId) : handleDeleteSoldStock(sellAlloc.sellId); }} className="p-1 text-secondary hover:text-danger rounded hover:bg-danger/10 transition-colors" title={sellAlloc.type === 'DIVIDEND' ? "Delete Dividend" : "Delete Sell"}>
                                                                   <Trash2 className="w-3.5 h-3.5" />
                                                                 </button>
                                                               </div>
@@ -2876,7 +2905,7 @@ function App() {
                 </div>
 
                 {symbolGroups.length > 0 && (
-                  <div className="px-4 py-2 border-t border-gray-200 bg-gray-50/50 text-[10px] text-gray-500 flex justify-between items-center">
+                  <div className="px-4 py-2 border-t border-divider bg-background/50 text-[10px] text-secondary flex justify-between items-center">
                     <span>Click a row to expand transactions</span>
                   </div>
                 )}

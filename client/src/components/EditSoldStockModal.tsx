@@ -70,34 +70,34 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="bg-white w-full max-w-md rounded-xl p-6 relative shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-overlay backdrop-blur-sm">
+      <div className="bg-surface w-full max-w-md rounded-lg p-6 relative shadow-2xl shadow-black/50">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-4 right-4 text-tertiary hover:text-secondary transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
         
-        <h2 className="text-xl font-semibold mb-1 text-zinc-900 tracking-tight">Edit Sell Transaction: {soldStock.symbol}</h2>
-        <p className="text-sm text-gray-500 mb-6">Update the sell details for this asset.</p>
+        <h2 className="text-xl font-semibold mb-1 text-primary tracking-tight">Edit Sell Transaction: {soldStock.symbol}</h2>
+        <p className="text-sm text-secondary mb-6">Update the sell details for this asset.</p>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-secondary mb-1">
                 Asset Symbol
               </label>
               <input
                 type="text"
                 value={soldStock.symbol}
                 disabled
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
+                className="w-full bg-background border border-divider rounded-lg px-3 py-2 text-sm text-secondary cursor-not-allowed"
               />
             </div>
 
             <div>
-              <label htmlFor="editExitDate" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="editExitDate" className="block text-sm font-medium text-secondary mb-1">
                 Exit Date
               </label>
               <input
@@ -105,12 +105,12 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
                 id="editExitDate"
                 value={exitDate}
                 onChange={(e) => setExitDate(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
               />
             </div>
             
             <div>
-              <label htmlFor="editSellQuantity" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="editSellQuantity" className="block text-sm font-medium text-secondary mb-1">
                 Quantity
               </label>
               <input
@@ -118,14 +118,14 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
                 id="editSellQuantity"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                 step="any"
                 min="0"
               />
             </div>
 
             <div className="col-span-2">
-              <label htmlFor="editExitPrice" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="editExitPrice" className="block text-sm font-medium text-secondary mb-1">
                 Exit Price (₹)
               </label>
               <input
@@ -133,14 +133,14 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
                 id="editExitPrice"
                 value={exitPrice}
                 onChange={(e) => setExitPrice(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                 step="any"
                 min="0"
               />
             </div>
 
             <div>
-              <label htmlFor="editBrokerage" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="editBrokerage" className="block text-sm font-medium text-secondary mb-1">
                 Brokerage (₹)
               </label>
               <input
@@ -148,14 +148,14 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
                 id="editBrokerage"
                 value={brokerage}
                 onChange={(e) => setBrokerage(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                 step="any"
                 min="0"
               />
             </div>
 
             <div>
-              <label htmlFor="editGovtTax" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="editGovtTax" className="block text-sm font-medium text-secondary mb-1">
                 Govt Tax (₹)
               </label>
               <input
@@ -163,27 +163,27 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
                 id="editGovtTax"
                 value={govtTax}
                 onChange={(e) => setGovtTax(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                 step="any"
                 min="0"
               />
             </div>
           </div>
           
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-danger text-sm">{error}</p>}
           
-          <div className="pt-4 flex justify-end gap-2 border-t border-gray-100 mt-2">
+          <div className="pt-4 flex justify-end gap-2 border-t border-divider mt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 border border-transparent rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-secondary hover:bg-background border border-transparent rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !quantity || !exitPrice || !exitDate}
-              className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
+              className="bg-danger hover:bg-danger/80 text-primary text-sm font-medium py-2 px-4 rounded-lg  transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

@@ -135,100 +135,100 @@ export function RebalanceModal({ isOpen, onClose, portfolioId, symbolGroups, tot
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh]">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+    <div className="fixed inset-0 bg-overlay backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-surface rounded-lg shadow-2xl shadow-black/50 w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div className="px-6 py-4 border-b border-divider flex items-center justify-between shrink-0 bg-surface">
           <div>
-            <h2 className="text-xl font-bold text-zinc-900">Equal Weight Rebalancing</h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <h2 className="text-xl font-bold text-primary">Equal Weight Rebalancing</h2>
+            <p className="text-sm text-secondary mt-1">
               Target Allocation: <strong>{(100 / symbolGroups.length).toFixed(2)}%</strong> per asset
             </p>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 text-tertiary hover:text-secondary hover:bg-surface-hover rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto bg-gray-50/50 p-6">
+        <div className="flex-1 overflow-auto bg-background/50 p-6">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div className="mb-6 p-4 bg-danger/10 border border-danger/20 rounded-lg flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-danger shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-sm font-semibold text-red-800">Rebalance Failed</h4>
-                <p className="text-sm text-red-600 mt-1">{error}</p>
+                <h4 className="text-sm font-semibold text-danger">Rebalance Failed</h4>
+                <p className="text-sm text-danger mt-1">{error}</p>
               </div>
             </div>
           )}
 
           {trades.length === 0 ? (
             <div className="text-center py-12">
-              <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-success/20 text-success rounded-full flex items-center justify-center mx-auto mb-4">
                 <Check className="w-8 h-8" />
               </div>
-              <h3 className="text-lg font-semibold text-zinc-900 mb-2">Portfolio is Balanced!</h3>
-              <p className="text-gray-500">Your portfolio is already equally weighted across all assets.</p>
+              <h3 className="text-lg font-semibold text-primary mb-2">Portfolio is Balanced!</h3>
+              <p className="text-secondary">Your portfolio is already equally weighted across all assets.</p>
             </div>
           ) : (
             <div className="space-y-6">
               {/* Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Target Value / Asset</div>
-                  <div className="text-xl font-bold text-zinc-900">
+                <div className="bg-surface border border-divider rounded-lg p-4 ">
+                  <div className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1">Target Value / Asset</div>
+                  <div className="text-xl font-bold text-primary">
                     ₹{(totalCurrentValue / symbolGroups.length).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Trades Required</div>
-                  <div className="text-xl font-bold text-zinc-900">
+                <div className="bg-surface border border-divider rounded-lg p-4 ">
+                  <div className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1">Trades Required</div>
+                  <div className="text-xl font-bold text-primary">
                     {trades.length}
                   </div>
                 </div>
-                <div className={`border rounded-lg p-4 shadow-sm ${netCash >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
-                  <div className={`text-xs font-semibold uppercase tracking-wider mb-1 ${netCash >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                <div className={`border rounded-lg p-4  ${netCash >= 0 ? 'bg-success/10 border-success/20' : 'bg-danger/10 border-danger/20'}`}>
+                  <div className={`text-xs font-semibold uppercase tracking-wider mb-1 ${netCash >= 0 ? 'text-success' : 'text-danger'}`}>
                     Net Cash {netCash >= 0 ? 'Generated' : 'Required'}
                   </div>
-                  <div className={`text-xl font-bold ${netCash >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                  <div className={`text-xl font-bold ${netCash >= 0 ? 'text-success' : 'text-danger'}`}>
                     {netCash >= 0 ? '+' : ''}₹{Math.abs(netCash).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </div>
                 </div>
               </div>
 
               {/* Trades Table */}
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-surface border border-divider rounded-lg  overflow-hidden">
                 <table className="w-full text-left border-collapse">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-background border-b border-divider">
                     <tr>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Asset</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Action</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Qty</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Price</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Value</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-secondary uppercase tracking-wider">Asset</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-secondary uppercase tracking-wider text-center">Action</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Qty</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Price</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Value</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-divider">
                     {trades.map((trade, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                      <tr key={idx} className="hover:bg-background transition-colors">
                         <td className="px-4 py-3">
-                          <span className="font-bold text-sm text-zinc-900">{trade.symbol}</span>
+                          <span className="font-bold text-sm text-primary">{trade.symbol}</span>
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className={`inline-flex items-center px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
-                            trade.action === 'BUY' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                            trade.action === 'BUY' ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'
                           }`}>
                             {trade.action}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm font-semibold text-zinc-900 text-right">
+                        <td className="px-4 py-3 text-sm font-semibold text-primary text-right">
                           {trade.qty.toLocaleString()}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600 text-right">
+                        <td className="px-4 py-3 text-sm text-secondary text-right">
                           ₹{trade.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 text-sm font-bold text-zinc-900 text-right">
+                        <td className="px-4 py-3 text-sm font-bold text-primary text-right">
                           ₹{trade.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                       </tr>
@@ -237,7 +237,7 @@ export function RebalanceModal({ isOpen, onClose, portfolioId, symbolGroups, tot
                 </table>
               </div>
               
-              <div className="text-xs text-gray-500 flex items-start gap-2 bg-blue-50 p-3 rounded-lg border border-blue-100">
+              <div className="text-xs text-secondary flex items-start gap-2 bg-blue-500/10 p-3 rounded-lg border border-blue-900/50">
                 <AlertCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
                 <p>
                   Trades are rounded to the nearest whole share as fractional shares are generally not supported on this exchange. 
@@ -248,11 +248,11 @@ export function RebalanceModal({ isOpen, onClose, portfolioId, symbolGroups, tot
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 bg-white flex justify-end gap-3 shrink-0">
+        <div className="px-6 py-4 border-t border-divider bg-surface flex justify-end gap-3 shrink-0">
           <button
             onClick={onClose}
             disabled={isExecuting}
-            className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-semibold text-secondary hover:text-primary hover:bg-surface-hover rounded-lg transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
@@ -261,7 +261,7 @@ export function RebalanceModal({ isOpen, onClose, portfolioId, symbolGroups, tot
             <button
               onClick={executeTrades}
               disabled={isExecuting}
-              className="px-6 py-2 text-sm font-semibold text-white bg-zinc-900 hover:bg-zinc-800 rounded-lg shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-2 text-sm font-semibold text-primary bg-surface hover:bg-zinc-800 rounded-lg  transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               {isExecuting ? (
                 <>

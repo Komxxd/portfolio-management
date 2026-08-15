@@ -165,63 +165,63 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="bg-white w-full max-w-md rounded-xl p-6 relative shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-overlay backdrop-blur-sm">
+      <div className="bg-surface w-full max-w-md rounded-lg p-6 relative shadow-2xl shadow-black/50">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-4 right-4 text-tertiary hover:text-secondary transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
         
-        <h2 className="text-xl font-semibold mb-1 text-zinc-900 tracking-tight">Buy New Asset</h2>
-        <p className="text-sm text-gray-500 mb-6">Search and enter the asset buy details.</p>
+        <h2 className="text-xl font-semibold mb-1 text-primary tracking-tight">Buy New Asset</h2>
+        <p className="text-sm text-secondary mb-6">Search and enter the asset buy details.</p>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
             
             {/* Search Bar */}
             <div className="relative" ref={dropdownRef}>
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="search" className="block text-sm font-medium text-secondary mb-1">
                 Search Asset Symbol
               </label>
               <div className="relative">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-tertiary" />
                 <input
                   type="text"
                   id="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
                   onFocus={() => { if (searchResults.length > 0) setShowDropdown(true); }}
-                  className="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow uppercase"
+                  className="w-full bg-surface border border-divider rounded-lg pl-9 pr-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow uppercase"
                   placeholder="e.g. RELIANCE.NS, AAPL"
                   autoComplete="off"
                   autoFocus
                 />
                 {isSearching && (
-                  <div className="absolute right-3 top-2.5 w-4 h-4 border-2 border-gray-200 border-t-zinc-900 rounded-full animate-spin" />
+                  <div className="absolute right-3 top-2.5 w-4 h-4 border-2 border-divider border-t-zinc-900 rounded-full animate-spin" />
                 )}
               </div>
 
               {/* Autocomplete Dropdown */}
               {showDropdown && searchResults.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto divide-y divide-gray-100">
+                <div className="absolute z-10 w-full mt-1 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 shadow-black/40 max-h-60 overflow-auto divide-y divide-divider">
                   {searchResults.map((result) => (
                     <button
                       key={result.symbol}
                       type="button"
                       onClick={() => handleSelectStock(result)}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between group transition-colors"
+                      className="w-full text-left px-4 py-2 hover:bg-background flex items-center justify-between group transition-colors"
                     >
                       <div className="overflow-hidden">
-                        <div className="font-semibold text-sm text-zinc-900 group-hover:text-orange-600 transition-colors">
+                        <div className="font-semibold text-sm text-primary group-hover:text-orange-600 transition-colors">
                           {result.symbol}
                         </div>
-                        <div className="text-xs text-gray-500 truncate">
+                        <div className="text-xs text-secondary truncate">
                           {result.name}
                         </div>
                       </div>
-                      <div className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded shrink-0 ml-2 uppercase">
+                      <div className="text-[10px] bg-surface-hover text-secondary px-2 py-1 rounded shrink-0 ml-2 uppercase">
                         {result.exchange}
                       </div>
                     </button>
@@ -232,7 +232,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="entryDate" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="entryDate" className="block text-sm font-medium text-secondary mb-1">
                   Entry Date
                 </label>
                 <input
@@ -240,12 +240,12 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
                   id="entryDate"
                   value={entryDate}
                   onChange={(e) => setEntryDate(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                  className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                 />
               </div>
               
               <div>
-                <label htmlFor="entryPrice" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="entryPrice" className="block text-sm font-medium text-secondary mb-1">
                   Entry Price (₹)
                 </label>
                 <input
@@ -253,7 +253,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
                   id="entryPrice"
                   value={entryPrice}
                   onChange={(e) => setEntryPrice(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                  className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                   placeholder="150.00"
                   step="any"
                   min="0"
@@ -262,7 +262,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
 
               <div className="col-span-2 grid grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="quantity" className="block text-sm font-medium text-secondary mb-1">
                     Quantity
                   </label>
                   <input
@@ -270,7 +270,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
                     id="quantity"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                     placeholder="0.00"
                     step="any"
                     min="0"
@@ -278,7 +278,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
                 </div>
 
                 <div>
-                  <label htmlFor="brokerage" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="brokerage" className="block text-sm font-medium text-secondary mb-1">
                     Brokerage (₹)
                   </label>
                   <input
@@ -286,7 +286,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
                     id="brokerage"
                     value={brokerage}
                     onChange={(e) => setBrokerage(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                     placeholder="0.00"
                     step="any"
                     min="0"
@@ -294,7 +294,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
                 </div>
 
                 <div>
-                  <label htmlFor="govtTax" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="govtTax" className="block text-sm font-medium text-secondary mb-1">
                     Govt Tax (₹)
                   </label>
                   <input
@@ -302,7 +302,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
                     id="govtTax"
                     value={govtTax}
                     onChange={(e) => setGovtTax(e.target.value)}
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-zinc-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
+                    className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                     placeholder="0.00"
                     step="any"
                     min="0"
@@ -312,20 +312,20 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
             </div>
           </div>
           
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-danger text-sm">{error}</p>}
           
-          <div className="pt-4 flex justify-end gap-2 border-t border-gray-100 mt-2">
+          <div className="pt-4 flex justify-end gap-2 border-t border-divider mt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 border border-transparent rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-secondary hover:bg-background border border-transparent rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !ticker.trim() || !quantity || !entryPrice || !entryDate}
-              className="bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-medium py-2 px-4 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
+              className="bg-surface hover:bg-zinc-800 text-primary text-sm font-medium py-2 px-4 rounded-lg  transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
