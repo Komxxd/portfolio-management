@@ -33,6 +33,7 @@ type UnifiedEvent = DividendEvent | SplitEvent;
 
 export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSuccess, existingEvents = [] }: PortfolioInfoModalProps) {
   const [loading, setLoading] = useState(false);
+  const [syncingAll, setSyncingAll] = useState(false);
   const [addingEventId, setAddingEventId] = useState<string | null>(null);
   const [addedEvents, setAddedEvents] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
@@ -189,6 +190,94 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSu
     }
   };
 
+  const handleAddAllValid = async () => {
+    setSyncingAll(true);
+    try {
+      const unaddedEvents = displayEvents.filter((ev, idx) => !isAlreadyAdded(ev, idx));
+
+      if (unaddedEvents.length === 0) {
+        alert('All visible valid actions are already added!');
+        return;
+      }
+
+      const symbolsToFetch = [...new Set(unaddedEvents.map(e => e.symbol))];
+      const { data: buyData, error: buyError } = await supabase
+        .from('stocks')
+        .select('symbol, entry_date')
+        .eq('portfolio_id', portfolioId)
+        .in('symbol', symbolsToFetch)
+        .gt('entry_price', 0);
+
+      if (buyError) throw buyError;
+
+      const firstBuyDates: Record<string, number> = {};
+      if (buyData) {
+        buyData.forEach(row => {
+          const t = new Date(row.entry_date).getTime();
+          if (!firstBuyDates[row.symbol] || t < firstBuyDates[row.symbol]) {
+            firstBuyDates[row.symbol] = t;
+          }
+        });
+      }
+
+      const inserts: any[] = [];
+      const newAddedEventKeys: string[] = [];
+
+      unaddedEvents.forEach((event) => {
+        const firstBuyDate = firstBuyDates[event.symbol];
+        if (!firstBuyDate) return; 
+
+        const actionDate = new Date(event.date).getTime();
+        if (actionDate < firstBuyDate) return;
+
+        let entryPrice = 0;
+        let quantity = 0;
+
+        if (event.type === 'DIVIDEND') {
+          entryPrice = -2;
+          quantity = event.amount;
+        } else {
+          entryPrice = -1;
+          quantity = event.numerator / event.denominator;
+        }
+
+        inserts.push({
+          portfolio_id: portfolioId,
+          symbol: event.symbol,
+          quantity: quantity,
+          entry_price: entryPrice,
+          entry_date: new Date(event.date).toISOString().split('T')[0],
+          brokerage: 0,
+          govt_tax: 0
+        });
+        
+        const trueIdx = displayEvents.indexOf(event);
+        newAddedEventKeys.push(`${event.symbol}-${event.date}-${trueIdx}`);
+      });
+
+      if (inserts.length === 0) {
+        alert('No valid actions found to add (they occurred before your first buy).');
+        return;
+      }
+
+      const { error } = await supabase.from('stocks').insert(inserts);
+      if (error) throw error;
+
+      setAddedEvents(prev => {
+        const next = new Set(prev);
+        newAddedEventKeys.forEach(k => next.add(k));
+        return next;
+      });
+
+      alert(`Successfully added ${inserts.length} corporate action(s)!`);
+      onSuccess();
+    } catch (err: any) {
+      alert(err.message || 'Failed to sync corporate actions');
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
   const exportCorporateActions = () => {
     if (displayEvents.length === 0) return;
     
@@ -229,13 +318,13 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSu
           </button>
         </div>
 
-        <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center shrink-0">
-          <div className="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200 w-fit">
+        <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row gap-3 justify-between sm:items-center shrink-0">
+          <div className="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200 w-full sm:w-fit overflow-x-auto">
             {(['all', 'dividends', 'splits', 'bonuses'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${
+                className={`px-3 sm:px-4 py-1.5 text-xs font-medium rounded-md capitalize transition-colors whitespace-nowrap flex-1 sm:flex-none ${
                   activeTab === tab ? 'bg-white text-zinc-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -244,7 +333,17 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSu
             ))}
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <button
+              onClick={handleAddAllValid}
+              disabled={loading || syncingAll || displayEvents.length === 0}
+              className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors disabled:opacity-50 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-md"
+              title="Automatically add all valid corporate actions that aren't already added"
+            >
+              {syncingAll ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              Sync All Valid
+            </button>
+            <div className="w-px h-3 bg-gray-300"></div>
             <button
               onClick={exportCorporateActions}
               disabled={loading || displayEvents.length === 0}

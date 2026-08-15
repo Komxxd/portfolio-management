@@ -26,6 +26,7 @@ interface SplitEvent {
 
 export function CorporateActionsViewerModal({ isOpen, onClose, symbol, portfolioId, onSuccess, existingEvents = [] }: CorporateActionModalProps) {
   const [loading, setLoading] = useState(false);
+  const [syncingAll, setSyncingAll] = useState(false);
   const [addingEventId, setAddingEventId] = useState<string | null>(null);
   const [addedEvents, setAddedEvents] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
@@ -186,9 +187,90 @@ export function CorporateActionsViewerModal({ isOpen, onClose, symbol, portfolio
     }
   };
 
+  const handleAddAllValid = async () => {
+    setSyncingAll(true);
+    try {
+      const unaddedEvents = displayEvents.filter((ev, idx) => !isAlreadyAdded(ev, idx));
+
+      if (unaddedEvents.length === 0) {
+        alert('All visible valid actions are already added!');
+        return;
+      }
+
+      const { data: buyData, error: buyError } = await supabase
+        .from('stocks')
+        .select('entry_date')
+        .eq('portfolio_id', portfolioId)
+        .eq('symbol', symbol)
+        .gt('entry_price', 0)
+        .order('entry_date', { ascending: true })
+        .limit(1);
+
+      if (buyError) throw buyError;
+      if (!buyData || buyData.length === 0) {
+        alert(`You must have at least one buy position for ${symbol} before adding corporate actions.`);
+        return;
+      }
+
+      const firstBuyDate = new Date(buyData[0].entry_date).getTime();
+      const inserts: any[] = [];
+      const newAddedEventKeys: string[] = [];
+
+      unaddedEvents.forEach((event) => {
+        const actionDate = new Date(event.date).getTime();
+        if (actionDate < firstBuyDate) return;
+
+        let entryPrice = 0;
+        let quantity = 0;
+
+        if (event.type === 'DIVIDEND') {
+          entryPrice = -2;
+          quantity = event.amount;
+        } else {
+          entryPrice = -1;
+          quantity = event.numerator / event.denominator;
+        }
+
+        inserts.push({
+          portfolio_id: portfolioId,
+          symbol: symbol,
+          quantity: quantity,
+          entry_price: entryPrice,
+          entry_date: new Date(event.date).toISOString().split('T')[0],
+          brokerage: 0,
+          govt_tax: 0
+        });
+        
+        const trueIdx = displayEvents.indexOf(event);
+        newAddedEventKeys.push(`${event.date}-${trueIdx}`);
+      });
+
+      if (inserts.length === 0) {
+        alert('No valid actions found to add (they occurred before your first buy).');
+        return;
+      }
+
+      const { error } = await supabase.from('stocks').insert(inserts);
+      if (error) throw error;
+
+      setAddedEvents(prev => {
+        const next = new Set(prev);
+        newAddedEventKeys.forEach(k => next.add(k));
+        return next;
+      });
+
+      alert(`Successfully added ${inserts.length} corporate action(s)!`);
+      onSuccess();
+    } catch (err: any) {
+      alert(err.message || 'Failed to sync corporate actions');
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col h-[500px]">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col h-[500px]">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-lg font-bold text-zinc-900">Corporate Actions</h2>
@@ -202,13 +284,13 @@ export function CorporateActionsViewerModal({ isOpen, onClose, symbol, portfolio
           </button>
         </div>
 
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-gray-50/50">
-          <div className="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+        <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row gap-3 sm:items-center justify-between shrink-0 bg-gray-50/50">
+          <div className="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200 w-full sm:w-fit overflow-x-auto">
             {(['all', 'dividends', 'splits', 'bonuses'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${
+                className={`px-3 sm:px-4 py-1.5 text-xs font-medium rounded-md capitalize transition-colors whitespace-nowrap flex-1 sm:flex-none ${
                   activeTab === tab ? 'bg-white text-zinc-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -216,14 +298,27 @@ export function CorporateActionsViewerModal({ isOpen, onClose, symbol, portfolio
               </button>
             ))}
           </div>
-          <button 
-            onClick={() => fetchCorporateActions(true)}
-            disabled={loading}
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-zinc-900 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <button
+              onClick={handleAddAllValid}
+              disabled={loading || syncingAll || displayEvents.length === 0}
+              className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors disabled:opacity-50 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-md"
+              title="Automatically add all valid corporate actions that aren't already added"
+            >
+              {syncingAll ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              Sync All Valid
+            </button>
+            <div className="w-px h-3 bg-gray-300"></div>
+            <button 
+              onClick={() => fetchCorporateActions(true)}
+              disabled={loading}
+              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-zinc-900 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-auto p-6">

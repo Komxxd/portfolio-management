@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import * as XLSX from 'xlsx'
-import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, GripVertical, Info, User, LogOut, PieChart, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw } from 'lucide-react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, Info, User, LogOut, PieChart, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabaseClient'
 import { Auth } from './components/Auth'
