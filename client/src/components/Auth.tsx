@@ -24,15 +24,22 @@ export const Auth: React.FC = () => {
               variables: {
                 default: {
                   colors: {
-                    brand: '#18181b', // zinc-900
-                    brandAccent: '#27272a', // zinc-800
+                    brand: 'var(--text-primary)',
+                    brandAccent: 'var(--text-secondary)',
+                    inputText: 'var(--text-primary)',
+                    inputBackground: 'var(--bg-surface)',
+                    inputBorder: 'var(--border-divider)',
+                    inputBorderHover: 'var(--border-divider-hover)',
+                    inputBorderFocus: 'var(--text-primary)',
+                    inputLabelText: 'var(--text-secondary)',
+                    inputPlaceholder: 'var(--text-tertiary)',
                   },
                 },
               },
               className: {
                 container: 'w-full',
                 button: 'w-full flex justify-center py-2 px-4 border border-transparent rounded-md  text-sm font-medium text-primary bg-surface hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900',
-                input: 'appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md  placeholder-gray-400 focus:outline-none focus:ring-zinc-500 focus:border-zinc-500 sm:text-sm',
+                input: 'appearance-none block w-full px-3 py-2 bg-surface text-primary border border-divider rounded-md placeholder:text-tertiary focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm',
                 label: 'block text-sm font-medium text-secondary',
               }
             }}
