@@ -1,0 +1,110 @@
+import { useState, useEffect, useCallback } from 'react';
+import { api } from '../../../services/api/client';
+import { useAuth } from '../../../app/providers/AuthProvider';
+export interface Portfolio { id: string; name: string; created_at: string; }
+export interface Stock { id: string; portfolio_id: string; symbol: string; quantity: number; entry_price: number; brokerage?: number; govt_tax?: number; entry_date: string; }
+export interface SoldStock { id: string; portfolio_id: string; symbol: string; quantity: number; exit_price: number; brokerage?: number; govt_tax?: number; exit_date: string; }
+
+export function usePortfolioData() {
+  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [stocks, setStocks] = useState<Stock[]>([]);
+  const [soldStocks, setSoldStocks] = useState<SoldStock[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Real-time prices state
+  const [livePrices, setLivePrices] = useState<Record<string, { 
+    price: number; 
+    name: string;
+    change?: number;
+    changePercent?: number;
+    dayHigh?: number;
+    dayLow?: number;
+    fiftyTwoWeekHigh?: number;
+    fiftyTwoWeekLow?: number;
+    marketCap?: number;
+    volume?: number;
+    avgVolume?: number;
+    previousClose?: number;
+  }>>({});
+  const [pricesLoading, setPricesLoading] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const { session } = useAuth();
+
+  const fetchData = useCallback(async (onPortfoliosLoaded?: (portfolios: Portfolio[]) => void) => {
+    if (!session) return;
+    setLoading(true);
+    try {
+      const portfoliosDataArray = await api.get('/api/portfolios') || [];
+
+      const savedOrder = JSON.parse(localStorage.getItem('portfolioOrder') || '[]');
+      
+      if (savedOrder.length > 0) {
+        portfoliosDataArray.sort((a: any, b: any) => {
+          const idxA = savedOrder.indexOf(a.id);
+          const idxB = savedOrder.indexOf(b.id);
+          if (idxA === -1 && idxB === -1) return 0;
+          if (idxA === -1) return 1;
+          if (idxB === -1) return -1;
+          return idxA - idxB;
+        });
+      }
+      
+      setPortfolios(portfoliosDataArray);
+      if (onPortfoliosLoaded) onPortfoliosLoaded(portfoliosDataArray);
+
+      if (portfoliosDataArray.length > 0) {
+        const stocksData = await api.get('/api/stocks');
+        setStocks(stocksData || []);
+
+        const soldStocksData = await api.get('/api/sold-stocks');
+        setSoldStocks(soldStocksData || []);
+      }
+    } catch (err: any) {
+      if (err?.response?.status !== 401) {
+        console.error('Error fetching data:', err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [session]);
+
+  const handleManualRefresh = useCallback(async (allStockSymbols: string) => {
+    setPricesLoading(true);
+    await fetchData();
+    if (allStockSymbols) {
+      try {
+        const prices = await api.get(`/api/prices?symbols=${encodeURIComponent(allStockSymbols)}&t=${Date.now()}`);
+        if (prices) {
+          setLivePrices(prev => ({ ...prev, ...prices }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch live prices', err);
+      }
+    }
+    setPricesLoading(false);
+  }, [fetchData]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return {
+    portfolios,
+    setPortfolios,
+    stocks,
+    setStocks,
+    soldStocks,
+    setSoldStocks,
+    loading,
+    setLoading,
+    livePrices,
+    setLivePrices,
+    pricesLoading,
+    setPricesLoading,
+    fetchData,
+    handleManualRefresh,
+    isCreateModalOpen,
+    setIsCreateModalOpen
+  };
+}
