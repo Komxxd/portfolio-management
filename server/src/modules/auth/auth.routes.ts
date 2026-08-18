@@ -4,10 +4,11 @@ import { getAnonClient } from '../../config/supabase';
 const router = Router();
 
 // Set cookie options
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' as const : 'lax' as const,
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 

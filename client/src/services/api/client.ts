@@ -6,7 +6,8 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
     ...(options.headers || {}),
   };
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const cleanApiUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+  const response = await fetch(`${cleanApiUrl}${endpoint}`, {
     ...options,
     headers,
     credentials: 'include',

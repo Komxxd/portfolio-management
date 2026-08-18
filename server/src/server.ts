@@ -34,6 +34,10 @@ app.use(cookieParser());
 app.use(morgan('dev'));
 // app.use(limiter); // Temporarily removed rate limiting for dev
 
+app.get("/", (req: any, res: any) => {
+    res.send("Portfolio Management API is running. Access endpoints via /api");
+});
+
 app.get("/api/health", (req: any, res: any) => {
     res.json({ status: "OK", uptime: process.uptime() });
 });
