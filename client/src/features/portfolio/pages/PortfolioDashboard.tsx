@@ -37,6 +37,7 @@ import { RebalanceModal } from '../../stocks/components/RebalanceModal'
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal'
 
 const ALL_SUMMARY_STATS = [
+  { id: 'totalStocks', label: 'Total Stocks' },
   { id: 'netInvested', label: 'Net Invested' },
   { id: 'currentValue', label: 'Current Value' },
   { id: 'unrealizedPnL', label: 'Unrealized P&L' },
@@ -974,15 +975,22 @@ export function PortfolioDashboard() {
     xirr: 0
   };
 
-  let totalInvestment = summary.totalInvestment;
-  let totalCurrentValue = summary.totalCurrentValue;
-  let totalUnrealizedPnL = summary.totalUnrealizedPnL;
-  let totalRealizedPnL = summary.totalRealizedPnL;
-  let portfolioTotalBrokerage = symbolGroups.reduce((sum, g: any) => sum + g.brokerage, 0);
-  let portfolioTotalGovtTax = symbolGroups.reduce((sum, g: any) => sum + g.govtTax, 0);
-  let portfolioTotalDividend = summary.totalDividend;
-  let portfolioTotalDayGain = symbolGroups.reduce((sum, g: any) => sum + (g.dayGain || 0), 0);
-  let portfolioRealizedCostBasis = symbolGroups.reduce((sum, g: any) => sum + (g.totalBuyCost - g.netCostBasis), 0);
+  let totalInvestment = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.netCostBasis || 0), 0);
+  let totalCurrentValue = filteredSymbolGroups.reduce((sum, g: any) => {
+    const currentPrice = livePrices[g.symbol]?.price || g.avgBuyPrice || 0;
+    return sum + (g.netQty * currentPrice);
+  }, 0);
+  let totalUnrealizedPnL = filteredSymbolGroups.reduce((sum, g: any) => {
+    const currentPrice = livePrices[g.symbol]?.price || g.avgBuyPrice || 0;
+    const currentValue = g.netQty * currentPrice;
+    return sum + (currentValue - g.netCostBasis);
+  }, 0);
+  let totalRealizedPnL = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.realizedPnL || 0), 0);
+  let portfolioTotalBrokerage = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.brokerage || 0), 0);
+  let portfolioTotalGovtTax = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.govtTax || 0), 0);
+  let portfolioTotalDividend = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.totalDividend || 0), 0);
+  let portfolioTotalDayGain = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.netQty * (g.liveData?.change || 0)), 0);
+  let portfolioRealizedCostBasis = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.totalBuyCost - g.netCostBasis), 0);
   let maxNetInvested = summary.maxNetInvested;
   let portfolioXIRR = summary.xirr;
 
@@ -1001,11 +1009,11 @@ export function PortfolioDashboard() {
         valA = totalInvestment > 0 ? (a.netCostBasis / totalInvestment) * 100 : 0;
         valB = totalInvestment > 0 ? (b.netCostBasis / totalInvestment) * 100 : 0;
       } else if (sortField === 'dayGain') {
-        valA = a.netQty * (a.liveData?.regularMarketChange || 0);
-        valB = b.netQty * (b.liveData?.regularMarketChange || 0);
+        valA = a.netQty * (a.liveData?.change || 0);
+        valB = b.netQty * (b.liveData?.change || 0);
       } else if (sortField === 'dayGainPct') {
-        valA = a.liveData?.regularMarketChangePercent || 0;
-        valB = b.liveData?.regularMarketChangePercent || 0;
+        valA = a.liveData?.changePercent || 0;
+        valB = b.liveData?.changePercent || 0;
       }
 
       // Handle nulls/undefined safely for all number comparisons
@@ -1814,9 +1822,9 @@ export function PortfolioDashboard() {
                                             <div className="min-w-0 flex-1">
                                               <div className="font-semibold text-[9px] text-primary flex items-center gap-1.5 truncate">
                                                 <span className="truncate">{group.symbol}</span>
-                                                {group.liveData?.longName && (
-                                                  <span className="font-normal text-[9px] text-secondary truncate" title={group.liveData.longName}>
-                                                    {group.liveData.longName}
+                                                {group.liveData?.name && (
+                                                  <span className="font-normal text-[9px] text-secondary truncate" title={group.liveData.name}>
+                                                    {group.liveData.name}
                                                   </span>
                                                 )}
                                               </div>
@@ -1970,23 +1978,23 @@ export function PortfolioDashboard() {
                                         </td>
                                       );
                                     case 'priceChange':
-                                      const priceChange = group.liveData?.regularMarketChange || 0;
+                                      const priceChange = group.liveData?.change || 0;
                                       return (
                                         <td key="priceChange" className={`px-2 py-1.5 text-[9px] font-medium ${priceChange >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {priceChange >= 0 ? '+' : ''}₹{fmt(priceChange)}
                                         </td>
                                       );
                                     case 'changePercent':
-                                      const changePercent = group.liveData?.regularMarketChangePercent || 0;
+                                      const changePercent = group.liveData?.changePercent || 0;
                                       return (
                                         <td key="changePercent" className={`px-2 py-1.5 text-[9px] font-medium ${changePercent >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%
                                         </td>
                                       );
                                     case 'dayHigh':
-                                      return <td key="dayHigh" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.regularMarketDayHigh ? `₹${fmt(group.liveData.regularMarketDayHigh)}` : '—'}</td>;
+                                      return <td key="dayHigh" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.dayHigh ? `₹${fmt(group.liveData.dayHigh)}` : '—'}</td>;
                                     case 'dayLow':
-                                      return <td key="dayLow" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.regularMarketDayLow ? `₹${fmt(group.liveData.regularMarketDayLow)}` : '—'}</td>;
+                                      return <td key="dayLow" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.dayLow ? `₹${fmt(group.liveData.dayLow)}` : '—'}</td>;
                                     case '52wkHigh':
                                       return <td key="52wkHigh" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.fiftyTwoWeekHigh ? `₹${fmt(group.liveData.fiftyTwoWeekHigh)}` : '—'}</td>;
                                     case '52wkLow':
@@ -1998,25 +2006,25 @@ export function PortfolioDashboard() {
                                         </td>
                                       );
                                     case 'volume':
-                                      return <td key="volume" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.regularMarketVolume ? group.liveData.regularMarketVolume.toLocaleString() : '—'}</td>;
+                                      return <td key="volume" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.volume ? group.liveData.volume.toLocaleString() : '—'}</td>;
                                     case 'avgVolume':
-                                      return <td key="avgVolume" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.averageDailyVolume3Month ? group.liveData.averageDailyVolume3Month.toLocaleString() : '—'}</td>;
+                                      return <td key="avgVolume" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.avgVolume ? group.liveData.avgVolume.toLocaleString() : '—'}</td>;
                                     case 'tradeValue':
-                                      const tradeVal = (group.liveData?.regularMarketVolume || 0) * (group.liveData?.regularMarketPrice || 0);
+                                      const tradeVal = (group.liveData?.volume || 0) * (group.liveData?.price || 0);
                                       return (
                                         <td key="tradeValue" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">
                                           {tradeVal > 0 ? `₹${(tradeVal / 10000000).toFixed(2)} Cr` : '—'}
                                         </td>
                                       );
                                     case 'dayGain':
-                                      const dayGain = group.netQty * (group.liveData?.regularMarketChange || 0);
+                                      const dayGain = group.netQty * (group.liveData?.change || 0);
                                       return (
                                         <td key="dayGain" className={`px-2 py-1.5 text-[9px] font-medium ${dayGain >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {dayGain >= 0 ? '+' : ''}₹{fmt(dayGain)}
                                         </td>
                                       );
                                     case 'dayGainPct':
-                                      const dayGainPct = group.liveData?.regularMarketChangePercent || 0;
+                                      const dayGainPct = group.liveData?.changePercent || 0;
                                       return (
                                         <td key="dayGainPct" className={`px-2 py-1.5 text-[9px] font-medium ${dayGainPct >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {dayGainPct >= 0 ? '+' : ''}{dayGainPct.toFixed(2)}%
