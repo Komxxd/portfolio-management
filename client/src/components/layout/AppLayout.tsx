@@ -29,10 +29,10 @@ export function AppLayout() {
 
   const location = useLocation();
   const navigate = useNavigate();
-  const { portfolioId } = useParams<{ portfolioId: string }>();
 
-  const activePortfolioId = portfolioId || null;
-  const activePortfolio = portfolios.find(p => p.id === activePortfolioId);
+  const isPortfolioPage = location.pathname.startsWith('/portfolio/');
+  const portfolioId = isPortfolioPage ? location.pathname.split('/')[2] : null;
+  const portfolioName = portfolioId ? portfolios.find(p => p.id === portfolioId)?.name : null;
 
   // Derive unique stock symbols for manual refresh
   const allStockSymbols = [...new Set([...stocks.map(s => s.symbol), ...soldStocks.map(s => s.symbol)])];
@@ -81,13 +81,19 @@ export function AppLayout() {
               <GlobalSearch />
             </div>
 
-            <nav className="hidden md:flex items-center gap-4 ml-2">
+            <nav className="hidden md:flex items-center gap-2 ml-2">
               <button
                 onClick={() => navigate('/portfolios')}
                 className={`text-sm font-medium transition-colors focus:outline-none ${location.pathname === '/portfolios' ? 'text-primary' : 'text-secondary hover:text-primary'}`}
               >
                 My Portfolio
               </button>
+              {portfolioName && (
+                <>
+                  <ChevronRight className="w-4 h-4 text-tertiary" />
+                  <span className="text-sm font-semibold text-primary">{portfolioName}</span>
+                </>
+              )}
             </nav>
           </div>
 
