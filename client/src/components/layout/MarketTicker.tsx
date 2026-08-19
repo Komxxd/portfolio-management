@@ -91,11 +91,10 @@ export function MarketTicker() {
         )}
       </div>
 
-      {/* Scrolling Ticker */}
+      {/* Still Ticker */}
       <div className="flex-1 overflow-hidden relative h-full flex items-center group">
-        {/* We use a simple CSS animation for the ticker. Since we want it continuous, we duplicate the list */}
-        <div className="flex items-center animate-[ticker_30s_linear_infinite] whitespace-nowrap pl-4 group-hover:[animation-play-state:paused]">
-          {[...REGIONS[activeRegion], ...REGIONS[activeRegion], ...REGIONS[activeRegion], ...REGIONS[activeRegion]].map((indexInfo, i) => {
+        <div className="flex items-center whitespace-nowrap px-4 overflow-x-auto no-scrollbar w-full">
+          {REGIONS[activeRegion].map((indexInfo, i) => {
             const data = prices[indexInfo.symbol];
             const change = data?.change || 0;
             const changePercent = data?.changePercent || 0;

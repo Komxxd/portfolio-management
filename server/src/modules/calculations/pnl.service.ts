@@ -15,6 +15,8 @@ export interface PortfolioSummaryStats {
   totalDayGain: number;
   totalDayGainPercent: number;
   totalDividend: number;
+  totalBrokerage: number;
+  totalGovtTax: number;
   xirr: number;
 }
 
@@ -297,6 +299,8 @@ export function calculatePortfolioStats(
     totalDayGain,
     totalDayGainPercent,
     totalDividend,
+    totalBrokerage,
+    totalGovtTax,
     xirr
   };
 

@@ -7,6 +7,8 @@ export interface HistoricalDataPoint {
   date: number; // Unix timestamp
   value: number;
   invested: number;
+  pnlPercent?: number;
+  pnl?: number;
 }
 
 export async function calculateHistoricalPerformance(
@@ -59,6 +61,8 @@ export async function calculateHistoricalPerformance(
     type: 'buy' | 'sell';
     qty: number;
     price: number;
+    brokerage?: number;
+    govtTax?: number;
   }
   
   const txEvents: TxEvent[] = [];
@@ -69,7 +73,9 @@ export async function calculateHistoricalPerformance(
         symbol: s.symbol,
         type: 'buy',
         qty: Number(s.quantity),
-        price: Number(s.entry_price)
+        price: Number(s.entry_price),
+        brokerage: Number(s.brokerage || 0),
+        govtTax: Number(s.govt_tax || 0)
       });
     }
   });
@@ -79,7 +85,9 @@ export async function calculateHistoricalPerformance(
       symbol: s.symbol,
       type: 'sell',
       qty: Number(s.quantity),
-      price: Number(s.exit_price)
+      price: Number(s.exit_price),
+      brokerage: Number(s.brokerage || 0),
+      govtTax: Number(s.govt_tax || 0)
     });
   });
 
@@ -123,22 +131,41 @@ export async function calculateHistoricalPerformance(
   symbols.forEach(s => activeLots[s] = []);
   
   let txIdx = 0;
+  let cumulativeRealizedPnL = 0;
+  let cumulativeBrokerage = 0;
+  let cumulativeGovtTax = 0;
+  let runningMaxNetInvested = 0;
+  let currentInvested = 0;
 
   timeline.forEach(time => {
     // Process any transactions that happened up to this day
     while (txIdx < txEvents.length && txEvents[txIdx].date <= time + 86400000 - 1) {
       const tx = txEvents[txIdx];
+      
+      cumulativeBrokerage += tx.brokerage || 0;
+      cumulativeGovtTax += tx.govtTax || 0;
+      
       if (tx.type === 'buy') {
         activeLots[tx.symbol].push({ qty: tx.qty, price: tx.price });
+        const buyCost = (tx.qty * tx.price) + (tx.brokerage || 0) + (tx.govtTax || 0);
+        currentInvested += buyCost;
+        if (currentInvested > runningMaxNetInvested) runningMaxNetInvested = currentInvested;
       } else {
+        const sellProceeds = (tx.qty * tx.price) - (tx.brokerage || 0) - (tx.govtTax || 0);
+        currentInvested -= sellProceeds;
+        
         // FIFO sell
         let qtyToSell = tx.qty;
         while (qtyToSell > 0 && activeLots[tx.symbol].length > 0) {
           if (activeLots[tx.symbol][0].qty <= qtyToSell) {
-            qtyToSell -= activeLots[tx.symbol][0].qty;
+            const lot = activeLots[tx.symbol][0];
+            cumulativeRealizedPnL += (tx.price - lot.price) * lot.qty;
+            qtyToSell -= lot.qty;
             activeLots[tx.symbol].shift();
           } else {
-            activeLots[tx.symbol][0].qty -= qtyToSell;
+            const lot = activeLots[tx.symbol][0];
+            cumulativeRealizedPnL += (tx.price - lot.price) * qtyToSell;
+            lot.qty -= qtyToSell;
             qtyToSell = 0;
           }
         }
@@ -168,13 +195,20 @@ export async function calculateHistoricalPerformance(
       }
     });
 
+    // Calculate PnL Percentage
+    const dailyUnrealizedPnL = dailyValue - dailyInvested;
+    const dailyTotalPnL = dailyUnrealizedPnL + cumulativeRealizedPnL - cumulativeBrokerage - cumulativeGovtTax;
+    const pnlPercent = runningMaxNetInvested > 0 ? (dailyTotalPnL / runningMaxNetInvested) * 100 : 0;
+
     // Only add to result if there's an active portfolio or we've started tracking
     // To avoid leading zeroes, we can skip days before the first transaction
     if (dailyInvested > 0 || txIdx > 0) {
       result.push({
         date: time,
         value: dailyValue,
-        invested: dailyInvested
+        invested: dailyInvested,
+        pnlPercent,
+        pnl: dailyTotalPnL
       });
     }
   });

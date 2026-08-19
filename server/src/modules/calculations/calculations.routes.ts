@@ -90,9 +90,31 @@ router.get('/dashboard/stats', authMiddleware, async (req: any, res: any) => {
     
     const livePrices = uniqueSymbols.length > 0 ? await fetchPrices(uniqueSymbols) : {};
 
-    // 3. Calculate global stats
-    const result = calculatePortfolioStats(stocks, soldStocks, livePrices);
-    res.json(result);
+    // 3. Calculate global stats (filtered by multi-select if provided)
+    let targetPortfolioIds = activePortfolioIds;
+    if (req.query.portfolioIds && req.query.portfolioIds !== 'ALL') {
+      const pIdsString = Array.isArray(req.query.portfolioIds) 
+        ? req.query.portfolioIds.join(',') 
+        : String(req.query.portfolioIds);
+      const requestedIds = pIdsString.split(',');
+      targetPortfolioIds = activePortfolioIds.filter((id: string) => requestedIds.includes(id));
+    }
+    const filteredStocks = stocks.filter((s: any) => targetPortfolioIds.includes(s.portfolio_id));
+    const filteredSoldStocks = soldStocks.filter((s: any) => targetPortfolioIds.includes(s.portfolio_id));
+    const result = calculatePortfolioStats(filteredStocks, filteredSoldStocks, livePrices);
+    
+    // 4. Calculate per-portfolio stats
+    const portfolioSummaries: Record<string, any> = {};
+    for (const pid of activePortfolioIds) {
+      const pStocks = stocks.filter((s: any) => s.portfolio_id === pid);
+      const pSoldStocks = soldStocks.filter((s: any) => s.portfolio_id === pid);
+      if (pStocks.length > 0 || pSoldStocks.length > 0) {
+         const pResult = calculatePortfolioStats(pStocks, pSoldStocks, livePrices);
+         portfolioSummaries[pid] = pResult.summary;
+      }
+    }
+    
+    res.json({ ...result, portfolioSummaries });
   } catch (error) {
     console.error('Dashboard Stats Error:', error);
     res.status(500).json({ error: 'Failed to calculate dashboard stats' });
@@ -104,11 +126,20 @@ router.get('/historical', authMiddleware, async (req: any, res: any) => {
   try {
     const timeframe = req.query.timeframe || '1Y'; // 1M, 3M, 6M, 1Y, ALL
     
-    // Fetch all active portfolios
-    const { data: portfolios, error: portError } = await req.supabase
+    let query = req.supabase
       .from('portfolios')
       .select('id')
       .is('deleted_at', null);
+
+    if (req.query.portfolioId && req.query.portfolioId !== 'ALL') {
+      const pIdsString = Array.isArray(req.query.portfolioId) 
+        ? req.query.portfolioId.join(',') 
+        : String(req.query.portfolioId);
+      const requestedIds = pIdsString.split(',');
+      query = query.in('id', requestedIds);
+    }
+
+    const { data: portfolios, error: portError } = await query;
       
     if (portError) throw portError;
     

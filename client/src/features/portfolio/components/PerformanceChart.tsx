@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { ChevronDown } from 'lucide-react';
 import { api } from '../../../services/api/client';
 import { usePortfolioContext } from '../hooks/PortfolioContext';
 
@@ -9,14 +10,22 @@ interface HistoricalDataPoint {
   date: number;
   value: number;
   invested: number;
+  pnlPercent?: number;
+  pnl?: number;
 }
 
-export function PerformanceChart() {
+interface PerformanceChartProps {
+  selectedPortfolioId?: string;
+}
+
+export function PerformanceChart({ selectedPortfolioId = 'ALL' }: PerformanceChartProps) {
   const [data, setData] = useState<HistoricalDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState<Timeframe>('1Y');
   
   const { stocks } = usePortfolioContext();
+
+
 
   // Generate a signature based on current holdings to automatically invalidate cache when trades occur
   const portfolioSignature = React.useMemo(() => {
@@ -35,7 +44,7 @@ export function PerformanceChart() {
     let isMounted = true;
 
     const fetchHistoricalData = async () => {
-      const cacheKey = `chart_${timeframe}_${portfolioSignature}`;
+      const cacheKey = `chart_${timeframe}_${selectedPortfolioId}_${portfolioSignature}`;
       const cachedStr = sessionStorage.getItem(cacheKey);
       
       if (cachedStr) {
@@ -51,7 +60,7 @@ export function PerformanceChart() {
 
       setLoading(true);
       try {
-        const response = await api.get(`/api/calculations/historical?timeframe=${timeframe}`);
+        const response = await api.get(`/api/calculations/historical?timeframe=${timeframe}&portfolioId=${selectedPortfolioId}`);
         if (isMounted) {
           setData(response || []);
           try {
@@ -74,7 +83,7 @@ export function PerformanceChart() {
     return () => {
       isMounted = false;
     };
-  }, [timeframe]);
+  }, [timeframe, selectedPortfolioId, portfolioSignature]);
 
   const formatCurrency = (value: number) => {
     if (value >= 10000000) {
@@ -86,6 +95,10 @@ export function PerformanceChart() {
     return `₹${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
   };
 
+  const formatPercentage = (value: number) => {
+    return `${value.toFixed(2)}%`;
+  };
+
   const formatDate = (timestamp: number) => {
     const d = new Date(timestamp);
     return d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -93,34 +106,26 @@ export function PerformanceChart() {
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const val = payload[0].value;
-      const inv = payload.length > 1 ? payload[1].value : 0;
-      const profit = val - inv;
-      const profitPercent = inv > 0 ? (profit / inv) * 100 : 0;
-      const isPositive = profit >= 0;
+      const pnlPercent = payload[0].payload.pnlPercent || 0;
+      const pnl = payload[0].payload.pnl || 0;
+      const isPositive = pnlPercent >= 0;
 
       return (
         <div className="bg-surface border border-divider p-3 rounded shadow-xl">
           <p className="text-xs text-secondary mb-2 font-medium">{formatDate(label)}</p>
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-4">
-              <span className="text-sm font-medium text-primary">Value:</span>
-              <span className="text-sm font-bold text-primary">₹{val.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+              <span className="text-sm font-medium text-primary">PnL:</span>
+              <span className={`text-sm font-bold ${isPositive ? 'text-success' : 'text-danger'}`}>
+                {isPositive ? '+' : ''}{pnlPercent.toFixed(2)}%
+              </span>
             </div>
-            {inv > 0 && (
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-xs text-secondary">Invested:</span>
-                <span className="text-xs text-secondary">₹{inv.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-              </div>
-            )}
-            {inv > 0 && (
-              <div className="flex items-center justify-between gap-4 pt-1 mt-1 border-t border-divider">
-                <span className="text-xs text-secondary">P&L:</span>
-                <span className={`text-xs font-bold ${isPositive ? 'text-success' : 'text-danger'}`}>
-                  {isPositive ? '+' : ''}₹{profit.toLocaleString(undefined, { maximumFractionDigits: 2 })} ({isPositive ? '+' : ''}{profitPercent.toFixed(2)}%)
-                </span>
-              </div>
-            )}
+            <div className="flex items-center justify-between gap-4 pt-1 mt-1 border-t border-divider">
+              <span className="text-xs text-secondary">Absolute:</span>
+              <span className={`text-xs ${isPositive ? 'text-success' : 'text-danger'}`}>
+                {isPositive ? '+' : ''}₹{pnl.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </span>
+            </div>
           </div>
         </div>
       );
@@ -139,14 +144,13 @@ export function PerformanceChart() {
   }
 
   // Determine chart colors based on overall profitability in this timeframe
-  const isProfitable = data.length > 0 && data[data.length - 1].value >= data[data.length - 1].invested;
+  const isProfitable = data.length > 0 && (data[data.length - 1].pnlPercent || 0) >= 0;
   const strokeColor = isProfitable ? '#059669' : '#e11d48'; // Tailwind success/danger
-  const fillColor = isProfitable ? '#34d399' : '#fb7185';
 
   return (
     <div className="w-full mt-6 mb-8 relative bg-surface border border-divider rounded-lg shadow-sm p-4">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-primary">Portfolio Performance</h2>
+        <h2 className="text-sm font-semibold text-primary">Performance History</h2>
         <div className="flex items-center bg-surface border border-divider rounded overflow-hidden shadow-sm text-xs">
           {(['1M', '3M', '6M', '1Y', 'ALL'] as Timeframe[]).map((tf) => (
             <button
@@ -170,13 +174,7 @@ export function PerformanceChart() {
           </div>
         )}
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 20, left: 20, bottom: 20 }}>
-            <defs>
-              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={fillColor} stopOpacity={0.3} />
-                <stop offset="95%" stopColor={fillColor} stopOpacity={0} />
-              </linearGradient>
-            </defs>
+          <LineChart data={data} margin={{ top: 10, right: 20, left: 20, bottom: 20 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-divider)" opacity={0.5} />
             <XAxis
               dataKey="date"
@@ -188,32 +186,22 @@ export function PerformanceChart() {
               dy={10}
             />
             <YAxis
-              tickFormatter={formatCurrency}
+              tickFormatter={formatPercentage}
               tick={{ fontSize: 10, fill: 'var(--text-secondary)' }}
               tickLine={false}
               axisLine={false}
               dx={-10}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Area
+            <Line
               type="monotone"
-              dataKey="value"
+              dataKey="pnlPercent"
               stroke={strokeColor}
               strokeWidth={2}
-              fillOpacity={1}
-              fill="url(#colorValue)"
+              dot={false}
               isAnimationActive={false}
             />
-            <Area
-              type="stepAfter"
-              dataKey="invested"
-              stroke="var(--text-tertiary)"
-              strokeDasharray="5 5"
-              fill="none"
-              strokeWidth={1.5}
-              isAnimationActive={false}
-            />
-          </AreaChart>
+          </LineChart>
         </ResponsiveContainer>
       </div>
     </div>
