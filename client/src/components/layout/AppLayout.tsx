@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Briefcase, Trash2, Pencil, ChevronRight, Info, User, LogOut, Folder, Home, RefreshCw, Sun, Moon } from 'lucide-react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronRight, ChevronDown, Info, User, LogOut, Folder, Home, RefreshCw, Sun, Moon } from 'lucide-react'
 import { api } from '../../services/api/client'
 import { usePortfolioContext } from '../../features/portfolio/hooks/PortfolioContext'
 import { useTheme } from '../../app/providers/ThemeProvider'
@@ -39,11 +39,16 @@ export function AppLayout() {
 
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
+  const [isPortfolioMenuOpen, setIsPortfolioMenuOpen] = useState(false);
+  const portfolioMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
         setIsAccountMenuOpen(false);
+      }
+      if (portfolioMenuRef.current && !portfolioMenuRef.current.contains(event.target as Node)) {
+        setIsPortfolioMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -89,10 +94,36 @@ export function AppLayout() {
                 My Portfolio
               </button>
               {portfolioName && (
-                <>
+                <div className="relative flex items-center" ref={portfolioMenuRef}>
                   <ChevronRight className="w-4 h-4 text-tertiary" />
-                  <span className="text-sm font-semibold text-primary">{portfolioName}</span>
-                </>
+                  <button 
+                    onClick={() => setIsPortfolioMenuOpen(!isPortfolioMenuOpen)}
+                    className="flex items-center gap-1 ml-1 px-2 py-1 rounded hover:bg-surface-hover transition-colors focus:outline-none"
+                  >
+                    <span className="text-sm font-semibold text-primary">{portfolioName}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-secondary" />
+                  </button>
+                  {isPortfolioMenuOpen && (
+                    <div className="absolute top-full left-5 mt-1 min-w-[200px] max-w-sm bg-surface border border-divider rounded-lg py-1 z-50 shadow-2xl shadow-black/50">
+                      {portfolios.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => {
+                            setIsPortfolioMenuOpen(false);
+                            navigate(`/portfolio/${p.id}`);
+                          }}
+                          className={`w-full text-left px-4 py-1.5 text-xs transition-colors ${
+                            p.id === portfolioId 
+                              ? 'text-primary bg-surface-hover font-medium' 
+                              : 'text-secondary hover:bg-background hover:text-primary'
+                          }`}
+                        >
+                          <span className="truncate">{p.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </nav>
           </div>
