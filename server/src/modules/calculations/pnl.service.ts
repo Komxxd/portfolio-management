@@ -262,7 +262,8 @@ export function calculatePortfolioStats(
       totalBoughtQty,
       totalSoldQty,
       liveData: livePrices[symbol] || null,
-      events
+      events,
+      cashFlows: stockCashFlows
     };
   });
 

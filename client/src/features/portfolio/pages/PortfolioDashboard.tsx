@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import * as XLSX from 'xlsx'
+import { calculateXIRR } from '../../../utils/xirr'
 import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, Info, User, LogOut, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw, Sun, Moon, GripVertical } from 'lucide-react'
 import {
   DndContext,
@@ -993,7 +994,14 @@ export function PortfolioDashboard() {
   let portfolioTotalDayGain = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.netQty * (g.liveData?.change || 0)), 0);
   let portfolioRealizedCostBasis = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.totalBuyCost - g.netCostBasis), 0);
   let maxNetInvested = summary.maxNetInvested;
-  let portfolioXIRR = summary.xirr;
+
+  const portfolioCashFlows = filteredSymbolGroups.flatMap((g: any) => g.cashFlows || []);
+  let portfolioXIRR = 0;
+  if (totalCurrentValue > 0 || portfolioCashFlows.length > 0) {
+    const xirrCF = [...portfolioCashFlows];
+    if (totalCurrentValue > 0) xirrCF.push({ date: Date.now(), amount: totalCurrentValue });
+    portfolioXIRR = calculateXIRR(xirrCF);
+  }
 
   if (sortField) {
     filteredSymbolGroups.sort((a, b) => {
