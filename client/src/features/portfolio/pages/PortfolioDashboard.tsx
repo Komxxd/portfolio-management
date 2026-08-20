@@ -1015,6 +1015,12 @@ export function PortfolioDashboard() {
       } else if (sortField === 'dayGainPct') {
         valA = a.liveData?.changePercent || 0;
         valB = b.liveData?.changePercent || 0;
+      } else if (sortField === 'priceChange') {
+        valA = a.liveData?.change || 0;
+        valB = b.liveData?.change || 0;
+      } else if (sortField === 'changePercent') {
+        valA = a.liveData?.changePercent || 0;
+        valB = b.liveData?.changePercent || 0;
       }
 
       // Handle nulls/undefined safely for all number comparisons
