@@ -23,11 +23,17 @@ export function AuthForm() {
     setLoading(true);
     setError(null);
     try {
+      let response;
       if (isLogin) {
-        await api.post('/api/auth/login', { email, password });
+        response = await api.post('/api/auth/login', { email, password });
       } else {
-        await api.post('/api/auth/signup', { email, password });
+        response = await api.post('/api/auth/signup', { email, password });
       }
+
+      if (response && response.session && response.session.access_token) {
+        localStorage.setItem('auth_token', response.session.access_token);
+      }
+
       await refreshSession();
       navigate('/portfolios');
     } catch (err: any) {

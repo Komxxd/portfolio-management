@@ -46,7 +46,7 @@ router.post('/login', async (req, res) => {
     if (error) throw error;
     
     res.cookie('token', data.session.access_token, cookieOptions);
-    res.json({ user: data.user });
+    res.json({ user: data.user, session: data.session });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
@@ -58,7 +58,12 @@ router.post('/logout', (req, res) => {
 });
 
 router.get('/me', async (req, res) => {
-  const token = req.cookies.token;
+  let token = req.cookies.token;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  }
+
   if (!token) {
     return res.status(401).json({ error: 'Not authenticated' });
   }

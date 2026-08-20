@@ -1,10 +1,15 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
-  const headers = {
+  const token = localStorage.getItem('auth_token');
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers || {}),
+    ...(options.headers as any || {}),
   };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
   const cleanApiUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
   const response = await fetch(`${cleanApiUrl}${endpoint}`, {

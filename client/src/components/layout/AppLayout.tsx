@@ -141,6 +141,7 @@ export function AppLayout() {
                     <button
                       onClick={async () => {
                         await api.post('/api/auth/logout', {});
+                        localStorage.removeItem('auth_token');
                         window.location.href = '/';
                       }}
                       className="w-full text-left px-4 py-2 text-xs text-secondary hover:bg-background hover:text-primary flex items-center gap-2"
