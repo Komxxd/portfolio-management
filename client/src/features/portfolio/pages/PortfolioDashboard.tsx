@@ -38,6 +38,7 @@ import { ConfirmationModal } from '../../../components/ui/ConfirmationModal'
 
 const ALL_SUMMARY_STATS = [
   { id: 'totalStocks', label: 'Total Stocks' },
+  { id: 'maxNetInvested', label: 'Max Invested' },
   { id: 'netInvested', label: 'Net Invested' },
   { id: 'currentValue', label: 'Current Value' },
   { id: 'unrealizedPnL', label: 'Unrealized P&L' },
@@ -1255,6 +1256,18 @@ export function PortfolioDashboard() {
               <span>Total Stocks</span>
             </div>
             <div className="text-xs font-bold text-primary">{filteredSymbolGroups.length}</div>
+          </div>
+        );
+        break;
+      case 'maxNetInvested':
+        content = (
+          <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm h-full w-full">
+            <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+              <span>Max Invested</span>
+            </div>
+            <div className="text-xs font-bold text-primary truncate" title={`₹${maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+              ₹{maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
           </div>
         );
         break;

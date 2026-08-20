@@ -28,6 +28,7 @@ const GLOBAL_SUMMARY_STATS = [
 
 const LIST_SUMMARY_STATS = [
   { id: 'totalStocks', label: 'Total Stocks' },
+  { id: 'maxNetInvested', label: 'Max Invested' },
   { id: 'netInvested', label: 'Net Invested' },
   { id: 'unrealizedPnL', label: 'Unrealized P&L' },
   { id: 'realizedPnL', label: 'Realized P&L' },
@@ -653,6 +654,7 @@ export function HomeDashboard() {
                     if (!listVisibleStats.has(id)) return null;
                     switch (id) {
                       case 'totalStocks': return renderMiniCard("Total Stocks", pSymbols.length, "text-primary", id);
+                      case 'maxNetInvested': return renderMiniCard("Max Invested", `₹${ps.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "text-primary", id);
                       case 'netInvested': return renderMiniCard("Net Invested", `₹${ps.totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "text-primary", id);
                       case 'unrealizedPnL': return renderMiniCard(
                         `Unrealized PnL`,
@@ -723,7 +725,7 @@ export function HomeDashboard() {
                           </div>
 
                           {ps && (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-5 2xl:grid-cols-10 gap-2 mt-4 xl:mt-0 xl:ml-6 flex-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-11 gap-2 mt-4 xl:mt-0 xl:ml-6 flex-1 opacity-80 group-hover:opacity-100 transition-opacity">
                               {listSummaryOrder.map(id => renderListStat(id, ps, pSymbols))}
                             </div>
                           )}
