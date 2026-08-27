@@ -4,7 +4,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from 
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../../services/api/client';
 import { usePortfolioContext } from '../hooks/PortfolioContext';
 
@@ -14,30 +14,18 @@ import { RecycleBinModal } from '../components/RecycleBinModal';
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import { PerformanceChart } from '../components/PerformanceChart';
 
-const GLOBAL_SUMMARY_STATS = [
-  { id: 'totalPnL', label: 'Total Gain/Loss' },
-  { id: 'totalInvested', label: 'Total Invested' },
-  { id: 'maxInvestment', label: 'Max Investment' },
+const SUMMARY_STATS = [
+  { id: 'totalStocks', label: 'Total Stocks' },
+  { id: 'totalPnL', label: 'Total P&L' },
+  { id: 'netInvested', label: 'Net Invested' },
+  { id: 'maxNetInvested', label: 'Max Invested' },
   { id: 'dayGain', label: 'Day Gain' },
-  { id: 'unrealizedPnL', label: 'Unrealized Gain/Loss' },
-  { id: 'realizedPnL', label: 'Realized Gain/Loss' },
+  { id: 'unrealizedPnL', label: 'Unrealized P&L' },
+  { id: 'realizedPnL', label: 'Realized P&L' },
   { id: 'currentValue', label: 'Current Value' },
   { id: 'xirr', label: 'XIRR' },
   { id: 'totalDividend', label: 'Total Dividend' },
-];
-
-const LIST_SUMMARY_STATS = [
-  { id: 'totalStocks', label: 'Total Stocks' },
-  { id: 'maxNetInvested', label: 'Max Invested' },
-  { id: 'netInvested', label: 'Net Invested' },
-  { id: 'unrealizedPnL', label: 'Unrealized P&L' },
-  { id: 'realizedPnL', label: 'Realized P&L' },
-  { id: 'totalDividend', label: 'Total Dividend' },
-  { id: 'dayGain', label: 'Day Gain' },
-  { id: 'totalPnL', label: 'Total P&L' },
-  { id: 'currentValue', label: 'Current Value' },
   { id: 'brokerage', label: 'Total Brokerage & Tax' },
-  { id: 'xirr', label: 'XIRR' }
 ];
 
 function SortableMenuItem({ stat, isVisible, onToggle }: { stat: any, isVisible: boolean, onToggle: (id: string) => void }) {
@@ -115,6 +103,54 @@ function SortablePortfolioRow({ id, children }: { id: string, children: React.Re
   );
 }
 
+function AutoScaleRow({ children, className = '' }: { children: React.ReactNode, className?: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [height, setHeight] = useState<number | undefined>(undefined);
+
+  const updateScale = useCallback(() => {
+    const container = containerRef.current;
+    const inner = innerRef.current;
+    if (!container || !inner) return;
+
+    inner.style.transform = 'scale(1)';
+    const availableWidth = container.clientWidth;
+    const contentWidth = inner.scrollWidth;
+    const naturalHeight = inner.offsetHeight;
+    const s = contentWidth > availableWidth ? availableWidth / contentWidth : 1;
+    setScale(s);
+    setHeight(naturalHeight * s);
+    inner.style.transform = `scale(${s})`;
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [updateScale]);
+
+  useEffect(() => {
+    updateScale();
+  });
+
+  return (
+    <div ref={containerRef} className={`overflow-hidden ${className}`}>
+      <div style={{ height }}>
+        <div
+          ref={innerRef}
+          className="flex items-center gap-2 w-max"
+          style={{ transform: `scale(${scale})`, transformOrigin: 'left top' }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function HomeDashboard() {
   const { portfolios, setPortfolios, stocks, setIsCreateModalOpen, isCreateModalOpen, fetchData } = usePortfolioContext();
   const navigate = useNavigate();
@@ -127,55 +163,65 @@ export function HomeDashboard() {
   const [isSummaryDropdownOpen, setIsSummaryDropdownOpen] = useState(false);
   const summaryDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Global Summary Layout State
-  const [globalSummaryOrder, setGlobalSummaryOrder] = useState<string[]>(() => {
-    const saved = localStorage.getItem('home_global_summary_order');
+  // Summary Layout State (shared by global summary card and portfolio list)
+  const [summaryOrder, setSummaryOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem('home_summary_order');
     if (saved) {
       try {
         const order = JSON.parse(saved);
         const existingIds = new Set(order);
-        const missingStats = GLOBAL_SUMMARY_STATS.map(s => s.id).filter(id => !existingIds.has(id));
+        const missingStats = SUMMARY_STATS.map(s => s.id).filter(id => !existingIds.has(id));
         return [...order, ...missingStats];
       } catch (e) {}
     }
-    return GLOBAL_SUMMARY_STATS.map(s => s.id);
+    return SUMMARY_STATS.map(s => s.id);
   });
-  const [globalVisibleStats, setGlobalVisibleStats] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('home_global_summary_visible');
+  const [visibleStats, setVisibleStats] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('home_summary_visible');
     if (saved) {
       try {
         return new Set(JSON.parse(saved));
       } catch (e) {}
     }
-    return new Set(GLOBAL_SUMMARY_STATS.map(s => s.id));
+    return new Set(SUMMARY_STATS.map(s => s.id));
   });
-  const [isGlobalSettingsOpen, setIsGlobalSettingsOpen] = useState(false);
-  const globalSettingsRef = useRef<HTMLDivElement>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
-  // List Summary Layout State
-  const [listSummaryOrder, setListSummaryOrder] = useState<string[]>(() => {
-    const saved = localStorage.getItem('home_portfolio_list_summary_order');
-    if (saved) {
-      try {
-        const order = JSON.parse(saved);
-        const existingIds = new Set(order);
-        const missingStats = LIST_SUMMARY_STATS.map(s => s.id).filter(id => !existingIds.has(id));
-        return [...order, ...missingStats];
-      } catch (e) {}
-    }
-    return LIST_SUMMARY_STATS.map(s => s.id);
-  });
-  const [listVisibleStats, setListVisibleStats] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('home_portfolio_list_summary_visible');
-    if (saved) {
-      try {
-        return new Set(JSON.parse(saved));
-      } catch (e) {}
-    }
-    return new Set(LIST_SUMMARY_STATS.map(s => s.id));
-  });
-  const [isListSettingsOpen, setIsListSettingsOpen] = useState(false);
-  const listSettingsRef = useRef<HTMLDivElement>(null);
+  // Auto-scaling summary stats
+  const statsContainerRef = useRef<HTMLDivElement>(null);
+  const statsInnerRef = useRef<HTMLDivElement>(null);
+  const [statsScale, setStatsScale] = useState(1);
+  const [statsHeight, setStatsHeight] = useState<number | undefined>(undefined);
+
+  const updateStatsScale = useCallback(() => {
+    const container = statsContainerRef.current;
+    const inner = statsInnerRef.current;
+    if (!container || !inner) return;
+
+    // Temporarily reset scale to measure natural width
+    inner.style.transform = 'scale(1)';
+    const cs = getComputedStyle(container);
+    const availableWidth = container.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const contentWidth = inner.scrollWidth;
+    const naturalHeight = inner.offsetHeight;
+    const scale = contentWidth > availableWidth ? availableWidth / contentWidth : 1;
+    setStatsScale(scale);
+    setStatsHeight(naturalHeight * scale);
+    inner.style.transform = `scale(${scale})`;
+  }, []);
+
+  useEffect(() => {
+    const container = statsContainerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(updateStatsScale);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [updateStatsScale]);
+
+  useEffect(() => {
+    updateStatsScale();
+  }, [visibleStats, summaryOrder, homeStats, updateStatsScale]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -186,18 +232,11 @@ export function HomeDashboard() {
   );
 
   useEffect(() => {
-    localStorage.setItem('home_global_summary_order', JSON.stringify(globalSummaryOrder));
-  }, [globalSummaryOrder]);
+    localStorage.setItem('home_summary_order', JSON.stringify(summaryOrder));
+  }, [summaryOrder]);
   useEffect(() => {
-    localStorage.setItem('home_global_summary_visible', JSON.stringify(Array.from(globalVisibleStats)));
-  }, [globalVisibleStats]);
-
-  useEffect(() => {
-    localStorage.setItem('home_portfolio_list_summary_order', JSON.stringify(listSummaryOrder));
-  }, [listSummaryOrder]);
-  useEffect(() => {
-    localStorage.setItem('home_portfolio_list_summary_visible', JSON.stringify(Array.from(listVisibleStats)));
-  }, [listVisibleStats]);
+    localStorage.setItem('home_summary_visible', JSON.stringify(Array.from(visibleStats)));
+  }, [visibleStats]);
 
   const [portfolioOrder, setPortfolioOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem('home_portfolio_order');
@@ -279,21 +318,18 @@ export function HomeDashboard() {
       if (summaryDropdownRef.current && !summaryDropdownRef.current.contains(event.target as Node)) {
         setIsSummaryDropdownOpen(false);
       }
-      if (globalSettingsRef.current && !globalSettingsRef.current.contains(event.target as Node)) {
-        setIsGlobalSettingsOpen(false);
-      }
-      if (listSettingsRef.current && !listSettingsRef.current.contains(event.target as Node)) {
-        setIsListSettingsOpen(false);
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setIsSettingsOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleGlobalDragEnd = (event: DragEndEvent) => {
+  const handleStatDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      setGlobalSummaryOrder((items) => {
+      setSummaryOrder((items) => {
         const oldIndex = items.indexOf(active.id as string);
         const newIndex = items.indexOf(over.id as string);
         return arrayMove(items, oldIndex, newIndex);
@@ -301,28 +337,8 @@ export function HomeDashboard() {
     }
   };
 
-  const handleListDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setListSummaryOrder((items) => {
-        const oldIndex = items.indexOf(active.id as string);
-        const newIndex = items.indexOf(over.id as string);
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
-  };
-
-  const toggleGlobalStat = (id: string) => {
-    setGlobalVisibleStats(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) newSet.delete(id);
-      else newSet.add(id);
-      return newSet;
-    });
-  };
-
-  const toggleListStat = (id: string) => {
-    setListVisibleStats(prev => {
+  const toggleStat = (id: string) => {
+    setVisibleStats(prev => {
       const newSet = new Set(prev);
       if (newSet.has(id)) newSet.delete(id);
       else newSet.add(id);
@@ -376,32 +392,48 @@ export function HomeDashboard() {
 
   if (!homeStats) return null;
 
+  // Compute derived global stats for totalStocks and brokerage
+  const selectedStocks = stocks.filter(s => {
+    if (!selectedSummaryPortfolioIds) return true;
+    return selectedSummaryPortfolioIds.includes(s.portfolio_id);
+  });
+  const totalUniqueStocks = new Set(selectedStocks.filter(s => Number(s.entry_price) > 0).map(s => s.symbol)).size;
+  const totalBrokerageAndTax = Object.entries(portfolioSummaries)
+    .filter(([pid]) => !selectedSummaryPortfolioIds || selectedSummaryPortfolioIds.includes(pid))
+    .reduce((sum, [, ps]) => sum + ((ps?.totalBrokerage || 0) + (ps?.totalGovtTax || 0)), 0);
+
   const renderGlobalStat = (id: string) => {
-    if (!globalVisibleStats.has(id)) return null;
+    if (!visibleStats.has(id)) return null;
     switch (id) {
+      case 'totalStocks': return (
+          <div key="totalStocks" className="flex flex-col shrink-0">
+            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Total Stocks</span>
+            <span className="text-[15px] font-semibold text-primary">{totalUniqueStocks}</span>
+          </div>
+      );
       case 'totalPnL': return (
-          <div key="totalPnL" className="flex flex-col">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Total Gain/Loss</span>
+          <div key="totalPnL" className="flex flex-col shrink-0">
+            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Total P&L</span>
             <span className={`text-[15px] font-semibold ${homeStats.totalPnL >= 0 ? 'text-success' : 'text-danger'}`}>
               {homeStats.totalPnL >= 0 ? '+' : ''}₹{homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               <span className="ml-1.5 text-xs opacity-90 font-medium">({homeStats.totalPnLPercent >= 0 ? '+' : ''}{homeStats.totalPnLPercent.toFixed(2)}%)</span>
             </span>
           </div>
       );
-      case 'totalInvested': return (
-          <div key="totalInvested" className="flex flex-col">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Total Invested</span>
+      case 'netInvested': return (
+          <div key="netInvested" className="flex flex-col shrink-0">
+            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Net Invested</span>
             <span className="text-[15px] font-semibold text-primary">₹{homeStats.totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
       );
-      case 'maxInvestment': return (
-          <div key="maxInvestment" className="flex flex-col">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Max Investment</span>
+      case 'maxNetInvested': return (
+          <div key="maxNetInvested" className="flex flex-col shrink-0">
+            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Max Invested</span>
             <span className="text-[15px] font-semibold text-primary">₹{homeStats.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
       );
       case 'dayGain': return (
-          <div key="dayGain" className="flex flex-col">
+          <div key="dayGain" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">Day Gain</span>
             <span className={`text-[15px] font-semibold ${homeStats.totalDayGain >= 0 ? 'text-success' : 'text-danger'}`}>
               {homeStats.totalDayGain >= 0 ? '+' : ''}₹{(homeStats.totalDayGain || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -412,8 +444,8 @@ export function HomeDashboard() {
           </div>
       );
       case 'unrealizedPnL': return (
-          <div key="unrealizedPnL" className="flex flex-col">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Unrealized Gain/Loss</span>
+          <div key="unrealizedPnL" className="flex flex-col shrink-0">
+            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Unrealized P&L</span>
             <span className={`text-[15px] font-semibold ${homeStats.totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
               {homeStats.totalUnrealizedPnL >= 0 ? '+' : ''}₹{homeStats.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               <span className="ml-1.5 opacity-90 text-sm font-medium">
@@ -423,21 +455,21 @@ export function HomeDashboard() {
           </div>
       );
       case 'realizedPnL': return (
-          <div key="realizedPnL" className="flex flex-col">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Realized Gain/Loss</span>
+          <div key="realizedPnL" className="flex flex-col shrink-0">
+            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Realized P&L</span>
             <span className={`text-[15px] font-semibold ${homeStats.totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
               {homeStats.totalRealizedPnL >= 0 ? '+' : ''}₹{homeStats.totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
       );
       case 'currentValue': return (
-          <div key="currentValue" className="flex flex-col">
+          <div key="currentValue" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">Current Value</span>
             <span className="text-[15px] font-semibold text-primary">₹{homeStats.totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
       );
       case 'xirr': return (
-          <div key="xirr" className="flex flex-col">
+          <div key="xirr" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">XIRR</span>
             <span className={`text-[15px] font-semibold ${(homeStats.xirr || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
               {(homeStats.xirr || 0) >= 0 ? '+' : ''}{((homeStats.xirr || 0) * 100).toFixed(2)}%
@@ -445,13 +477,21 @@ export function HomeDashboard() {
           </div>
       );
       case 'totalDividend': return (
-          <div key="totalDividend" className="flex flex-col">
+          <div key="totalDividend" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">Total Dividend</span>
             <span className="text-[15px] font-semibold text-primary">
               ₹{homeStats.totalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               <span className="ml-1.5 opacity-90 text-sm font-medium text-success">
                 ({homeStats.totalInvestment > 0 ? ((homeStats.totalDividend / homeStats.totalInvestment) * 100).toFixed(2) : '0.00'}%)
               </span>
+            </span>
+          </div>
+      );
+      case 'brokerage': return (
+          <div key="brokerage" className="flex flex-col shrink-0">
+            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Brokerage & Tax</span>
+            <span className="text-[15px] font-semibold text-danger">
+              -₹{totalBrokerageAndTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
       );
@@ -541,32 +581,32 @@ export function HomeDashboard() {
             Bin
           </button>
           
-          <div className="relative flex" ref={globalSettingsRef}>
+          <div className="relative flex" ref={settingsRef}>
             <button
-              onClick={() => setIsGlobalSettingsOpen(!isGlobalSettingsOpen)}
+              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
               className="flex items-center justify-center w-8 h-8 bg-surface hover:bg-surface-hover border border-divider rounded text-secondary hover:text-primary transition-colors"
               title="Customize Summary"
             >
               <Columns className="w-4 h-4" />
             </button>
             
-            {isGlobalSettingsOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-48 bg-surface border border-divider rounded-lg shadow-xl shadow-black/20 py-1 max-h-64 overflow-y-auto z-50">
+            {isSettingsOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-48 bg-surface border border-divider rounded-lg shadow-xl shadow-black/20 py-1 max-h-80 overflow-y-auto z-50">
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
-                  onDragEnd={handleGlobalDragEnd}
+                  onDragEnd={handleStatDragEnd}
                 >
-                  <SortableContext items={globalSummaryOrder} strategy={verticalListSortingStrategy}>
-                    {globalSummaryOrder.map(id => {
-                      const stat = GLOBAL_SUMMARY_STATS.find(s => s.id === id);
+                  <SortableContext items={summaryOrder} strategy={verticalListSortingStrategy}>
+                    {summaryOrder.map(id => {
+                      const stat = SUMMARY_STATS.find(s => s.id === id);
                       if (!stat) return null;
                       return (
                         <SortableMenuItem
                           key={id}
                           stat={stat}
-                          isVisible={globalVisibleStats.has(id)}
-                          onToggle={toggleGlobalStat}
+                          isVisible={visibleStats.has(id)}
+                          onToggle={toggleStat}
                         />
                       );
                     })}
@@ -577,9 +617,15 @@ export function HomeDashboard() {
           </div>
         </div>
       </div>
-      <div className="w-full bg-surface border border-divider rounded-lg shadow-sm p-4 mb-4 mt-2">
-        <div className="flex flex-wrap items-center gap-x-12 gap-y-6">
-          {globalSummaryOrder.map(renderGlobalStat)}
+      <div ref={statsContainerRef} className="w-full bg-surface border border-divider rounded-lg shadow-sm p-4 mb-4 mt-2 overflow-hidden">
+        <div style={{ height: statsHeight }}>
+          <div
+            ref={statsInnerRef}
+            className="flex items-center gap-x-10 w-max"
+            style={{ transform: `scale(${statsScale})`, transformOrigin: 'left top' }}
+          >
+            {summaryOrder.map(renderGlobalStat)}
+          </div>
         </div>
       </div>
       
@@ -587,44 +633,6 @@ export function HomeDashboard() {
 
       {/* Portfolio List */}
       <div className="mt-4 mb-4">
-        <div className="px-2 pb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-primary">My Portfolios</h3>
-          
-          <div className="relative flex" ref={listSettingsRef}>
-            <button
-              onClick={() => setIsListSettingsOpen(!isListSettingsOpen)}
-              className="flex items-center justify-center w-8 h-8 bg-surface hover:bg-surface-hover border border-divider rounded text-secondary hover:text-primary transition-colors"
-              title="Customize Summary"
-            >
-              <Columns className="w-4 h-4" />
-            </button>
-            
-            {isListSettingsOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-48 bg-surface border border-divider rounded-lg shadow-xl shadow-black/20 py-1 max-h-64 overflow-y-auto z-50">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleListDragEnd}
-                >
-                  <SortableContext items={listSummaryOrder} strategy={verticalListSortingStrategy}>
-                    {listSummaryOrder.map(id => {
-                      const stat = LIST_SUMMARY_STATS.find(s => s.id === id);
-                      if (!stat) return null;
-                      return (
-                        <SortableMenuItem
-                          key={id}
-                          stat={stat}
-                          isVisible={listVisibleStats.has(id)}
-                          onToggle={toggleListStat}
-                        />
-                      );
-                    })}
-                  </SortableContext>
-                </DndContext>
-              </div>
-            )}
-          </div>
-        </div>
         {portfolios.length > 0 ? (
           <div className="flex flex-col gap-2">
             <DndContext
@@ -633,7 +641,7 @@ export function HomeDashboard() {
               onDragEnd={handlePortfolioDragEnd}
             >
               <SortableContext items={portfolioOrder} strategy={verticalListSortingStrategy}>
-                {portfolioOrder.map(pid => {
+                {portfolioOrder.filter(pid => !selectedSummaryPortfolioIds || selectedSummaryPortfolioIds.includes(pid)).map(pid => {
                   const p = portfolios.find(p => p.id === pid);
                   if (!p) return null;
                   
@@ -642,16 +650,16 @@ export function HomeDashboard() {
                   const ps = portfolioSummaries[p.id];
 
                   const renderMiniCard = (label: string, value: React.ReactNode, valueClass: string = "text-primary", key: string) => (
-                    <div key={key} className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm min-w-[110px]">
+                    <div key={key} className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm shrink-0 w-[140px]">
                       <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
-                        <span className="whitespace-nowrap truncate">{label}</span>
+                        <span className="whitespace-nowrap">{label}</span>
                       </div>
-                      <div className={`text-xs font-bold truncate ${valueClass}`}>{value}</div>
+                      <div className={`text-xs font-bold whitespace-nowrap ${valueClass}`}>{value}</div>
                     </div>
                   );
 
                   const renderListStat = (id: string, ps: any, pSymbols: any) => {
-                    if (!listVisibleStats.has(id)) return null;
+                    if (!visibleStats.has(id)) return null;
                     switch (id) {
                       case 'totalStocks': return renderMiniCard("Total Stocks", pSymbols.length, "text-primary", id);
                       case 'maxNetInvested': return renderMiniCard("Max Invested", `₹${ps.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "text-primary", id);
@@ -711,7 +719,7 @@ export function HomeDashboard() {
                   return (
                     <SortablePortfolioRow key={p.id} id={p.id}>
                       <div className="w-full flex flex-col xl:flex-row xl:items-center justify-between px-3 py-3 hover:bg-surface-hover rounded-lg transition-colors group">
-                        <div className="flex flex-col xl:flex-row xl:items-center flex-1 cursor-pointer" onClick={() => navigate(`/portfolio/${p.id}`)}>
+                        <div className="flex flex-col xl:flex-row xl:items-center flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/portfolio/${p.id}`)}>
                           <div className="flex items-center shrink-0">
                             <div className="min-w-[120px]">
                               <p 
@@ -725,9 +733,9 @@ export function HomeDashboard() {
                           </div>
 
                           {ps && (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-11 gap-2 mt-4 xl:mt-0 xl:ml-6 flex-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                              {listSummaryOrder.map(id => renderListStat(id, ps, pSymbols))}
-                            </div>
+                            <AutoScaleRow className="mt-4 xl:mt-0 xl:ml-6 flex-1 min-w-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                              {summaryOrder.map(id => renderListStat(id, ps, pSymbols))}
+                            </AutoScaleRow>
                           )}
                         </div>
                         
