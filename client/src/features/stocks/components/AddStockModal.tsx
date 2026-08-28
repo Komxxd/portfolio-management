@@ -20,6 +20,7 @@ interface SearchResult {
 }
 
 export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSymbol, initialPrice, existingSymbols = [] }: AddStockModalProps) {
+  const { currencySymbol, formatCurrency: fmtCurrency } = useCurrency();
   const [ticker, setTicker] = useState(initialSymbol || '');
   const [searchQuery, setSearchQuery] = useState(initialSymbol || '');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
