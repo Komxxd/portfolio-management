@@ -885,6 +885,7 @@ export function PortfolioDashboard() {
   const activePortfolio = portfolios.find(p => p.id === activePortfolioId);
   const activeStocks = stocks.filter(s => s.portfolio_id === activePortfolioId);
   const activeSoldStocks = soldStocks.filter(s => s.portfolio_id === activePortfolioId);
+  const activeSymbols = [...new Set([...activeStocks, ...activeSoldStocks].map(s => s.symbol))];
 
   // Fetch live prices for ALL symbols across all portfolios
   const allSymbols = [...new Set(stocks.map(s => s.symbol))];
@@ -1532,7 +1533,7 @@ export function PortfolioDashboard() {
                     </div>
                     
                     <AssetSearch 
-                      availableAssets={allSymbols.map(sym => ({ symbol: sym, name: livePrices[sym]?.name || '' }))} 
+                      availableAssets={activeSymbols.map(sym => ({ symbol: sym, name: livePrices[sym]?.name || '' }))} 
                       selectedSymbols={searchSelectedSymbols} 
                       onChange={setSearchSelectedSymbols} 
                     />
