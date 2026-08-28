@@ -2348,7 +2348,7 @@ export function PortfolioDashboard() {
         portfolioId={addStockPortfolioId}
         initialSymbol={addStockInitialSymbol}
         initialPrice={addStockInitialPrice}
-        existingSymbols={!addStockInitialSymbol ? allSymbols : []}
+        existingSymbols={!addStockInitialSymbol ? [...new Set(stocks.filter(s => s.portfolio_id === addStockPortfolioId).map(s => s.symbol))] : []}
         onClose={() => { setAddStockPortfolioId(null); setAddStockInitialSymbol(''); setAddStockInitialPrice(undefined); }}
         onAdded={fetchData}
       />
