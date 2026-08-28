@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { X, RefreshCw, AlertCircle, ArrowRight, Check } from 'lucide-react';
 import { api } from '../../../services/api/client';
+import { useCurrency } from '../../../app/providers/CurrencyProvider';
 
 interface SymbolGroup {
   symbol: string;
@@ -28,6 +29,7 @@ interface Trade {
 }
 
 export function RebalanceModal({ isOpen, onClose, portfolioId, symbolGroups, totalCurrentValue, onSuccess }: RebalanceModalProps) {
+  const { currencySymbol, formatCurrency: fmtCurrency } = useCurrency();
   const [isExecuting, setIsExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -169,7 +171,7 @@ export function RebalanceModal({ isOpen, onClose, portfolioId, symbolGroups, tot
                 <div className="bg-surface border border-divider rounded-lg p-4 ">
                   <div className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1">Target Value / Asset</div>
                   <div className="text-xl font-bold text-primary">
-                    ₹{(totalCurrentValue / symbolGroups.length).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {currencySymbol}{(totalCurrentValue / symbolGroups.length).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </div>
                 </div>
                 <div className="bg-surface border border-divider rounded-lg p-4 ">
@@ -183,7 +185,7 @@ export function RebalanceModal({ isOpen, onClose, portfolioId, symbolGroups, tot
                     Net Cash {netCash >= 0 ? 'Generated' : 'Required'}
                   </div>
                   <div className={`text-xl font-bold ${netCash >= 0 ? 'text-success' : 'text-danger'}`}>
-                    {netCash >= 0 ? '+' : ''}₹{Math.abs(netCash).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    {netCash >= 0 ? '+' : ''}{currencySymbol}{Math.abs(netCash).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </div>
                 </div>
               </div>
@@ -217,10 +219,10 @@ export function RebalanceModal({ isOpen, onClose, portfolioId, symbolGroups, tot
                           {trade.qty.toLocaleString()}
                         </td>
                         <td className="px-4 py-3 text-sm text-secondary text-right">
-                          ₹{trade.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {currencySymbol}{trade.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 text-sm font-bold text-primary text-right">
-                          ₹{trade.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {currencySymbol}{trade.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                       </tr>
                     ))}

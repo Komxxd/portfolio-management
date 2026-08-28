@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { ChevronDown } from 'lucide-react';
 import { api } from '../../../services/api/client';
 import { usePortfolioContext } from '../hooks/PortfolioContext';
+import { useCurrency } from '../../../app/providers/CurrencyProvider';
 
 type Timeframe = '1M' | '3M' | '6M' | '1Y' | 'ALL';
 
@@ -19,6 +20,7 @@ interface PerformanceChartProps {
 }
 
 export function PerformanceChart({ selectedPortfolioId = 'ALL' }: PerformanceChartProps) {
+  const { formatCurrencyCompact, formatCurrency, currencySymbol } = useCurrency();
   const [data, setData] = useState<HistoricalDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState<Timeframe>('1Y');
@@ -85,14 +87,8 @@ export function PerformanceChart({ selectedPortfolioId = 'ALL' }: PerformanceCha
     };
   }, [timeframe, selectedPortfolioId, portfolioSignature]);
 
-  const formatCurrency = (value: number) => {
-    if (value >= 10000000) {
-      return `₹${(value / 10000000).toFixed(2)}Cr`;
-    }
-    if (value >= 100000) {
-      return `₹${(value / 100000).toFixed(2)}L`;
-    }
-    return `₹${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  const formatCurrencyLabel = (value: number) => {
+    return formatCurrencyCompact(value);
   };
 
   const formatPercentage = (value: number) => {
@@ -123,7 +119,7 @@ export function PerformanceChart({ selectedPortfolioId = 'ALL' }: PerformanceCha
             <div className="flex items-center justify-between gap-4 pt-1 mt-1 border-t border-divider">
               <span className="text-xs text-secondary">Absolute:</span>
               <span className={`text-xs ${isPositive ? 'text-success' : 'text-danger'}`}>
-                {isPositive ? '+' : ''}₹{pnl.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                {isPositive ? '+' : ''}{formatCurrency(Math.abs(pnl))}
               </span>
             </div>
           </div>

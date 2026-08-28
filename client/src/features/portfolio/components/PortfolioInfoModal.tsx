@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { RefreshCw, Info, X, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { api } from '../../../services/api/client';
+import { useCurrency } from '../../../app/providers/CurrencyProvider';
 import { Plus, Check } from 'lucide-react';
 
 interface PortfolioInfoModalProps {
@@ -32,6 +33,7 @@ interface SplitEvent {
 type UnifiedEvent = DividendEvent | SplitEvent;
 
 export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSuccess, existingEvents = [] }: PortfolioInfoModalProps) {
+  const { currencySymbol, formatCurrency: fmtCurrency } = useCurrency();
   const [loading, setLoading] = useState(false);
   const [syncingAll, setSyncingAll] = useState(false);
   const [addingEventId, setAddingEventId] = useState<string | null>(null);
@@ -447,7 +449,7 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSu
                     <div className="text-right">
                       <div className="text-sm font-bold text-primary">
                         {event.type === 'DIVIDEND' 
-                          ? `₹${event.amount?.toFixed(2)}` 
+                          ? `${event.amount?.toFixed(2)}` 
                           : `${event.numerator}:${event.denominator}`}
                       </div>
                       <div className="text-[9px] text-tertiary mt-0.5 uppercase tracking-wider font-medium">

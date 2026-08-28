@@ -23,6 +23,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { api } from '../../../services/api/client'
 import { usePortfolioContext } from '../hooks/PortfolioContext'
 import { useTheme } from '../../../app/providers/ThemeProvider'
+import { useCurrency } from '../../../app/providers/CurrencyProvider'
 import { useAuth } from '../../../app/providers/AuthProvider'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import { AddStockModal } from '../../stocks/components/AddStockModal'
@@ -299,6 +300,7 @@ export function PortfolioDashboard() {
     fetchData
   } = usePortfolioContext();
   const navigate = useNavigate();
+  const { currencySymbol, formatCurrency: fmtCurrency, formatCurrencyCompact, convert } = useCurrency();
   const { portfolioId } = useParams<{ portfolioId: string }>();
 
   const activePortfolioId = portfolioId || null;
@@ -978,25 +980,30 @@ export function PortfolioDashboard() {
     xirr: 0
   };
 
-  let totalInvestment = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.netCostBasis || 0), 0);
+  let totalInvestment = filteredSymbolGroups.reduce((sum, g: any) => sum + convert(g.netCostBasis || 0, livePrices[g.symbol]?.currency), 0);
   let totalCurrentValue = filteredSymbolGroups.reduce((sum, g: any) => {
     const currentPrice = livePrices[g.symbol]?.price || g.avgBuyPrice || 0;
-    return sum + (g.netQty * currentPrice);
+    return sum + convert(g.netQty * currentPrice, livePrices[g.symbol]?.currency);
   }, 0);
   let totalUnrealizedPnL = filteredSymbolGroups.reduce((sum, g: any) => {
     const currentPrice = livePrices[g.symbol]?.price || g.avgBuyPrice || 0;
     const currentValue = g.netQty * currentPrice;
-    return sum + (currentValue - g.netCostBasis);
+    return sum + convert(currentValue - g.netCostBasis, livePrices[g.symbol]?.currency);
   }, 0);
-  let totalRealizedPnL = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.realizedPnL || 0), 0);
-  let portfolioTotalBrokerage = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.brokerage || 0), 0);
-  let portfolioTotalGovtTax = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.govtTax || 0), 0);
-  let portfolioTotalDividend = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.totalDividend || 0), 0);
-  let portfolioTotalDayGain = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.netQty * (g.liveData?.change || 0)), 0);
-  let portfolioRealizedCostBasis = filteredSymbolGroups.reduce((sum, g: any) => sum + (g.totalBuyCost - g.netCostBasis), 0);
-  let maxNetInvested = summary.maxNetInvested;
+  let totalRealizedPnL = filteredSymbolGroups.reduce((sum, g: any) => sum + convert(g.realizedPnL || 0, livePrices[g.symbol]?.currency), 0);
+  let portfolioTotalBrokerage = filteredSymbolGroups.reduce((sum, g: any) => sum + convert(g.brokerage || 0, livePrices[g.symbol]?.currency), 0);
+  let portfolioTotalGovtTax = filteredSymbolGroups.reduce((sum, g: any) => sum + convert(g.govtTax || 0, livePrices[g.symbol]?.currency), 0);
+  let portfolioTotalDividend = filteredSymbolGroups.reduce((sum, g: any) => sum + convert(g.totalDividend || 0, livePrices[g.symbol]?.currency), 0);
+  let portfolioTotalDayGain = filteredSymbolGroups.reduce((sum, g: any) => sum + convert(g.netQty * (g.liveData?.change || 0), livePrices[g.symbol]?.currency), 0);
+  let portfolioRealizedCostBasis = filteredSymbolGroups.reduce((sum, g: any) => sum + convert(g.totalBuyCost - g.netCostBasis, livePrices[g.symbol]?.currency), 0);
+  let maxNetInvested = convert(summary.maxNetInvested, 'INR');
 
-  const portfolioCashFlows = filteredSymbolGroups.flatMap((g: any) => g.cashFlows || []);
+  const portfolioCashFlows = filteredSymbolGroups.flatMap((g: any) => 
+    (g.cashFlows || []).map((cf: any) => ({
+      ...cf,
+      amount: convert(cf.amount, livePrices[g.symbol]?.currency)
+    }))
+  );
   let portfolioXIRR = 0;
   if (totalCurrentValue > 0 || portfolioCashFlows.length > 0) {
     const xirrCF = [...portfolioCashFlows];
@@ -1280,8 +1287,8 @@ export function PortfolioDashboard() {
             <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
               <span>Max Invested</span>
             </div>
-            <div className="text-xs font-bold text-primary truncate" title={`₹${maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-              ₹{maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className="text-xs font-bold text-primary truncate" title={`${currencySymbol}${maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+              {currencySymbol}{maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
         );
@@ -1292,8 +1299,8 @@ export function PortfolioDashboard() {
             <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
               <span>Net Invested</span>
             </div>
-            <div className="text-xs font-bold text-primary truncate" title={`₹${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-              ₹{totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className="text-xs font-bold text-primary truncate" title={`${currencySymbol}${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+              {currencySymbol}{totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
         );
@@ -1304,8 +1311,8 @@ export function PortfolioDashboard() {
             <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
               <span>Current Value</span>
             </div>
-            <div className="text-xs font-bold text-primary truncate" title={`₹${totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-              ₹{totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className="text-xs font-bold text-primary truncate" title={`${currencySymbol}${totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+              {currencySymbol}{totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
         );
@@ -1321,8 +1328,8 @@ export function PortfolioDashboard() {
                 </span>
               </span>
             </div>
-            <div className={`text-xs font-bold truncate ${totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-              {totalUnrealizedPnL >= 0 ? '+' : ''}₹{totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className={`text-xs font-bold truncate ${totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+              {totalUnrealizedPnL >= 0 ? '+' : ''}{currencySymbol}{totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
         );
@@ -1340,8 +1347,8 @@ export function PortfolioDashboard() {
                 )}
               </span>
             </div>
-            <div className={`text-xs font-bold truncate ${totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-              {totalRealizedPnL >= 0 ? '+' : ''}₹{totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className={`text-xs font-bold truncate ${totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+              {totalRealizedPnL >= 0 ? '+' : ''}{currencySymbol}{totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
         );
@@ -1357,8 +1364,8 @@ export function PortfolioDashboard() {
                 </span>
               </span>
             </div>
-            <div className={`text-xs font-bold truncate text-primary`} title={`₹${portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-              ₹{portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className={`text-xs font-bold truncate text-primary`} title={`${currencySymbol}${portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+              {currencySymbol}{portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
         );
@@ -1369,8 +1376,8 @@ export function PortfolioDashboard() {
             <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
               <span>Brokerage & Tax</span>
             </div>
-            <div className={`text-xs font-bold truncate text-danger`} title={`₹${(portfolioTotalBrokerage + portfolioTotalGovtTax).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-              -₹{(portfolioTotalBrokerage + portfolioTotalGovtTax).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className={`text-xs font-bold truncate text-danger`} title={`${currencySymbol}${(portfolioTotalBrokerage + portfolioTotalGovtTax).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+              -{currencySymbol}{(portfolioTotalBrokerage + portfolioTotalGovtTax).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
         );
@@ -1386,8 +1393,8 @@ export function PortfolioDashboard() {
                 </span>
               </span>
             </div>
-            <div className={`text-xs font-bold truncate ${totalPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-              {totalPnL >= 0 ? '+' : ''}₹{totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className={`text-xs font-bold truncate ${totalPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+              {totalPnL >= 0 ? '+' : ''}{currencySymbol}{totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
         );
@@ -1403,8 +1410,8 @@ export function PortfolioDashboard() {
                 </span>
               </span>
             </div>
-            <div className={`text-xs font-bold truncate ${portfolioTotalDayGain >= 0 ? 'text-success' : 'text-danger'}`} title={`₹${portfolioTotalDayGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
-              {portfolioTotalDayGain >= 0 ? '+' : ''}₹{portfolioTotalDayGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className={`text-xs font-bold truncate ${portfolioTotalDayGain >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${portfolioTotalDayGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+              {portfolioTotalDayGain >= 0 ? '+' : ''}{currencySymbol}{portfolioTotalDayGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
         );
@@ -1719,14 +1726,14 @@ export function PortfolioDashboard() {
                                 case 'symbol':
                                   return <td key="symbol" className="px-2 py-1.5 text-[10px] text-primary uppercase tracking-wider">Total</td>;
                                 case 'netCostBasis':
-                                  return <td key="netCostBasis" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">₹{fmt(totalInvestment)}</td>;
+                                  return <td key="netCostBasis" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(totalInvestment)}</td>;
                                 case 'currentValue':
-                                  return <td key="currentValue" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">₹{fmt(totalCurrentValue)}</td>;
+                                  return <td key="currentValue" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(totalCurrentValue)}</td>;
                                 case 'unrealizedPnL':
                                   return (
                                     <td key="unrealizedPnL" className="px-2 py-1.5 text-[10px] text-right font-mono">
                                       <span className={totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
-                                        {totalUnrealizedPnL >= 0 ? '+' : ''}₹{fmt(totalUnrealizedPnL)}
+                                        {totalUnrealizedPnL >= 0 ? '+' : ''}{currencySymbol}{fmt(totalUnrealizedPnL)}
                                       </span>
                                     </td>
                                   );
@@ -1742,7 +1749,7 @@ export function PortfolioDashboard() {
                                   return (
                                     <td key="realizedPnL" className="px-2 py-1.5 text-[10px] text-right font-mono">
                                       <span className={totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
-                                        {totalRealizedPnL >= 0 ? '+' : ''}₹{fmt(totalRealizedPnL)}
+                                        {totalRealizedPnL >= 0 ? '+' : ''}{currencySymbol}{fmt(totalRealizedPnL)}
                                       </span>
                                     </td>
                                   );
@@ -1761,18 +1768,18 @@ export function PortfolioDashboard() {
                                 case 'totalDividend':
                                   return (
                                     <td key="totalDividend" className="px-2 py-1.5 text-[10px] text-right font-mono text-success">
-                                      ₹{fmt(portfolioTotalDividend)}
+                                      {currencySymbol}{fmt(portfolioTotalDividend)}
                                     </td>
                                   );
                                 case 'brokerage':
-                                  return <td key="brokerage" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">₹{fmt(portfolioTotalBrokerage)}</td>;
+                                  return <td key="brokerage" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(portfolioTotalBrokerage)}</td>;
                                 case 'govtTax':
-                                  return <td key="govtTax" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">₹{fmt(portfolioTotalGovtTax)}</td>;
+                                  return <td key="govtTax" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(portfolioTotalGovtTax)}</td>;
                                 case 'totalPnL':
                                   return (
                                     <td key="totalPnL" className="px-2 py-1.5 text-[10px] text-right font-mono">
                                       <span className={totalNetPnL >= 0 ? 'text-success' : 'text-danger'}>
-                                        {totalNetPnL >= 0 ? '+' : ''}₹{fmt(totalNetPnL)}
+                                        {totalNetPnL >= 0 ? '+' : ''}{currencySymbol}{fmt(totalNetPnL)}
                                       </span>
                                     </td>
                                   );
@@ -1796,7 +1803,7 @@ export function PortfolioDashboard() {
                                   return (
                                     <td key="dayGain" className="px-2 py-1.5 text-[10px] text-right font-mono">
                                       <span className={portfolioTotalDayGain >= 0 ? 'text-success' : 'text-danger'}>
-                                        {portfolioTotalDayGain >= 0 ? '+' : ''}₹{fmt(portfolioTotalDayGain)}
+                                        {portfolioTotalDayGain >= 0 ? '+' : ''}{currencySymbol}{fmt(portfolioTotalDayGain)}
                                       </span>
                                     </td>
                                   );
@@ -1906,9 +1913,9 @@ export function PortfolioDashboard() {
                                     case 'netQty':
                                       return <td key="netQty" className="px-2 py-1.5 text-[10px] font-mono text-right font-semibold text-primary truncate">{group.netQty.toLocaleString()}</td>;
                                     case 'avgBuyPrice':
-                                      return <td key="avgBuyPrice" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">₹{fmt(group.avgBuyPrice)}</td>;
+                                      return <td key="avgBuyPrice" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">{fmtCurrency(group.avgBuyPrice, group.liveData?.currency)}</td>;
                                     case 'netCostBasis':
-                                      return <td key="netCostBasis" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate" title="Avg buy price × remaining shares — money still at work">₹{fmt(group.netCostBasis)}</td>;
+                                      return <td key="netCostBasis" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate" title="Avg buy price × remaining shares — money still at work">{fmtCurrency(group.netCostBasis, group.liveData?.currency)}</td>;
                                     case 'portfolioWeight':
                                       const weight = totalInvestment > 0 ? (group.netCostBasis / totalInvestment) * 100 : 0;
                                       return (
@@ -1924,14 +1931,14 @@ export function PortfolioDashboard() {
                                         </td>
                                       );
                                     case 'livePrice':
-                                      return <td key="livePrice" className="px-2 py-1.5 text-[10px] font-mono text-right font-medium text-primary truncate">₹{fmt(group.livePrice)}</td>;
+                                      return <td key="livePrice" className="px-2 py-1.5 text-[10px] font-mono text-right font-medium text-primary truncate">{fmtCurrency(group.livePrice, group.liveData?.currency)}</td>;
                                     case 'currentValue':
-                                      return <td key="currentValue" className="px-2 py-1.5 text-[10px] font-mono text-right font-medium text-primary truncate">₹{fmt(group.currentValue)}</td>;
+                                      return <td key="currentValue" className="px-2 py-1.5 text-[10px] font-mono text-right font-medium text-primary truncate">{fmtCurrency(group.currentValue, group.liveData?.currency)}</td>;
                                     case 'unrealizedPnL':
                                       return (
                                         <td key="unrealizedPnL" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
                                           <span className={`font-medium ${group.unrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
-                                            {group.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(group.unrealizedPnL)}
+                                            {group.unrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(group.unrealizedPnL, group.liveData?.currency)}
                                           </span>
                                         </td>
                                       );
@@ -1948,7 +1955,7 @@ export function PortfolioDashboard() {
                                         <td key="realizedPnL" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
                                           {group.totalSoldQty > 0 ? (
                                             <span className={`font-medium ${group.realizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
-                                              {group.realizedPnL >= 0 ? '+' : ''}₹{fmt(group.realizedPnL)}
+                                              {group.realizedPnL >= 0 ? '+' : ''}{fmtCurrency(group.realizedPnL, group.liveData?.currency)}
                                             </span>
                                           ) : (
                                             <span className="text-tertiary">—</span>
@@ -1972,7 +1979,7 @@ export function PortfolioDashboard() {
                                         <td key="totalDividend" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
                                           {group.totalDividend > 0 ? (
                                             <span className="font-medium text-success">
-                                              ₹{fmt(group.totalDividend)}
+                                              {fmtCurrency(group.totalDividend, group.liveData?.currency)}
                                             </span>
                                           ) : (
                                             <span className="text-tertiary">—</span>
@@ -1980,14 +1987,14 @@ export function PortfolioDashboard() {
                                         </td>
                                       );
                                     case 'brokerage':
-                                      return <td key="brokerage" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">₹{fmt(group.brokerage)}</td>;
+                                      return <td key="brokerage" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">{fmtCurrency(group.brokerage, group.liveData?.currency)}</td>;
                                     case 'govtTax':
-                                      return <td key="govtTax" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">₹{fmt(group.govtTax)}</td>;
+                                      return <td key="govtTax" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">{fmtCurrency(group.govtTax, group.liveData?.currency)}</td>;
                                     case 'totalPnL':
                                       return (
                                         <td key="totalPnL" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
                                           <span className={`font-medium ${group.totalPnL >= 0 ? 'text-success' : 'text-danger'}`}>
-                                            {group.totalPnL >= 0 ? '+' : ''}₹{fmt(group.totalPnL)}
+                                            {group.totalPnL >= 0 ? '+' : ''}{fmtCurrency(group.totalPnL, group.liveData?.currency)}
                                           </span>
                                         </td>
                                       );
@@ -2009,7 +2016,7 @@ export function PortfolioDashboard() {
                                       const priceChange = group.liveData?.change || 0;
                                       return (
                                         <td key="priceChange" className={`px-2 py-1.5 text-[9px] font-medium ${priceChange >= 0 ? 'text-success' : 'text-danger'} truncate`}>
-                                          {priceChange >= 0 ? '+' : ''}₹{fmt(priceChange)}
+                                          {priceChange >= 0 ? '+' : ''}{fmtCurrency(priceChange, group.liveData?.currency)}
                                         </td>
                                       );
                                     case 'changePercent':
@@ -2020,17 +2027,17 @@ export function PortfolioDashboard() {
                                         </td>
                                       );
                                     case 'dayHigh':
-                                      return <td key="dayHigh" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.dayHigh ? `₹${fmt(group.liveData.dayHigh)}` : '—'}</td>;
+                                      return <td key="dayHigh" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.dayHigh ? `${currencySymbol}${fmt(group.liveData.dayHigh)}` : '—'}</td>;
                                     case 'dayLow':
-                                      return <td key="dayLow" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.dayLow ? `₹${fmt(group.liveData.dayLow)}` : '—'}</td>;
+                                      return <td key="dayLow" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.dayLow ? `${currencySymbol}${fmt(group.liveData.dayLow)}` : '—'}</td>;
                                     case '52wkHigh':
-                                      return <td key="52wkHigh" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.fiftyTwoWeekHigh ? `₹${fmt(group.liveData.fiftyTwoWeekHigh)}` : '—'}</td>;
+                                      return <td key="52wkHigh" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.fiftyTwoWeekHigh ? `${currencySymbol}${fmt(group.liveData.fiftyTwoWeekHigh)}` : '—'}</td>;
                                     case '52wkLow':
-                                      return <td key="52wkLow" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.fiftyTwoWeekLow ? `₹${fmt(group.liveData.fiftyTwoWeekLow)}` : '—'}</td>;
+                                      return <td key="52wkLow" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.fiftyTwoWeekLow ? `${currencySymbol}${fmt(group.liveData.fiftyTwoWeekLow)}` : '—'}</td>;
                                     case 'marketCap':
                                       return (
                                         <td key="marketCap" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">
-                                          {group.liveData?.marketCap ? `₹${(group.liveData.marketCap / 10000000).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Cr` : '—'}
+                                          {group.liveData?.marketCap ? formatCurrencyCompact(group.liveData.marketCap, group.liveData?.currency) : '—'}
                                         </td>
                                       );
                                     case 'volume':
@@ -2041,14 +2048,14 @@ export function PortfolioDashboard() {
                                       const tradeVal = (group.liveData?.volume || 0) * (group.liveData?.price || 0);
                                       return (
                                         <td key="tradeValue" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">
-                                          {tradeVal > 0 ? `₹${(tradeVal / 10000000).toFixed(2)} Cr` : '—'}
+                                          {tradeVal > 0 ? formatCurrencyCompact(tradeVal, group.liveData?.currency) : '—'}
                                         </td>
                                       );
                                     case 'dayGain':
                                       const dayGain = group.netQty * (group.liveData?.change || 0);
                                       return (
                                         <td key="dayGain" className={`px-2 py-1.5 text-[9px] font-medium ${dayGain >= 0 ? 'text-success' : 'text-danger'} truncate`}>
-                                          {dayGain >= 0 ? '+' : ''}₹{fmt(dayGain)}
+                                          {dayGain >= 0 ? '+' : ''}{fmtCurrency(dayGain, group.liveData?.currency)}
                                         </td>
                                       );
                                     case 'dayGainPct':
@@ -2128,13 +2135,13 @@ export function PortfolioDashboard() {
                                                           {new Date(lot.history[lot.history.length - 1].date).toLocaleDateString()}
                                                         </td>
                                                         <td className="py-1 font-bold text-primary">{lot.buyQty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}</td>
-                                                        <td className="py-1 text-secondary font-semibold">₹{fmt(lot.entryPrice)}</td>
-                                                        <td className="py-1 text-secondary font-medium">₹{fmt(lot.cost)}</td>
+                                                        <td className="py-1 text-secondary font-semibold">{fmtCurrency(lot.entryPrice, group.liveData?.currency)}</td>
+                                                        <td className="py-1 text-secondary font-medium">{fmtCurrency(lot.cost, group.liveData?.currency)}</td>
                                                         <td></td>
                                                         <td></td>
                                                         <td className="py-1 font-medium">
                                                           <span className={lot.unrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
-                                                            {lot.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(lot.unrealizedPnL)}
+                                                            {lot.unrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(lot.unrealizedPnL, group.liveData?.currency)}
                                                           </span>
                                                           <span className="text-[9px] ml-1 text-tertiary">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
                                                         </td>
@@ -2169,20 +2176,20 @@ export function PortfolioDashboard() {
                                                               : ev.qty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}
                                                           </td>
                                                           <td className="py-1 text-tertiary">
-                                                            {ev.type === 'SPLIT' ? '—' : ev.type === 'DIVIDEND' ? `₹${fmt(ev.qty)}/sh` : (ev.price !== undefined ? `₹${fmt(ev.price)}` : '₹0.00')}
+                                                            {ev.type === 'SPLIT' ? '—' : ev.type === 'DIVIDEND' ? `${currencySymbol}${fmt(ev.qty)}/sh` : (ev.price !== undefined ? `${currencySymbol}${fmt(ev.price)}` : `${currencySymbol}0.00`)}
                                                           </td>
-                                                          <td className="py-1 text-secondary font-medium">{eventCost > 0 ? `₹${fmt(eventCost)}` : '—'}</td>
+                                                          <td className="py-1 text-secondary font-medium">{eventCost > 0 ? `${currencySymbol}${fmt(eventCost)}` : '—'}</td>
                                                           <td className="py-1 text-secondary text-[10px]">
-                                                            {ev.brokerage ? `₹${fmt(ev.brokerage)}` : '—'}
+                                                            {ev.brokerage ? `${currencySymbol}${fmt(ev.brokerage)}` : '—'}
                                                           </td>
                                                           <td className="py-1 text-secondary text-[10px]">
-                                                            {ev.govtTax ? `₹${fmt(ev.govtTax)}` : '—'}
+                                                            {ev.govtTax ? `${currencySymbol}${fmt(ev.govtTax)}` : '—'}
                                                           </td>
                                                           <td className="py-1 font-medium">
                                                             {isBuy ? (
                                                               <>
                                                                 <span className={eventUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
-                                                                  {eventUnrealizedPnL >= 0 ? '+' : ''}₹{fmt(eventUnrealizedPnL)}
+                                                                  {eventUnrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(eventUnrealizedPnL, group.liveData?.currency)}
                                                                 </span>
                                                                 <span className="text-[9px] ml-1 text-tertiary">({eventUnrealizedPct >= 0 ? '+' : ''}{eventUnrealizedPct.toFixed(2)}%)</span>
                                                               </>
@@ -2216,11 +2223,11 @@ export function PortfolioDashboard() {
                                                         </td>
                                                         <td className="py-1 text-secondary">{new Date(lot.buy.entry_date).toLocaleDateString()}</td>
                                                         <td className="py-1 font-medium text-primary">{lot.buyQty.toLocaleString()}</td>
-                                                        <td className="py-1 text-secondary">₹{fmt(lot.entryPrice)}</td>
-                                                        <td className="py-1 text-secondary font-medium">₹{fmt(lot.cost)}</td>
+                                                        <td className="py-1 text-secondary">{fmtCurrency(lot.entryPrice, group.liveData?.currency)}</td>
+                                                        <td className="py-1 text-secondary font-medium">{fmtCurrency(lot.cost, group.liveData?.currency)}</td>
                                                         <td className="py-1 font-medium">
                                                           <span className={lot.unrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
-                                                            {lot.unrealizedPnL >= 0 ? '+' : ''}₹{fmt(lot.unrealizedPnL)}
+                                                            {lot.unrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(lot.unrealizedPnL, group.liveData?.currency)}
                                                           </span>
                                                           <span className="text-[9px] ml-1 text-tertiary">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
                                                         </td>
@@ -2253,7 +2260,7 @@ export function PortfolioDashboard() {
                                                     </span>
                                                     {lot.matchedSells.length > 0 && (
                                                       <span className={`text-[10px] font-semibold ${lot.realizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
-                                                        (Realized: {lot.realizedPnL >= 0 ? '+' : ''}₹{fmt(lot.realizedPnL)})
+                                                        (Realized: {lot.realizedPnL >= 0 ? '+' : ''}{fmtCurrency(lot.realizedPnL, group.liveData?.currency)})
                                                       </span>
                                                     )}
                                                   </div>
@@ -2290,13 +2297,13 @@ export function PortfolioDashboard() {
                                                             </td>
                                                             <td className="py-1 text-secondary">{new Date(sellAlloc.exit_date).toLocaleDateString()}</td>
                                                             <td className="py-1 font-medium text-primary">{sellAlloc.quantity.toLocaleString()}</td>
-                                                            <td className="py-1 text-secondary">₹{fmt(sellAlloc.exit_price)}</td>
-                                                            <td className="py-1 text-secondary font-medium">₹{fmt(sellAlloc.proceeds)}</td>
-                                                            <td className="py-1 text-secondary text-[10px]">{sellAlloc.brokerage ? `₹${fmt(sellAlloc.brokerage)}` : '—'}</td>
-                                                            <td className="py-1 text-secondary text-[10px]">{sellAlloc.govtTax ? `₹${fmt(sellAlloc.govtTax)}` : '—'}</td>
+                                                            <td className="py-1 text-secondary">{fmtCurrency(sellAlloc.exit_price, group.liveData?.currency)}</td>
+                                                            <td className="py-1 text-secondary font-medium">{fmtCurrency(sellAlloc.proceeds, group.liveData?.currency)}</td>
+                                                            <td className="py-1 text-secondary text-[10px]">{sellAlloc.brokerage ? `${currencySymbol}${fmt(sellAlloc.brokerage)}` : '—'}</td>
+                                                            <td className="py-1 text-secondary text-[10px]">{sellAlloc.govtTax ? `${currencySymbol}${fmt(sellAlloc.govtTax)}` : '—'}</td>
                                                             <td className="py-1 font-medium">
                                                               <span className={sellAlloc.realizedPnL >= 0 ? 'text-success' : 'text-danger'}>
-                                                                {sellAlloc.realizedPnL >= 0 ? '+' : ''}₹{fmt(sellAlloc.realizedPnL)}
+                                                                {sellAlloc.realizedPnL >= 0 ? '+' : ''}{fmtCurrency(sellAlloc.realizedPnL, group.liveData?.currency)}
                                                               </span>
                                                               {sellAlloc.type !== 'DIVIDEND' && (
                                                                 <span className="text-[9px] ml-1 text-tertiary">({realPnlPct >= 0 ? '+' : ''}{realPnlPct.toFixed(2)}%)</span>

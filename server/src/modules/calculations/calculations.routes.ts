@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authMiddleware } from '../../middleware/auth';
 import { calculatePortfolioStats } from './pnl.service';
 import { fetchPrices } from '../prices/prices.service';
+import { getExchangeRate } from '../prices/exchange-rate.service';
 import type { Stock, SoldStock } from '../../shared/types';
 
 const router = Router();
@@ -31,8 +32,10 @@ router.get('/portfolio/:id/summary', authMiddleware, async (req: any, res: any) 
     
     const livePrices = uniqueSymbols.length > 0 ? await fetchPrices(uniqueSymbols) : {};
 
+    const usdToInrRate = await getExchangeRate('USD', 'INR');
+
     // 3. Calculate stats
-    const result = calculatePortfolioStats(stocks, soldStocks, livePrices);
+    const result = calculatePortfolioStats(stocks, soldStocks, livePrices, usdToInrRate);
     
     // Add weights
     if (result.summary.totalInvestment > 0) {
@@ -90,6 +93,8 @@ router.get('/dashboard/stats', authMiddleware, async (req: any, res: any) => {
     
     const livePrices = uniqueSymbols.length > 0 ? await fetchPrices(uniqueSymbols) : {};
 
+    const usdToInrRate = await getExchangeRate('USD', 'INR');
+    
     // 3. Calculate global stats (filtered by multi-select if provided)
     let targetPortfolioIds = activePortfolioIds;
     if (req.query.portfolioIds && req.query.portfolioIds !== 'ALL') {
@@ -101,7 +106,7 @@ router.get('/dashboard/stats', authMiddleware, async (req: any, res: any) => {
     }
     const filteredStocks = stocks.filter((s: any) => targetPortfolioIds.includes(s.portfolio_id));
     const filteredSoldStocks = soldStocks.filter((s: any) => targetPortfolioIds.includes(s.portfolio_id));
-    const result = calculatePortfolioStats(filteredStocks, filteredSoldStocks, livePrices);
+    const result = calculatePortfolioStats(filteredStocks, filteredSoldStocks, livePrices, usdToInrRate);
     
     // 4. Calculate per-portfolio stats
     const portfolioSummaries: Record<string, any> = {};
@@ -109,7 +114,7 @@ router.get('/dashboard/stats', authMiddleware, async (req: any, res: any) => {
       const pStocks = stocks.filter((s: any) => s.portfolio_id === pid);
       const pSoldStocks = soldStocks.filter((s: any) => s.portfolio_id === pid);
       if (pStocks.length > 0 || pSoldStocks.length > 0) {
-         const pResult = calculatePortfolioStats(pStocks, pSoldStocks, livePrices);
+         const pResult = calculatePortfolioStats(pStocks, pSoldStocks, livePrices, usdToInrRate);
          portfolioSummaries[pid] = pResult.summary;
       }
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Search } from 'lucide-react';
 import { api } from '../../../services/api/client';
+import { useCurrency } from '../../../app/providers/CurrencyProvider';
 
 interface AddStockModalProps {
   isOpen: boolean;
@@ -297,7 +298,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
               
               <div>
                 <label htmlFor="entryPrice" className="block text-sm font-medium text-secondary mb-1">
-                  Entry Price (₹)
+                  Entry Price ({currencySymbol})
                 </label>
                 <input
                   type="number"
@@ -330,7 +331,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
 
                 <div>
                   <label htmlFor="value" className="block text-sm font-medium text-secondary mb-1">
-                    Value (₹)
+                    Value ({currencySymbol})
                   </label>
                   <input
                     type="number"
@@ -348,7 +349,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
               <div className="col-span-2 grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="brokerage" className="block text-sm font-medium text-secondary mb-1">
-                    Brokerage (₹)
+                    Brokerage ({currencySymbol})
                   </label>
                   <input
                     type="number"
@@ -364,7 +365,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
 
                 <div>
                   <label htmlFor="govtTax" className="block text-sm font-medium text-secondary mb-1">
-                    Govt Tax (₹)
+                    Govt Tax ({currencySymbol})
                   </label>
                   <input
                     type="number"

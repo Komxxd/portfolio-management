@@ -7,6 +7,7 @@ import { CSS } from '@dnd-kit/utilities';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../../services/api/client';
 import { usePortfolioContext } from '../hooks/PortfolioContext';
+import { useCurrency } from '../../../app/providers/CurrencyProvider';
 
 import { CreatePortfolioModal } from '../components/CreatePortfolioModal';
 import { RenamePortfolioModal } from '../components/RenamePortfolioModal';
@@ -153,6 +154,7 @@ function AutoScaleRow({ children, className = '' }: { children: React.ReactNode,
 
 export function HomeDashboard() {
   const { portfolios, setPortfolios, stocks, setIsCreateModalOpen, isCreateModalOpen, fetchData } = usePortfolioContext();
+  const { currencySymbol, formatCurrency: fmtCurrency, formatCurrencyCompact, convert } = useCurrency();
   const navigate = useNavigate();
   const [homeStats, setHomeStats] = useState<any>(null);
   const [portfolioSummaries, setPortfolioSummaries] = useState<Record<string, any>>({});
@@ -415,7 +417,7 @@ export function HomeDashboard() {
           <div key="totalPnL" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">Total P&L</span>
             <span className={`text-[15px] font-semibold ${homeStats.totalPnL >= 0 ? 'text-success' : 'text-danger'}`}>
-              {homeStats.totalPnL >= 0 ? '+' : ''}₹{homeStats.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {homeStats.totalPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(homeStats.totalPnL))}
               <span className="ml-1.5 text-xs opacity-90 font-medium">({homeStats.totalPnLPercent >= 0 ? '+' : ''}{homeStats.totalPnLPercent.toFixed(2)}%)</span>
             </span>
           </div>
@@ -423,20 +425,20 @@ export function HomeDashboard() {
       case 'netInvested': return (
           <div key="netInvested" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">Net Invested</span>
-            <span className="text-[15px] font-semibold text-primary">₹{homeStats.totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-[15px] font-semibold text-primary">{fmtCurrency(homeStats.totalInvestment)}</span>
           </div>
       );
       case 'maxNetInvested': return (
           <div key="maxNetInvested" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">Max Invested</span>
-            <span className="text-[15px] font-semibold text-primary">₹{homeStats.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-[15px] font-semibold text-primary">{fmtCurrency(homeStats.maxNetInvested)}</span>
           </div>
       );
       case 'dayGain': return (
           <div key="dayGain" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">Day Gain</span>
             <span className={`text-[15px] font-semibold ${homeStats.totalDayGain >= 0 ? 'text-success' : 'text-danger'}`}>
-              {homeStats.totalDayGain >= 0 ? '+' : ''}₹{(homeStats.totalDayGain || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {homeStats.totalDayGain >= 0 ? '+' : ''}{fmtCurrency(Math.abs(homeStats.totalDayGain || 0))}
               <span className="ml-1.5 opacity-90 text-sm font-medium">
                 ({homeStats.totalDayGainPercent >= 0 ? '+' : ''}{(homeStats.totalDayGainPercent || 0).toFixed(2)}%)
               </span>
@@ -447,7 +449,7 @@ export function HomeDashboard() {
           <div key="unrealizedPnL" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">Unrealized P&L</span>
             <span className={`text-[15px] font-semibold ${homeStats.totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
-              {homeStats.totalUnrealizedPnL >= 0 ? '+' : ''}₹{homeStats.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {homeStats.totalUnrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(homeStats.totalUnrealizedPnL))}
               <span className="ml-1.5 opacity-90 text-sm font-medium">
                 ({homeStats.totalUnrealizedPnL >= 0 ? '+' : ''}{homeStats.totalInvestment > 0 ? ((homeStats.totalUnrealizedPnL / homeStats.totalInvestment) * 100).toFixed(2) : '0.00'}%)
               </span>
@@ -458,14 +460,14 @@ export function HomeDashboard() {
           <div key="realizedPnL" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">Realized P&L</span>
             <span className={`text-[15px] font-semibold ${homeStats.totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
-              {homeStats.totalRealizedPnL >= 0 ? '+' : ''}₹{homeStats.totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {homeStats.totalRealizedPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(homeStats.totalRealizedPnL))}
             </span>
           </div>
       );
       case 'currentValue': return (
           <div key="currentValue" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">Current Value</span>
-            <span className="text-[15px] font-semibold text-primary">₹{homeStats.totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-[15px] font-semibold text-primary">{fmtCurrency(homeStats.totalCurrentValue)}</span>
           </div>
       );
       case 'xirr': return (
@@ -480,7 +482,7 @@ export function HomeDashboard() {
           <div key="totalDividend" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">Total Dividend</span>
             <span className="text-[15px] font-semibold text-primary">
-              ₹{homeStats.totalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {fmtCurrency(homeStats.totalDividend)}
               <span className="ml-1.5 opacity-90 text-sm font-medium text-success">
                 ({homeStats.totalInvestment > 0 ? ((homeStats.totalDividend / homeStats.totalInvestment) * 100).toFixed(2) : '0.00'}%)
               </span>
@@ -491,7 +493,7 @@ export function HomeDashboard() {
           <div key="brokerage" className="flex flex-col shrink-0">
             <span className="text-xs text-secondary mb-1 flex items-center gap-1">Brokerage & Tax</span>
             <span className="text-[15px] font-semibold text-danger">
-              -₹{totalBrokerageAndTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              -{fmtCurrency(totalBrokerageAndTax)}
             </span>
           </div>
       );
@@ -662,47 +664,47 @@ export function HomeDashboard() {
                     if (!visibleStats.has(id)) return null;
                     switch (id) {
                       case 'totalStocks': return renderMiniCard("Total Stocks", pSymbols.length, "text-primary", id);
-                      case 'maxNetInvested': return renderMiniCard("Max Invested", `₹${ps.maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "text-primary", id);
-                      case 'netInvested': return renderMiniCard("Net Invested", `₹${ps.totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "text-primary", id);
+                      case 'maxNetInvested': return renderMiniCard("Max Invested", fmtCurrency(ps.maxNetInvested), "text-primary", id);
+                      case 'netInvested': return renderMiniCard("Net Invested", fmtCurrency(ps.totalInvestment), "text-primary", id);
                       case 'unrealizedPnL': return renderMiniCard(
                         `Unrealized PnL`,
-                        <span>{ps.totalUnrealizedPnL >= 0 ? '+' : ''}₹{ps.totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[9px] font-medium opacity-80">({ps.totalUnrealizedPnL >= 0 ? '+' : ''}{ps.unrealizedPnLPercent.toFixed(2)}%)</span></span>,
+                        <span>{ps.totalUnrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(ps.totalUnrealizedPnL))} <span className="text-[9px] font-medium opacity-80">({ps.totalUnrealizedPnL >= 0 ? '+' : ''}{ps.unrealizedPnLPercent.toFixed(2)}%)</span></span>,
                         ps.totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger',
                         id
                       );
                       case 'realizedPnL': return renderMiniCard(
                         "Realized PnL",
-                        `${ps.totalRealizedPnL >= 0 ? '+' : ''}₹${ps.totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        `${ps.totalRealizedPnL >= 0 ? '+' : ''}${fmtCurrency(Math.abs(ps.totalRealizedPnL))}`,
                         ps.totalRealizedPnL >= 0 ? 'text-success' : 'text-danger',
                         id
                       );
                       case 'totalDividend': return renderMiniCard(
                         `Dividend`,
-                        <span>₹{ps.totalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[9px] font-medium opacity-80">({ps.totalInvestment > 0 ? ((ps.totalDividend / ps.totalInvestment) * 100).toFixed(2) : '0.00'}%)</span></span>,
+                        <span>{fmtCurrency(ps.totalDividend)} <span className="text-[9px] font-medium opacity-80">({ps.totalInvestment > 0 ? ((ps.totalDividend / ps.totalInvestment) * 100).toFixed(2) : '0.00'}%)</span></span>,
                         "text-primary",
                         id
                       );
                       case 'dayGain': return renderMiniCard(
                         `Day Gain`,
-                        <span>{ps.totalDayGain >= 0 ? '+' : ''}₹{(ps.totalDayGain || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[9px] font-medium opacity-80">({ps.totalDayGainPercent >= 0 ? '+' : ''}{ps.totalDayGainPercent.toFixed(2)}%)</span></span>,
+                        <span>{ps.totalDayGain >= 0 ? '+' : ''}{fmtCurrency(Math.abs(ps.totalDayGain || 0))} <span className="text-[9px] font-medium opacity-80">({ps.totalDayGainPercent >= 0 ? '+' : ''}{ps.totalDayGainPercent.toFixed(2)}%)</span></span>,
                         ps.totalDayGain >= 0 ? 'text-success' : 'text-danger',
                         id
                       );
                       case 'totalPnL': return renderMiniCard(
                         `Total PnL`,
-                        <span>{ps.totalPnL >= 0 ? '+' : ''}₹{ps.totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[9px] font-medium opacity-80">({ps.totalPnLPercent >= 0 ? '+' : ''}{ps.totalPnLPercent.toFixed(2)}%)</span></span>,
+                        <span>{ps.totalPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(ps.totalPnL))} <span className="text-[9px] font-medium opacity-80">({ps.totalPnLPercent >= 0 ? '+' : ''}{ps.totalPnLPercent.toFixed(2)}%)</span></span>,
                         ps.totalPnL >= 0 ? 'text-success' : 'text-danger',
                         id
                       );
                       case 'currentValue': return renderMiniCard(
                         "Current Value",
-                        `₹${ps.totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        fmtCurrency(ps.totalCurrentValue),
                         "text-primary",
                         id
                       );
                       case 'brokerage': return renderMiniCard(
                         "Brokerage & Tax",
-                        `-₹${((ps.totalBrokerage || 0) + (ps.totalGovtTax || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                        `-${fmtCurrency((ps.totalBrokerage || 0) + (ps.totalGovtTax || 0))}`,
                         "text-danger",
                         id
                       );

@@ -62,6 +62,7 @@ export async function fetchPrices(symbols: string[]): Promise<Record<string, Liv
           const priceData: LivePrice = {
             price: q.regularMarketPrice,
             name: q.shortName || q.longName || (q as any).shortname || (q as any).longname || q.symbol,
+            currency: (q as any).currency || undefined,
             change: q.regularMarketChange,
             changePercent: q.regularMarketChangePercent,
             dayHigh: q.regularMarketDayHigh,

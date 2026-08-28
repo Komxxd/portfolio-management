@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useCurrency } from '../../../app/providers/CurrencyProvider';
 import { X, ChevronDown, AlertCircle, Search } from 'lucide-react';
 import { api } from '../../../services/api/client';
 
@@ -20,6 +21,7 @@ interface OwnedStock {
 }
 
 export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialSymbol, initialPrice }: SellStockModalProps) {
+  const { currencySymbol, formatCurrency: fmtCurrency } = useCurrency();
   const [ownedStocks, setOwnedStocks] = useState<OwnedStock[]>([]);
   const [loadingStocks, setLoadingStocks] = useState(false);
 
@@ -335,7 +337,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
 
               <div>
                 <label htmlFor="exitPrice" className="block text-sm font-medium text-secondary mb-1">
-                  Exit Price (₹)
+                  Exit Price ({currencySymbol})
                 </label>
                 <input
                   type="number"
@@ -386,7 +388,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
 
                 <div>
                   <label htmlFor="sell-value" className="block text-sm font-medium text-secondary mb-1">
-                    Value (₹)
+                    Value ({currencySymbol})
                   </label>
                   <input
                     type="number"
@@ -405,7 +407,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
               <div className="col-span-2 grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="brokerage" className="block text-sm font-medium text-secondary mb-1">
-                    Brokerage (₹)
+                    Brokerage ({currencySymbol})
                   </label>
                   <input
                     type="number"
@@ -422,7 +424,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
 
                 <div>
                   <label htmlFor="govtTax" className="block text-sm font-medium text-secondary mb-1">
-                    Govt Tax (₹)
+                    Govt Tax ({currencySymbol})
                   </label>
                   <input
                     type="number"

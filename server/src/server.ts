@@ -10,6 +10,7 @@ import portfoliosRoutes from './modules/portfolios/portfolios.routes';
 import stocksRoutes from './modules/stocks/stocks.routes';
 import soldStocksRoutes from './modules/sold-stocks/sold-stocks.routes';
 import pricesRoutes from './modules/prices/prices.routes';
+import exchangeRateRoutes from './modules/prices/exchange-rate.routes';
 import searchRoutes from './modules/search/search.routes';
 import corporateActionsRoutes from './modules/corporate-actions/corporate-actions.routes';
 import authRoutes from './modules/auth/auth.routes';
@@ -51,6 +52,7 @@ app.use('/api/portfolios', portfoliosRoutes);
 app.use('/api/stocks', stocksRoutes);
 app.use('/api/sold-stocks', soldStocksRoutes);
 app.use('/api/prices', pricesRoutes);
+app.use('/api/exchange-rate', exchangeRateRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/calculations', calculationsRoutes);
 

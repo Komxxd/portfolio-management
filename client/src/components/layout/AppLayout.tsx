@@ -3,6 +3,7 @@ import { Plus, Briefcase, Trash2, Pencil, ChevronRight, ChevronDown, Info, User,
 import { api } from '../../services/api/client'
 import { usePortfolioContext } from '../../features/portfolio/hooks/PortfolioContext'
 import { useTheme } from '../../app/providers/ThemeProvider'
+import { useCurrency } from '../../app/providers/CurrencyProvider'
 import { useAuth } from '../../app/providers/AuthProvider'
 import { useNavigate, useLocation, useParams, Outlet } from 'react-router-dom'
 import { GlobalSearch } from './GlobalSearch'
@@ -14,6 +15,7 @@ import { ConfirmationModal } from '../ui/ConfirmationModal'
 export function AppLayout() {
   const { session, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { displayCurrency, setDisplayCurrency, currencySymbol } = useCurrency();
 
   const {
     portfolios,
@@ -135,6 +137,14 @@ export function AppLayout() {
               title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
+
+            <button
+              onClick={() => setDisplayCurrency(displayCurrency === 'INR' ? 'USD' : 'INR')}
+              className="w-7 h-7 rounded-full flex items-center justify-center transition-colors border bg-surface-hover text-secondary border-divider hover:bg-divider font-semibold text-[11px]"
+              title={`Display Currency: ${displayCurrency}. Click to switch to ${displayCurrency === 'INR' ? 'USD' : 'INR'}`}
+            >
+              {currencySymbol}
             </button>
 
             <button

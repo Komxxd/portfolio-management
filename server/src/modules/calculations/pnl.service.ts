@@ -23,7 +23,8 @@ export interface PortfolioSummaryStats {
 export function calculatePortfolioStats(
   stocks: Stock[],
   soldStocks: SoldStock[],
-  livePrices: Record<string, LivePrice>
+  livePrices: Record<string, LivePrice>,
+  usdToInrRate: number = 1
 ) {
   const allSymbols = [...new Set([
     ...stocks.map(s => s.symbol),
@@ -225,20 +226,27 @@ export function calculatePortfolioStats(
     }
     const xirr = calculateXIRR(xirrCashFlows);
 
+    const currency = livePrices[symbol]?.currency || 'INR';
+    const convRate = currency.toUpperCase() === 'USD' ? usdToInrRate : 1;
+
     if (netQty > 0) {
       totalStocks++;
-      totalInvestment += netCostBasis;
-      totalCurrentValue += currentValue;
-      totalUnrealizedPnL += unrealizedPnL;
-      totalDayGain += dayGain;
+      totalInvestment += netCostBasis * convRate;
+      totalCurrentValue += currentValue * convRate;
+      totalUnrealizedPnL += unrealizedPnL * convRate;
+      totalDayGain += dayGain * convRate;
     }
-    totalRealizedPnL += realizedPnL;
-    totalBrokerage += symBrokerage;
-    totalGovtTax += symGovtTax;
-    totalDividend += stockTotalDividend;
+    totalRealizedPnL += realizedPnL * convRate;
+    totalBrokerage += symBrokerage * convRate;
+    totalGovtTax += symGovtTax * convRate;
+    totalDividend += stockTotalDividend * convRate;
 
     stockCashFlows.forEach(cf => {
-      allTransactions.push({ date: cf.date, amount: cf.amount, activeInvestedDelta: cf.activeInvestedDelta });
+      allTransactions.push({ 
+        date: cf.date, 
+        amount: cf.amount * convRate, 
+        activeInvestedDelta: cf.activeInvestedDelta * convRate 
+      });
     });
 
     return {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, RefreshCw, Plus, Check } from 'lucide-react';
 import { api } from '../../../services/api/client';
+import { useCurrency } from '../../../app/providers/CurrencyProvider';
 
 interface CorporateActionModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ interface SplitEvent {
 
 
 export function CorporateActionsViewerModal({ isOpen, onClose, symbol, portfolioId, onSuccess, existingEvents = [] }: CorporateActionModalProps) {
+  const { currencySymbol, formatCurrency: fmtCurrency } = useCurrency();
   const [loading, setLoading] = useState(false);
   const [syncingAll, setSyncingAll] = useState(false);
   const [addingEventId, setAddingEventId] = useState<string | null>(null);
@@ -380,7 +382,7 @@ export function CorporateActionsViewerModal({ isOpen, onClose, symbol, portfolio
                     <div className="text-right">
                       <div className="text-sm font-bold text-primary">
                         {event.type === 'DIVIDEND' 
-                          ? `₹${event.amount?.toFixed(2)}` 
+                          ? `${event.amount?.toFixed(2)}` 
                           : `${event.numerator}:${event.denominator}`}
                       </div>
                       <div className="text-[10px] text-tertiary mt-0.5 uppercase tracking-wider">

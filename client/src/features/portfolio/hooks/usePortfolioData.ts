@@ -15,6 +15,7 @@ export function usePortfolioData() {
   const [livePrices, setLivePrices] = useState<Record<string, { 
     price: number; 
     name: string;
+    currency?: string;
     change?: number;
     changePercent?: number;
     dayHigh?: number;

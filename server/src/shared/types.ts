@@ -38,6 +38,7 @@ export interface SoldStock {
 export interface LivePrice {
   price: number;
   name: string;
+  currency?: string;
   change?: number;
   changePercent?: number;
   dayHigh?: number;

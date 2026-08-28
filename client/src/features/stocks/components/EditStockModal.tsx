@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useCurrency } from '../../../app/providers/CurrencyProvider';
 import { X } from 'lucide-react';
 import { api } from '../../../services/api/client';
 
@@ -21,6 +22,7 @@ interface EditStockModalProps {
 }
 
 export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockModalProps) {
+  const { currencySymbol, formatCurrency: fmtCurrency } = useCurrency();
   const [quantity, setQuantity] = useState('');
   const [value, setValue] = useState('');
   const [entryPrice, setEntryPrice] = useState('');
@@ -152,7 +154,7 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
             {!isCorporateAction && (
               <div>
                 <label htmlFor="editEntryPrice" className="block text-sm font-medium text-secondary mb-1">
-                  Entry Price (₹)
+                  Entry Price ({currencySymbol})
                 </label>
                 <input
                   type="number"
@@ -169,7 +171,7 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
             <div className={`col-span-2 ${!isCorporateAction ? 'grid grid-cols-3 gap-4' : ''}`}>
               <div>
                 <label htmlFor="editQuantity" className="block text-sm font-medium text-secondary mb-1">
-                  {isSplit ? 'Split Multiplier' : isDividend ? 'Dividend Per Share (₹)' : 'Quantity'}
+                  {isSplit ? 'Split Multiplier' : isDividend ? 'Dividend Per Share ({currencySymbol})' : 'Quantity'}
                 </label>
                 <input
                   type="number"
@@ -185,7 +187,7 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
               {!isCorporateAction && (
                 <div>
                   <label htmlFor="editValue" className="block text-sm font-medium text-secondary mb-1">
-                    Value (₹)
+                    Value ({currencySymbol})
                   </label>
                   <input
                     type="number"
@@ -204,7 +206,7 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
                 <>
                   <div>
                     <label htmlFor="editBrokerage" className="block text-sm font-medium text-secondary mb-1">
-                      Brokerage (₹)
+                      Brokerage ({currencySymbol})
                     </label>
                     <input
                       type="number"
@@ -219,7 +221,7 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
 
                   <div>
                     <label htmlFor="editGovtTax" className="block text-sm font-medium text-secondary mb-1">
-                      Govt Tax (₹)
+                      Govt Tax ({currencySymbol})
                     </label>
                     <input
                       type="number"

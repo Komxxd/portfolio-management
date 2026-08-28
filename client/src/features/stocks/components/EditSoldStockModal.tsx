@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useCurrency } from '../../../app/providers/CurrencyProvider';
 import { X } from 'lucide-react';
 import { api } from '../../../services/api/client';
 
@@ -21,6 +22,7 @@ interface EditSoldStockModalProps {
 }
 
 export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: EditSoldStockModalProps) {
+  const { currencySymbol, formatCurrency: fmtCurrency } = useCurrency();
   const [quantity, setQuantity] = useState('');
   const [value, setValue] = useState('');
   const [exitPrice, setExitPrice] = useState('');
@@ -146,7 +148,7 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
             
             <div>
               <label htmlFor="editExitPrice" className="block text-sm font-medium text-secondary mb-1">
-                Exit Price (₹)
+                Exit Price ({currencySymbol})
               </label>
               <input
                 type="number"
@@ -177,7 +179,7 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
 
               <div>
                 <label htmlFor="editValue" className="block text-sm font-medium text-secondary mb-1">
-                  Value (₹)
+                  Value ({currencySymbol})
                 </label>
                 <input
                   type="number"
@@ -194,7 +196,7 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
 
             <div>
               <label htmlFor="editBrokerage" className="block text-sm font-medium text-secondary mb-1">
-                Brokerage (₹)
+                Brokerage ({currencySymbol})
               </label>
               <input
                 type="number"
@@ -209,7 +211,7 @@ export function EditSoldStockModal({ isOpen, onClose, onEdited, soldStock }: Edi
 
             <div>
               <label htmlFor="editGovtTax" className="block text-sm font-medium text-secondary mb-1">
-                Govt Tax (₹)
+                Govt Tax ({currencySymbol})
               </label>
               <input
                 type="number"

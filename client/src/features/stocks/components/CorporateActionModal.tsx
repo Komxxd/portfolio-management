@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useCurrency } from '../../../app/providers/CurrencyProvider';
 import { X, Search } from 'lucide-react';
 import { api } from '../../../services/api/client';
 
@@ -13,6 +14,7 @@ interface CorporateActionModalProps {
 }
 
 export function CorporateActionModal({ isOpen, onClose, type, portfolioId, ownedSymbols, symbolGroups, onSuccess }: CorporateActionModalProps) {
+  const { currencySymbol, formatCurrency: fmtCurrency } = useCurrency();
   const [symbol, setSymbol] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [qty, setQty] = useState('');
@@ -276,7 +278,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
                 ) : (
                   <div>
                     <label className="block text-sm font-medium text-secondary mb-1">
-                      Dividend Per Share (₹)
+                      Dividend Per Share ({currencySymbol})
                     </label>
                     <input
                       type="number"
