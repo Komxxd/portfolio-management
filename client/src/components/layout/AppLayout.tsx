@@ -77,9 +77,9 @@ export function AppLayout() {
     <div className="flex flex-col h-screen bg-background text-primary font-sans overflow-hidden">
       <MarketTicker />
       {/* Unified Top Header */}
-      <header className="h-16 bg-surface border-b border-divider px-4 flex items-center justify-between shrink-0 z-10 w-full">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="flex items-center shrink-0 cursor-pointer" onClick={() => navigate('/portfolios')}>
+      <header className="h-14 sm:h-16 bg-surface border-b border-divider px-2 sm:px-4 flex items-center justify-between gap-3 sm:gap-4 shrink-0 z-10 w-full">
+          <div className="flex items-center gap-2 sm:gap-4 flex-1">
+            <div className="hidden md:flex items-center shrink-0 cursor-pointer" onClick={() => navigate('/portfolios')}>
               <img src="/favicon.svg" alt="Logo" className="w-8 h-8" />
               <span className="ml-2 font-bold text-sm tracking-tight text-primary">Portfolio</span>
             </div>
@@ -130,18 +130,18 @@ export function AppLayout() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={toggleTheme}
-              className="w-7 h-7 rounded-full flex items-center justify-center transition-colors border bg-surface-hover text-secondary border-divider hover:bg-divider"
+              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-colors border bg-surface-hover text-secondary border-divider hover:bg-divider"
               title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
-              {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+              {theme === 'dark' ? <Sun className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : <Moon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
             </button>
 
             <button
               onClick={() => setDisplayCurrency(displayCurrency === 'INR' ? 'USD' : 'INR')}
-              className="w-7 h-7 rounded-full flex items-center justify-center transition-colors border bg-surface-hover text-secondary border-divider hover:bg-divider font-semibold text-[11px]"
+              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-colors border bg-surface-hover text-secondary border-divider hover:bg-divider font-semibold text-[10px] sm:text-[11px]"
               title={`Display Currency: ${displayCurrency}. Click to switch to ${displayCurrency === 'INR' ? 'USD' : 'INR'}`}
             >
               {currencySymbol}
@@ -150,22 +150,22 @@ export function AppLayout() {
             <button
               onClick={() => handleManualRefresh(allStockSymbols.join(','))}
               disabled={pricesLoading}
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors border bg-surface-hover text-secondary border-divider hover:bg-divider ${pricesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-colors border bg-surface-hover text-secondary border-divider hover:bg-divider ${pricesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               title="Refresh Portfolio & Prices"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${pricesLoading ? 'animate-spin text-primary' : ''}`} />
+              <RefreshCw className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${pricesLoading ? 'animate-spin text-primary' : ''}`} />
             </button>
 
             <div className="relative group" ref={accountMenuRef}>
               <button
                 onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
                 title="Account Settings"
-                className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors border ${isAccountMenuOpen
+                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-colors border ${isAccountMenuOpen
                   ? 'bg-surface text-primary border-zinc-900'
                   : 'bg-surface-hover text-secondary border-divider hover:bg-divider'
                   }`}
               >
-                <User className="w-4 h-4" />
+                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
 
 

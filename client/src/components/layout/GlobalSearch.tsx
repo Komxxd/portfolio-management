@@ -52,12 +52,12 @@ export function GlobalSearch() {
 
   return (
     <div ref={wrapperRef} className="relative w-full max-w-md">
-      <div className="relative flex items-center w-full h-9 rounded-md bg-background border border-divider overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary transition-all">
-        <div className="grid place-items-center h-full w-10 text-tertiary">
-          <Search className="w-4 h-4" />
+      <div className="relative flex items-center w-full h-8 sm:h-9 rounded-md bg-background border border-divider overflow-hidden focus-within:ring-1 focus-within:ring-primary focus-within:border-primary transition-all">
+        <div className="grid place-items-center h-full w-8 sm:w-10 text-tertiary">
+          <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </div>
         <input
-          className="peer h-full w-full outline-none text-sm bg-transparent text-primary placeholder-tertiary"
+          className="peer h-full w-full outline-none text-xs sm:text-sm bg-transparent text-primary placeholder-tertiary"
           type="text"
           id="search"
           placeholder="Search stocks by symbol or name..."
@@ -66,8 +66,8 @@ export function GlobalSearch() {
           onFocus={() => { if (results.length > 0) setIsOpen(true); }}
         />
         {isLoading && (
-          <div className="grid place-items-center h-full w-10 text-tertiary">
-            <Loader2 className="w-4 h-4 animate-spin" />
+          <div className="grid place-items-center h-full w-8 sm:w-10 text-tertiary">
+            <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
           </div>
         )}
       </div>

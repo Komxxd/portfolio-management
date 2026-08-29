@@ -57,12 +57,12 @@ export function MarketTicker() {
   }, [activeRegion]);
 
   return (
-    <div className="h-10 bg-surface border-b border-divider flex items-center shrink-0 text-xs w-full select-none relative z-20">
+    <div className="h-8 sm:h-10 bg-surface border-b border-divider flex items-center shrink-0 text-[10px] sm:text-xs w-full select-none relative z-20">
       
       {/* Region Selector */}
-      <div className="relative h-full flex items-center border-r border-divider bg-surface px-4 shadow-[4px_0_12px_rgba(0,0,0,0.05)] shrink-0 z-10">
+      <div className="relative h-full flex items-center border-r border-divider bg-surface px-2 sm:px-4 shadow-[4px_0_12px_rgba(0,0,0,0.05)] shrink-0 z-10">
         <button 
-          className="flex items-center gap-1.5 font-semibold text-primary focus:outline-none uppercase tracking-wide text-[10px]"
+          className="flex items-center gap-1 sm:gap-1.5 font-semibold text-primary focus:outline-none uppercase tracking-wide text-[9px] sm:text-[10px]"
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
         >
           {activeRegion} Indices
@@ -81,7 +81,7 @@ export function MarketTicker() {
                     setIsDropdownOpen(false);
                     setPrices({}); // clear old prices to avoid flicker
                   }}
-                  className={`w-full text-left px-4 py-2 text-xs font-medium hover:bg-background transition-colors ${activeRegion === region ? 'text-primary bg-background' : 'text-secondary'}`}
+                  className={`w-full text-left px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium hover:bg-background transition-colors ${activeRegion === region ? 'text-primary bg-background' : 'text-secondary'}`}
                 >
                   {region}
                 </button>
@@ -93,7 +93,7 @@ export function MarketTicker() {
 
       {/* Still Ticker */}
       <div className="flex-1 overflow-hidden relative h-full flex items-center group">
-        <div className="flex items-center whitespace-nowrap px-4 overflow-x-auto no-scrollbar w-full">
+        <div className="flex items-center whitespace-nowrap px-2 sm:px-4 overflow-x-auto no-scrollbar w-full">
           {REGIONS[activeRegion].map((indexInfo, i) => {
             const data = prices[indexInfo.symbol];
             const change = data?.change || 0;
@@ -102,12 +102,12 @@ export function MarketTicker() {
             const isPositive = change >= 0;
 
             return (
-              <div key={`${indexInfo.symbol}-${i}`} className="flex items-center gap-4 mr-12 shrink-0">
+              <div key={`${indexInfo.symbol}-${i}`} className="flex items-center gap-2 sm:gap-4 mr-6 sm:mr-12 shrink-0">
                 <span className="font-semibold text-primary">{indexInfo.name}</span>
                 {data ? (
                   <div className="flex items-center gap-1.5">
                     <span className="font-medium text-primary">{price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    <span className={`flex items-center text-[10px] font-bold ${isPositive ? 'text-success' : 'text-danger'}`}>
+                    <span className={`flex items-center text-[9px] sm:text-[10px] font-bold ${isPositive ? 'text-success' : 'text-danger'}`}>
                       {isPositive ? <TrendingUp className="w-3 h-3 mr-0.5" /> : <TrendingDown className="w-3 h-3 mr-0.5" />}
                       {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
                     </span>

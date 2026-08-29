@@ -93,9 +93,9 @@ function SortablePortfolioRow({ id, children }: { id: string, children: React.Re
       <div 
         {...attributes} 
         {...listeners} 
-        className="px-2 py-3 shrink-0 cursor-grab active:cursor-grabbing text-secondary/30 hover:text-secondary transition-opacity flex items-center justify-center"
+        className="px-1 sm:px-2 py-3 shrink-0 cursor-grab active:cursor-grabbing text-secondary/30 hover:text-secondary transition-opacity flex items-center justify-center"
       >
-        <GripVertical className="w-4 h-4" />
+        <GripVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
       </div>
       <div className="flex-1 min-w-0">
         {children}
@@ -119,7 +119,13 @@ function AutoScaleRow({ children, className = '' }: { children: React.ReactNode,
     const availableWidth = container.clientWidth;
     const contentWidth = inner.scrollWidth;
     const naturalHeight = inner.offsetHeight;
-    const s = contentWidth > availableWidth ? availableWidth / contentWidth : 1;
+    let s = 1;
+    const isMobile = window.innerWidth < 640;
+    
+    if (!isMobile && contentWidth > availableWidth) {
+      s = Math.max(0.85, availableWidth / contentWidth);
+    }
+    
     setScale(s);
     setHeight(naturalHeight * s);
     inner.style.transform = `scale(${s})`;
@@ -138,7 +144,7 @@ function AutoScaleRow({ children, className = '' }: { children: React.ReactNode,
   });
 
   return (
-    <div ref={containerRef} className={`overflow-hidden ${className}`}>
+    <div ref={containerRef} className={`overflow-x-auto no-scrollbar ${className}`}>
       <div style={{ height }}>
         <div
           ref={innerRef}
@@ -207,7 +213,15 @@ export function HomeDashboard() {
     const availableWidth = container.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const contentWidth = inner.scrollWidth;
     const naturalHeight = inner.offsetHeight;
-    const scale = contentWidth > availableWidth ? availableWidth / contentWidth : 1;
+    
+    let scale = 1;
+    const isMobile = window.innerWidth < 640;
+    
+    if (!isMobile && contentWidth > availableWidth) {
+      // Limit the shrinking to a minimum of 0.85 so fonts don't become unreadable on medium screens
+      scale = Math.max(0.85, availableWidth / contentWidth);
+    }
+    
     setStatsScale(scale);
     setStatsHeight(naturalHeight * scale);
     inner.style.transform = `scale(${scale})`;
@@ -409,37 +423,37 @@ export function HomeDashboard() {
     switch (id) {
       case 'totalStocks': return (
           <div key="totalStocks" className="flex flex-col shrink-0">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Total Stocks</span>
-            <span className="text-[15px] font-semibold text-primary">{totalUniqueStocks}</span>
+            <span className="text-[10px] sm:text-xs text-secondary mb-1 flex items-center gap-1">Total Stocks</span>
+            <span className="text-sm sm:text-[15px] font-semibold text-primary">{totalUniqueStocks}</span>
           </div>
       );
       case 'totalPnL': return (
           <div key="totalPnL" className="flex flex-col shrink-0">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Total P&L</span>
-            <span className={`text-[15px] font-semibold ${homeStats.totalPnL >= 0 ? 'text-success' : 'text-danger'}`}>
+            <span className="text-[10px] sm:text-xs text-secondary mb-1 flex items-center gap-1">Total P&L</span>
+            <span className={`text-sm sm:text-[15px] font-semibold ${homeStats.totalPnL >= 0 ? 'text-success' : 'text-danger'}`}>
               {homeStats.totalPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(homeStats.totalPnL))}
-              <span className="ml-1.5 text-xs opacity-90 font-medium">({homeStats.totalPnLPercent >= 0 ? '+' : ''}{homeStats.totalPnLPercent.toFixed(2)}%)</span>
+              <span className="ml-1.5 text-[10px] sm:text-xs opacity-90 font-medium">({homeStats.totalPnLPercent >= 0 ? '+' : ''}{homeStats.totalPnLPercent.toFixed(2)}%)</span>
             </span>
           </div>
       );
       case 'netInvested': return (
           <div key="netInvested" className="flex flex-col shrink-0">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Net Invested</span>
-            <span className="text-[15px] font-semibold text-primary">{fmtCurrency(homeStats.totalInvestment)}</span>
+            <span className="text-[10px] sm:text-xs text-secondary mb-1 flex items-center gap-1">Net Invested</span>
+            <span className="text-sm sm:text-[15px] font-semibold text-primary">{fmtCurrency(homeStats.totalInvestment)}</span>
           </div>
       );
       case 'maxNetInvested': return (
           <div key="maxNetInvested" className="flex flex-col shrink-0">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Max Invested</span>
-            <span className="text-[15px] font-semibold text-primary">{fmtCurrency(homeStats.maxNetInvested)}</span>
+            <span className="text-[10px] sm:text-xs text-secondary mb-1 flex items-center gap-1">Max Invested</span>
+            <span className="text-sm sm:text-[15px] font-semibold text-primary">{fmtCurrency(homeStats.maxNetInvested)}</span>
           </div>
       );
       case 'dayGain': return (
           <div key="dayGain" className="flex flex-col shrink-0">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Day Gain</span>
-            <span className={`text-[15px] font-semibold ${homeStats.totalDayGain >= 0 ? 'text-success' : 'text-danger'}`}>
+            <span className="text-[10px] sm:text-xs text-secondary mb-1 flex items-center gap-1">Day Gain</span>
+            <span className={`text-sm sm:text-[15px] font-semibold ${homeStats.totalDayGain >= 0 ? 'text-success' : 'text-danger'}`}>
               {homeStats.totalDayGain >= 0 ? '+' : ''}{fmtCurrency(Math.abs(homeStats.totalDayGain || 0))}
-              <span className="ml-1.5 opacity-90 text-sm font-medium">
+              <span className="ml-1.5 opacity-90 text-[10px] sm:text-sm font-medium">
                 ({homeStats.totalDayGainPercent >= 0 ? '+' : ''}{(homeStats.totalDayGainPercent || 0).toFixed(2)}%)
               </span>
             </span>
@@ -447,10 +461,10 @@ export function HomeDashboard() {
       );
       case 'unrealizedPnL': return (
           <div key="unrealizedPnL" className="flex flex-col shrink-0">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Unrealized P&L</span>
-            <span className={`text-[15px] font-semibold ${homeStats.totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
+            <span className="text-[10px] sm:text-xs text-secondary mb-1 flex items-center gap-1">Unrealized P&L</span>
+            <span className={`text-sm sm:text-[15px] font-semibold ${homeStats.totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
               {homeStats.totalUnrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(homeStats.totalUnrealizedPnL))}
-              <span className="ml-1.5 opacity-90 text-sm font-medium">
+              <span className="ml-1.5 opacity-90 text-[10px] sm:text-sm font-medium">
                 ({homeStats.totalUnrealizedPnL >= 0 ? '+' : ''}{homeStats.totalInvestment > 0 ? ((homeStats.totalUnrealizedPnL / homeStats.totalInvestment) * 100).toFixed(2) : '0.00'}%)
               </span>
             </span>
@@ -458,32 +472,32 @@ export function HomeDashboard() {
       );
       case 'realizedPnL': return (
           <div key="realizedPnL" className="flex flex-col shrink-0">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Realized P&L</span>
-            <span className={`text-[15px] font-semibold ${homeStats.totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
+            <span className="text-[10px] sm:text-xs text-secondary mb-1 flex items-center gap-1">Realized P&L</span>
+            <span className={`text-sm sm:text-[15px] font-semibold ${homeStats.totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
               {homeStats.totalRealizedPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(homeStats.totalRealizedPnL))}
             </span>
           </div>
       );
       case 'currentValue': return (
           <div key="currentValue" className="flex flex-col shrink-0">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Current Value</span>
-            <span className="text-[15px] font-semibold text-primary">{fmtCurrency(homeStats.totalCurrentValue)}</span>
+            <span className="text-[10px] sm:text-xs text-secondary mb-1 flex items-center gap-1">Current Value</span>
+            <span className="text-sm sm:text-[15px] font-semibold text-primary">{fmtCurrency(homeStats.totalCurrentValue)}</span>
           </div>
       );
       case 'xirr': return (
           <div key="xirr" className="flex flex-col shrink-0">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">XIRR</span>
-            <span className={`text-[15px] font-semibold ${(homeStats.xirr || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
+            <span className="text-[10px] sm:text-xs text-secondary mb-1 flex items-center gap-1">XIRR</span>
+            <span className={`text-sm sm:text-[15px] font-semibold ${(homeStats.xirr || 0) >= 0 ? 'text-success' : 'text-danger'}`}>
               {(homeStats.xirr || 0) >= 0 ? '+' : ''}{((homeStats.xirr || 0) * 100).toFixed(2)}%
             </span>
           </div>
       );
       case 'totalDividend': return (
           <div key="totalDividend" className="flex flex-col shrink-0">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Total Dividend</span>
-            <span className="text-[15px] font-semibold text-primary">
+            <span className="text-[10px] sm:text-xs text-secondary mb-1 flex items-center gap-1">Total Dividend</span>
+            <span className="text-sm sm:text-[15px] font-semibold text-primary">
               {fmtCurrency(homeStats.totalDividend)}
-              <span className="ml-1.5 opacity-90 text-sm font-medium text-success">
+              <span className="ml-1.5 opacity-90 text-[10px] sm:text-sm font-medium text-success">
                 ({homeStats.totalInvestment > 0 ? ((homeStats.totalDividend / homeStats.totalInvestment) * 100).toFixed(2) : '0.00'}%)
               </span>
             </span>
@@ -491,8 +505,8 @@ export function HomeDashboard() {
       );
       case 'brokerage': return (
           <div key="brokerage" className="flex flex-col shrink-0">
-            <span className="text-xs text-secondary mb-1 flex items-center gap-1">Brokerage & Tax</span>
-            <span className="text-[15px] font-semibold text-danger">
+            <span className="text-[10px] sm:text-xs text-secondary mb-1 flex items-center gap-1">Brokerage & Tax</span>
+            <span className="text-sm sm:text-[15px] font-semibold text-danger">
               -{fmtCurrency(totalBrokerageAndTax)}
             </span>
           </div>
@@ -504,12 +518,12 @@ export function HomeDashboard() {
   return (
     <div className="flex flex-col">
       {/* Summary Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3 mt-6">
+      <div className="flex items-center justify-between gap-2 sm:gap-4 mb-3 mt-2 sm:mt-3">
         <div className="flex items-center gap-2">
           <div className="relative z-40" ref={summaryDropdownRef}>
             <button 
               onClick={() => setIsSummaryDropdownOpen(!isSummaryDropdownOpen)}
-              className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:opacity-80 transition-opacity bg-surface px-2 py-1 rounded border border-divider"
+              className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold text-primary hover:opacity-80 transition-opacity bg-surface py-1 sm:py-1.5 px-1.5 sm:px-3 rounded border border-divider"
             >
               {selectedSummaryPortfolioIds === null || selectedSummaryPortfolioIds.length === portfolios.length 
                 ? 'All Portfolios' 
@@ -518,7 +532,7 @@ export function HomeDashboard() {
                   : selectedSummaryPortfolioIds.length === 0 
                     ? 'None Selected'
                     : `${selectedSummaryPortfolioIds.length} Portfolios Selected`}
-              <ChevronDown className="w-3.5 h-3.5 text-secondary" />
+              <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-secondary" />
             </button>
             
             {isSummaryDropdownOpen && (
@@ -560,36 +574,39 @@ export function HomeDashboard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           <button
             onClick={() => setIsChartVisible(!isChartVisible)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors rounded border ${isChartVisible ? 'bg-surface-hover text-primary border-primary' : 'text-secondary hover:text-primary hover:bg-surface-hover border-divider'}`}
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 p-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-medium transition-colors rounded border ${isChartVisible ? 'bg-surface-hover text-primary border-primary' : 'text-secondary hover:text-primary hover:bg-surface-hover border-divider'}`}
+            title="Chart"
           >
-            <LineChart className="w-4 h-4" />
-            Chart
+            <LineChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Chart</span>
           </button>
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-background hover:opacity-90 transition-opacity rounded"
+            className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-medium bg-primary text-background hover:opacity-90 transition-opacity rounded"
+            title="Create New Portfolio"
           >
-            <Plus className="w-4 h-4" />
-            Create New Portfolio
+            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Create New Portfolio</span>
           </button>
           <button
             onClick={() => setIsRecycleBinModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-secondary hover:text-primary hover:bg-surface-hover transition-colors rounded border border-divider"
+            className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-medium text-secondary hover:text-primary hover:bg-surface-hover transition-colors rounded border border-divider"
+            title="Bin"
           >
-            <Trash2 className="w-4 h-4" />
-            Bin
+            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Bin</span>
           </button>
           
           <div className="relative flex" ref={settingsRef}>
             <button
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className="flex items-center justify-center w-8 h-8 bg-surface hover:bg-surface-hover border border-divider rounded text-secondary hover:text-primary transition-colors"
+              className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 bg-surface hover:bg-surface-hover border border-divider rounded text-secondary hover:text-primary transition-colors"
               title="Customize Summary"
             >
-              <Columns className="w-4 h-4" />
+              <Columns className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             
             {isSettingsOpen && (
@@ -619,11 +636,11 @@ export function HomeDashboard() {
           </div>
         </div>
       </div>
-      <div ref={statsContainerRef} className="w-full bg-surface border border-divider rounded-lg shadow-sm p-4 mb-4 mt-2 overflow-hidden">
+      <div ref={statsContainerRef} className="w-full bg-surface border border-divider rounded-lg shadow-sm p-4 mb-4 mt-2 overflow-x-auto no-scrollbar">
         <div style={{ height: statsHeight }}>
           <div
             ref={statsInnerRef}
-            className="flex items-center gap-x-10 w-max"
+            className="flex items-center gap-x-6 sm:gap-x-10 w-max"
             style={{ transform: `scale(${statsScale})`, transformOrigin: 'left top' }}
           >
             {summaryOrder.map(renderGlobalStat)}
@@ -652,11 +669,11 @@ export function HomeDashboard() {
                   const ps = portfolioSummaries[p.id];
 
                   const renderMiniCard = (label: string, value: React.ReactNode, valueClass: string = "text-primary", key: string) => (
-                    <div key={key} className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm shrink-0 w-[140px]">
-                      <div className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+                    <div key={key} className="bg-background px-1 sm:px-2.5 py-1 sm:py-1.5 flex flex-col justify-center rounded-sm shrink-0 w-[115px] sm:w-[140px]">
+                      <div className="flex items-center gap-1 text-[8px] sm:text-[9px] uppercase tracking-normal sm:tracking-wider font-medium text-secondary mb-[1px]">
                         <span className="whitespace-nowrap">{label}</span>
                       </div>
-                      <div className={`text-xs font-bold whitespace-nowrap ${valueClass}`}>{value}</div>
+                      <div className={`text-[10px] sm:text-xs font-bold whitespace-nowrap ${valueClass}`}>{value}</div>
                     </div>
                   );
 
@@ -720,28 +737,27 @@ export function HomeDashboard() {
 
                   return (
                     <SortablePortfolioRow key={p.id} id={p.id}>
-                      <div className="w-full flex flex-col xl:flex-row xl:items-center justify-between px-3 py-3 hover:bg-surface-hover rounded-lg transition-colors group">
-                        <div className="flex flex-col xl:flex-row xl:items-center flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/portfolio/${p.id}`)}>
+                      <div className="w-full flex items-center justify-between px-3 py-3 hover:bg-surface-hover rounded-lg transition-colors group gap-2">
+                        <div className="flex items-center flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/portfolio/${p.id}`)}>
                           <div className="flex items-center shrink-0">
-                            <div className="min-w-[120px]">
+                            <div className="min-w-[90px] max-w-[90px] sm:min-w-[120px] sm:max-w-[120px]">
                               <p 
-                                className="text-sm font-medium text-primary group-hover:underline decoration-tertiary underline-offset-2 whitespace-nowrap"
+                                className="text-sm font-medium text-primary group-hover:underline decoration-tertiary underline-offset-2 truncate"
                                 title={p.name}
                               >
-                                {p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name}
+                                {p.name}
                               </p>
-                              <p className="text-[11px] text-tertiary">{pSymbols.length} asset{pSymbols.length !== 1 ? 's' : ''}</p>
                             </div>
                           </div>
 
                           {ps && (
-                            <AutoScaleRow className="mt-4 xl:mt-0 xl:ml-6 flex-1 min-w-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <AutoScaleRow className="ml-2 sm:ml-4 flex-1 min-w-0 opacity-80 group-hover:opacity-100 transition-opacity">
                               {summaryOrder.map(id => renderListStat(id, ps, pSymbols))}
                             </AutoScaleRow>
                           )}
                         </div>
                         
-                        <div className="flex items-center gap-2 relative mt-4 xl:mt-0 xl:ml-4 shrink-0 self-end xl:self-auto">
+                        <div className="flex items-center gap-2 relative ml-2 sm:ml-4 shrink-0">
                           <button
                             onClick={(e) => { 
                               e.stopPropagation(); 
@@ -749,17 +765,17 @@ export function HomeDashboard() {
                               setIsChartVisible(true);
                               window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
-                            className="p-1.5 text-tertiary hover:text-primary hover:bg-surface-hover rounded transition-colors"
+                            className="p-1 sm:p-1.5 text-tertiary hover:text-primary hover:bg-surface-hover rounded transition-colors"
                             title="Show Chart"
                           >
-                            <LineChart className="w-4 h-4" />
+                            <LineChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === p.id ? null : p.id); }}
-                            className="p-1.5 text-tertiary hover:text-primary hover:bg-surface-hover rounded transition-colors"
+                            className="p-1 sm:p-1.5 text-tertiary hover:text-primary hover:bg-surface-hover rounded transition-colors"
                             title="Options"
                           >
-                            <MoreVertical className="w-4 h-4" />
+                            <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </button>
                           
                           {activeMenuId === p.id && (
