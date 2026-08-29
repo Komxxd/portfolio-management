@@ -636,14 +636,16 @@ export function HomeDashboard() {
           </div>
         </div>
       </div>
-      <div ref={statsContainerRef} className="w-full bg-surface border border-divider rounded-lg shadow-sm p-4 mb-4 mt-2 overflow-x-auto no-scrollbar">
-        <div style={{ height: statsHeight }}>
-          <div
-            ref={statsInnerRef}
-            className="flex items-center gap-x-6 sm:gap-x-10 w-max"
-            style={{ transform: `scale(${statsScale})`, transformOrigin: 'left top' }}
-          >
-            {summaryOrder.map(renderGlobalStat)}
+      <div className="w-full bg-surface border border-divider rounded-lg shadow-sm px-5 py-4 sm:p-6 mb-4 mt-2">
+        <div ref={statsContainerRef} className="w-full overflow-x-auto no-scrollbar">
+          <div style={{ height: statsHeight }}>
+            <div
+              ref={statsInnerRef}
+              className="flex items-center gap-x-6 sm:gap-x-10 w-max"
+              style={{ transform: `scale(${statsScale})`, transformOrigin: 'left top' }}
+            >
+              {summaryOrder.map(renderGlobalStat)}
+            </div>
           </div>
         </div>
       </div>
