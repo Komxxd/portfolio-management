@@ -81,26 +81,24 @@ function SortablePortfolioRow({ id, children }: { id: string, children: React.Re
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 50 : 'auto',
-    opacity: isDragging ? 0.8 : 1,
+    opacity: isDragging ? 0.9 : 1,
   };
 
   return (
-    <div
+    <tr
       ref={setNodeRef}
       style={style}
-      className={`relative w-full flex items-center group/row ${isDragging ? 'bg-surface shadow-lg border border-divider rounded-lg' : ''}`}
+      className={`group/row border-b border-divider hover:bg-surface-hover transition-colors ${isDragging ? 'bg-surface shadow-lg relative z-50' : ''}`}
     >
-      <div 
+      <td 
         {...attributes} 
         {...listeners} 
-        className="px-1 sm:px-2 py-3 shrink-0 cursor-grab active:cursor-grabbing text-secondary/30 hover:text-secondary transition-opacity flex items-center justify-center"
+        className="px-2 py-1.5 w-6 cursor-grab active:cursor-grabbing text-secondary/30 hover:text-secondary transition-opacity bg-surface group-hover/row:bg-surface-hover"
       >
         <GripVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-      </div>
-      <div className="flex-1 min-w-0">
-        {children}
-      </div>
-    </div>
+      </td>
+      {children}
+    </tr>
   );
 }
 
@@ -291,11 +289,19 @@ export function HomeDashboard() {
   // Modal states
   const [renamePortfolioId, setRenamePortfolioId] = useState<string | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{top: number, right: number} | null>(null);
 
   useEffect(() => {
     const handleClickOutside = () => setActiveMenuId(null);
+    const handleScroll = () => setActiveMenuId(null);
+    
     document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    window.addEventListener('scroll', handleScroll, true);
+    
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
   }, []);
   const [isRecycleBinModalOpen, setIsRecycleBinModalOpen] = useState(false);
   const [confirmationConfig, setConfirmationConfig] = useState<{
@@ -515,6 +521,38 @@ export function HomeDashboard() {
     }
   };
 
+  const renderTotalCell = (id: string) => {
+    if (!visibleStats.has(id)) return null;
+    
+    const cellClass = "px-2 py-2 text-[9px] sm:text-[10px] font-mono text-right whitespace-nowrap";
+    switch (id) {
+      case 'totalStocks': return <td key={id} className={`${cellClass} text-primary font-bold`}>{totalUniqueStocks}</td>;
+      case 'maxNetInvested': return <td key={id} className={`${cellClass} text-primary font-bold`}>{fmtCurrency(homeStats.maxNetInvested)}</td>;
+      case 'netInvested': return <td key={id} className={`${cellClass} text-primary font-bold`}>{fmtCurrency(homeStats.totalInvestment)}</td>;
+      case 'unrealizedPnL': return <td key={id} className={`${cellClass} ${homeStats.totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'} font-bold`}>
+        {homeStats.totalUnrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(homeStats.totalUnrealizedPnL))} <span className="text-[8px] sm:text-[9px] font-medium opacity-80">({homeStats.totalUnrealizedPnL >= 0 ? '+' : ''}{homeStats.totalInvestment > 0 ? ((homeStats.totalUnrealizedPnL / homeStats.totalInvestment) * 100).toFixed(2) : '0.00'}%)</span>
+      </td>;
+      case 'realizedPnL': return <td key={id} className={`${cellClass} ${homeStats.totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'} font-bold`}>
+        {homeStats.totalRealizedPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(homeStats.totalRealizedPnL))}
+      </td>;
+      case 'totalDividend': return <td key={id} className={`${cellClass} text-primary font-bold`}>
+        {fmtCurrency(homeStats.totalDividend)} <span className="text-[8px] sm:text-[9px] font-medium opacity-80 text-success">({homeStats.totalInvestment > 0 ? ((homeStats.totalDividend / homeStats.totalInvestment) * 100).toFixed(2) : '0.00'}%)</span>
+      </td>;
+      case 'dayGain': return <td key={id} className={`${cellClass} ${homeStats.totalDayGain >= 0 ? 'text-success' : 'text-danger'} font-bold`}>
+        {homeStats.totalDayGain >= 0 ? '+' : ''}{fmtCurrency(Math.abs(homeStats.totalDayGain || 0))} <span className="text-[8px] sm:text-[9px] font-medium opacity-80">({homeStats.totalDayGainPercent >= 0 ? '+' : ''}{(homeStats.totalDayGainPercent || 0).toFixed(2)}%)</span>
+      </td>;
+      case 'totalPnL': return <td key={id} className={`${cellClass} ${homeStats.totalPnL >= 0 ? 'text-success' : 'text-danger'} font-bold`}>
+        {homeStats.totalPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(homeStats.totalPnL))} <span className="text-[8px] sm:text-[9px] font-medium opacity-80">({homeStats.totalPnLPercent >= 0 ? '+' : ''}{(homeStats.totalPnLPercent || 0).toFixed(2)}%)</span>
+      </td>;
+      case 'currentValue': return <td key={id} className={`${cellClass} text-primary font-bold`}>{fmtCurrency(homeStats.totalCurrentValue)}</td>;
+      case 'brokerage': return <td key={id} className={`${cellClass} text-danger font-bold`}>-{fmtCurrency(totalBrokerageAndTax)}</td>;
+      case 'xirr': return <td key={id} className={`${cellClass} ${homeStats.xirr >= 0 ? 'text-success' : 'text-danger'} font-bold`}>
+        {homeStats.xirr >= 0 ? '+' : ''}{((homeStats.xirr || 0) * 100).toFixed(2)}%
+      </td>;
+      default: return null;
+    }
+  };
+
   return (
     <div className="flex flex-col">
       {/* Summary Section */}
@@ -576,14 +614,6 @@ export function HomeDashboard() {
 
         <div className="flex items-center gap-1.5 sm:gap-3">
           <button
-            onClick={() => setIsChartVisible(!isChartVisible)}
-            className={`flex items-center justify-center gap-1 sm:gap-1.5 p-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-medium transition-colors rounded border ${isChartVisible ? 'bg-surface-hover text-primary border-primary' : 'text-secondary hover:text-primary hover:bg-surface-hover border-divider'}`}
-            title="Chart"
-          >
-            <LineChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">Chart</span>
-          </button>
-          <button
             onClick={() => setIsCreateModalOpen(true)}
             className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-medium bg-primary text-background hover:opacity-90 transition-opacity rounded"
             title="Create New Portfolio"
@@ -636,193 +666,211 @@ export function HomeDashboard() {
           </div>
         </div>
       </div>
-      <div className="w-full bg-surface border border-divider rounded-lg shadow-sm px-5 py-4 sm:p-6 mb-4 mt-2">
-        <div ref={statsContainerRef} className="w-full overflow-x-auto no-scrollbar">
-          <div style={{ height: statsHeight }}>
-            <div
-              ref={statsInnerRef}
-              className="flex items-center gap-x-6 sm:gap-x-10 w-max"
-              style={{ transform: `scale(${statsScale})`, transformOrigin: 'left top' }}
-            >
-              {summaryOrder.map(renderGlobalStat)}
-            </div>
-          </div>
-        </div>
-      </div>
+
       
       {isChartVisible && <PerformanceChart selectedPortfolioId={selectedSummaryPortfolioIds?.length ? selectedSummaryPortfolioIds.join(',') : 'NONE'} />}
 
       {/* Portfolio List */}
       <div className="mt-4 mb-4">
         {portfolios.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handlePortfolioDragEnd}
-            >
-              <SortableContext items={portfolioOrder} strategy={verticalListSortingStrategy}>
-                {portfolioOrder.filter(pid => !selectedSummaryPortfolioIds || selectedSummaryPortfolioIds.includes(pid)).map(pid => {
-                  const p = portfolios.find(p => p.id === pid);
-                  if (!p) return null;
-                  
-                  const pStocks = stocks.filter(s => s.portfolio_id === p.id && Number(s.entry_price) > 0);
-                  const pSymbols = [...new Set(pStocks.map(s => s.symbol))];
-                  const ps = portfolioSummaries[p.id];
-
-                  const renderMiniCard = (label: string, value: React.ReactNode, valueClass: string = "text-primary", key: string) => (
-                    <div key={key} className="bg-background px-1 sm:px-2.5 py-1 sm:py-1.5 flex flex-col justify-center rounded-sm shrink-0 w-[115px] sm:w-[140px]">
-                      <div className="flex items-center gap-1 text-[8px] sm:text-[9px] uppercase tracking-normal sm:tracking-wider font-medium text-secondary mb-[1px]">
-                        <span className="whitespace-nowrap">{label}</span>
-                      </div>
-                      <div className={`text-[10px] sm:text-xs font-bold whitespace-nowrap ${valueClass}`}>{value}</div>
-                    </div>
-                  );
-
-                  const renderListStat = (id: string, ps: any, pSymbols: any) => {
+          <div className="flex-1 bg-surface overflow-x-auto rounded-lg border border-divider shadow-sm">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead className="bg-surface sticky top-0 z-20">
+                <tr className="border-b border-divider">
+                  <th className="w-6 px-2 py-1.5 bg-surface z-20 sticky left-0"></th>
+                  <th className="px-2 py-1.5 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary min-w-[120px] bg-surface">Portfolio</th>
+                  {summaryOrder.map(id => {
                     if (!visibleStats.has(id)) return null;
-                    switch (id) {
-                      case 'totalStocks': return renderMiniCard("Total Stocks", pSymbols.length, "text-primary", id);
-                      case 'maxNetInvested': return renderMiniCard("Max Invested", fmtCurrency(ps.maxNetInvested), "text-primary", id);
-                      case 'netInvested': return renderMiniCard("Net Invested", fmtCurrency(ps.totalInvestment), "text-primary", id);
-                      case 'unrealizedPnL': return renderMiniCard(
-                        `Unrealized PnL`,
-                        <span>{ps.totalUnrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(ps.totalUnrealizedPnL))} <span className="text-[9px] font-medium opacity-80">({ps.totalUnrealizedPnL >= 0 ? '+' : ''}{ps.unrealizedPnLPercent.toFixed(2)}%)</span></span>,
-                        ps.totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger',
-                        id
-                      );
-                      case 'realizedPnL': return renderMiniCard(
-                        "Realized PnL",
-                        `${ps.totalRealizedPnL >= 0 ? '+' : ''}${fmtCurrency(Math.abs(ps.totalRealizedPnL))}`,
-                        ps.totalRealizedPnL >= 0 ? 'text-success' : 'text-danger',
-                        id
-                      );
-                      case 'totalDividend': return renderMiniCard(
-                        `Dividend`,
-                        <span>{fmtCurrency(ps.totalDividend)} <span className="text-[9px] font-medium opacity-80">({ps.totalInvestment > 0 ? ((ps.totalDividend / ps.totalInvestment) * 100).toFixed(2) : '0.00'}%)</span></span>,
-                        "text-primary",
-                        id
-                      );
-                      case 'dayGain': return renderMiniCard(
-                        `Day Gain`,
-                        <span>{ps.totalDayGain >= 0 ? '+' : ''}{fmtCurrency(Math.abs(ps.totalDayGain || 0))} <span className="text-[9px] font-medium opacity-80">({ps.totalDayGainPercent >= 0 ? '+' : ''}{ps.totalDayGainPercent.toFixed(2)}%)</span></span>,
-                        ps.totalDayGain >= 0 ? 'text-success' : 'text-danger',
-                        id
-                      );
-                      case 'totalPnL': return renderMiniCard(
-                        `Total PnL`,
-                        <span>{ps.totalPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(ps.totalPnL))} <span className="text-[9px] font-medium opacity-80">({ps.totalPnLPercent >= 0 ? '+' : ''}{ps.totalPnLPercent.toFixed(2)}%)</span></span>,
-                        ps.totalPnL >= 0 ? 'text-success' : 'text-danger',
-                        id
-                      );
-                      case 'currentValue': return renderMiniCard(
-                        "Current Value",
-                        fmtCurrency(ps.totalCurrentValue),
-                        "text-primary",
-                        id
-                      );
-                      case 'brokerage': return renderMiniCard(
-                        "Brokerage & Tax",
-                        `-${fmtCurrency((ps.totalBrokerage || 0) + (ps.totalGovtTax || 0))}`,
-                        "text-danger",
-                        id
-                      );
-                      case 'xirr': return renderMiniCard(
-                        "XIRR",
-                        `${ps.xirr >= 0 ? '+' : ''}${(ps.xirr * 100).toFixed(2)}%`,
-                        ps.xirr >= 0 ? 'text-success' : 'text-danger',
-                        id
-                      );
-                      default: return null;
-                    }
-                  };
+                    const stat = SUMMARY_STATS.find(s => s.id === id);
+                    return <th key={id} className="px-2 py-1.5 text-[7px] sm:text-[9px] uppercase tracking-wider font-semibold text-secondary text-right bg-surface">{stat?.label}</th>;
+                  })}
+                  <th className="px-2 py-1.5 w-16 bg-surface"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="bg-surface-hover/50 border-b-2 border-divider">
+                  <td className="w-6 px-2 py-2 sticky left-0 bg-surface-hover/50"></td>
+                  <td className="px-2 py-2 text-[10px] sm:text-[11px] font-semibold text-primary">Total</td>
+                  {summaryOrder.map(id => renderTotalCell(id))}
+                  <td className="px-2 py-2 text-right">
+                    <div className="flex items-center justify-end gap-1 relative shrink-0">
+                      <button
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          const isAlreadyTotal = selectedSummaryPortfolioIds?.length === portfolios.length;
+                          if (isChartVisible && isAlreadyTotal) {
+                            setIsChartVisible(false);
+                          } else {
+                            setSelectedSummaryPortfolioIds(portfolios.map(p => p.id));
+                            setIsChartVisible(true);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                        }}
+                        className={`p-1 sm:p-1.5 rounded transition-colors ${isChartVisible && selectedSummaryPortfolioIds?.length === portfolios.length ? 'bg-surface-hover text-primary border border-divider' : 'text-tertiary hover:text-primary hover:bg-surface-hover'}`}
+                        title="Show Combined Chart"
+                      >
+                        <LineChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </button>
+                      <div className="w-6"></div> {/* Placeholder to align with options button in other rows */}
+                    </div>
+                  </td>
+                </tr>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handlePortfolioDragEnd}
+                >
+                  <SortableContext items={portfolioOrder} strategy={verticalListSortingStrategy}>
+                    {portfolioOrder.filter(pid => !selectedSummaryPortfolioIds || selectedSummaryPortfolioIds.includes(pid)).map(pid => {
+                      const p = portfolios.find(p => p.id === pid);
+                      if (!p) return null;
+                      
+                      const pStocks = stocks.filter(s => s.portfolio_id === p.id && Number(s.entry_price) > 0);
+                      const pSymbols = [...new Set(pStocks.map(s => s.symbol))];
+                      const ps = portfolioSummaries[p.id];
 
-                  return (
-                    <SortablePortfolioRow key={p.id} id={p.id}>
-                      <div className="w-full flex items-center justify-between px-3 py-3 hover:bg-surface-hover rounded-lg transition-colors group gap-2">
-                        <div className="flex items-center flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/portfolio/${p.id}`)}>
-                          <div className="flex items-center shrink-0">
-                            <div className="min-w-[90px] max-w-[90px] sm:min-w-[120px] sm:max-w-[120px]">
-                              <p 
-                                className="text-sm font-medium text-primary group-hover:underline decoration-tertiary underline-offset-2 truncate"
-                                title={p.name}
-                              >
-                                {p.name}
-                              </p>
-                            </div>
-                          </div>
+                      const renderTableCell = (value: React.ReactNode, valueClass: string = "text-primary", key: string) => (
+                        <td key={key} className={`px-2 py-2 text-[9px] sm:text-[10px] font-mono text-right whitespace-nowrap ${valueClass}`}>
+                          {value}
+                        </td>
+                      );
 
-                          {ps && (
-                            <AutoScaleRow className="ml-2 sm:ml-4 flex-1 min-w-0 opacity-80 group-hover:opacity-100 transition-opacity">
-                              {summaryOrder.map(id => renderListStat(id, ps, pSymbols))}
-                            </AutoScaleRow>
-                          )}
-                        </div>
+                      const renderListStat = (id: string, ps: any, pSymbols: any) => {
+                        if (!visibleStats.has(id)) return null;
+                        if (!ps) return <td key={id} className="px-2 py-2 text-right text-secondary">—</td>;
                         
-                        <div className="flex items-center gap-2 relative ml-2 sm:ml-4 shrink-0">
-                          <button
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              setSelectedSummaryPortfolioIds([p.id]);
-                              setIsChartVisible(true);
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }}
-                            className="p-1 sm:p-1.5 text-tertiary hover:text-primary hover:bg-surface-hover rounded transition-colors"
-                            title="Show Chart"
-                          >
-                            <LineChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === p.id ? null : p.id); }}
-                            className="p-1 sm:p-1.5 text-tertiary hover:text-primary hover:bg-surface-hover rounded transition-colors"
-                            title="Options"
-                          >
-                            <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          </button>
-                          
-                          {activeMenuId === p.id && (
-                            <div className="absolute right-0 top-full mt-1 w-36 bg-surface border border-divider rounded-lg shadow-xl shadow-black/20 z-50 py-1" onClick={(e) => e.stopPropagation()}>
+                        switch (id) {
+                          case 'totalStocks': return renderTableCell(pSymbols.length, "text-primary font-semibold", id);
+                          case 'maxNetInvested': return renderTableCell(fmtCurrency(ps.maxNetInvested), "text-primary", id);
+                          case 'netInvested': return renderTableCell(fmtCurrency(ps.totalInvestment), "text-primary", id);
+                          case 'unrealizedPnL': return renderTableCell(
+                            <span>{ps.totalUnrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(ps.totalUnrealizedPnL))} <span className="text-[8px] sm:text-[9px] font-medium opacity-80">({ps.totalUnrealizedPnL >= 0 ? '+' : ''}{ps.unrealizedPnLPercent.toFixed(2)}%)</span></span>,
+                            ps.totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger',
+                            id
+                          );
+                          case 'realizedPnL': return renderTableCell(
+                            `${ps.totalRealizedPnL >= 0 ? '+' : ''}${fmtCurrency(Math.abs(ps.totalRealizedPnL))}`,
+                            ps.totalRealizedPnL >= 0 ? 'text-success' : 'text-danger',
+                            id
+                          );
+                          case 'totalDividend': return renderTableCell(
+                            <span>{fmtCurrency(ps.totalDividend)} <span className="text-[8px] sm:text-[9px] font-medium opacity-80">({ps.totalInvestment > 0 ? ((ps.totalDividend / ps.totalInvestment) * 100).toFixed(2) : '0.00'}%)</span></span>,
+                            "text-primary",
+                            id
+                          );
+                          case 'dayGain': return renderTableCell(
+                            <span>{ps.totalDayGain >= 0 ? '+' : ''}{fmtCurrency(Math.abs(ps.totalDayGain || 0))} <span className="text-[8px] sm:text-[9px] font-medium opacity-80">({ps.totalDayGainPercent >= 0 ? '+' : ''}{ps.totalDayGainPercent.toFixed(2)}%)</span></span>,
+                            ps.totalDayGain >= 0 ? 'text-success' : 'text-danger',
+                            id
+                          );
+                          case 'totalPnL': return renderTableCell(
+                            <span>{ps.totalPnL >= 0 ? '+' : ''}{fmtCurrency(Math.abs(ps.totalPnL))} <span className="text-[8px] sm:text-[9px] font-medium opacity-80">({ps.totalPnLPercent >= 0 ? '+' : ''}{ps.totalPnLPercent.toFixed(2)}%)</span></span>,
+                            ps.totalPnL >= 0 ? 'text-success' : 'text-danger',
+                            id
+                          );
+                          case 'currentValue': return renderTableCell(
+                            fmtCurrency(ps.totalCurrentValue),
+                            "text-primary font-semibold",
+                            id
+                          );
+                          case 'brokerage': return renderTableCell(
+                            `-${fmtCurrency((ps.totalBrokerage || 0) + (ps.totalGovtTax || 0))}`,
+                            "text-danger",
+                            id
+                          );
+                          case 'xirr': return renderTableCell(
+                            `${ps.xirr >= 0 ? '+' : ''}${(ps.xirr * 100).toFixed(2)}%`,
+                            `font-bold ${ps.xirr >= 0 ? 'text-success' : 'text-danger'}`,
+                            id
+                          );
+                          default: return null;
+                        }
+                      };
+
+                      return (
+                        <SortablePortfolioRow key={p.id} id={p.id}>
+                          <td className="px-2 py-2 min-w-[120px] max-w-[200px]">
+                            <p 
+                              className="text-[10px] sm:text-[11px] font-medium text-primary group-hover/row:underline decoration-tertiary underline-offset-2 truncate cursor-pointer"
+                              title={p.name}
+                              onClick={() => navigate(`/portfolio/${p.id}`)}
+                            >
+                              {p.name}
+                            </p>
+                          </td>
+                          {summaryOrder.map(id => renderListStat(id, ps, pSymbols))}
+                          <td className="px-2 py-2 text-right">
+                            <div className="flex items-center justify-end gap-1 relative shrink-0">
                               <button
-                                onClick={() => { setRenamePortfolioId(p.id); setActiveMenuId(null); }}
-                                className="w-full text-left px-4 py-2 text-xs text-secondary hover:bg-background hover:text-primary transition-colors"
-                              >
-                                Rename
-                              </button>
-                              <button
-                                onClick={() => { handleCopyPortfolio(p.id); setActiveMenuId(null); }}
-                                className="w-full text-left px-4 py-2 text-xs text-secondary hover:bg-background hover:text-primary transition-colors"
-                              >
-                                Duplicate
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setConfirmationConfig({
-                                    isOpen: true,
-                                    title: 'Delete Portfolio',
-                                    message: `Are you sure you want to delete "${p.name}"? This action cannot be undone.`,
-                                    confirmText: 'Delete Portfolio',
-                                    isDestructive: true,
-                                    requireInputToConfirm: p.name,
-                                    onConfirm: () => {
-                                      handleDeletePortfolio(p.id);
-                                      setConfirmationConfig(null);
-                                    }
-                                  });
-                                  setActiveMenuId(null);
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  const isAlreadyThisPortfolio = selectedSummaryPortfolioIds?.length === 1 && selectedSummaryPortfolioIds[0] === p.id;
+                                  if (isChartVisible && isAlreadyThisPortfolio) {
+                                    setIsChartVisible(false);
+                                  } else {
+                                    setSelectedSummaryPortfolioIds([p.id]);
+                                    setIsChartVisible(true);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }
                                 }}
-                                className="w-full text-left px-4 py-2 text-xs text-danger hover:bg-danger/10 transition-colors"
+                                className="p-1 sm:p-1.5 text-tertiary hover:text-primary hover:bg-surface-hover rounded transition-colors"
+                                title="Show Chart"
                               >
-                                Delete
+                                <LineChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === p.id ? null : p.id); }}
+                                className="p-1 sm:p-1.5 text-tertiary hover:text-primary hover:bg-surface-hover rounded transition-colors"
+                                title="Options"
+                              >
+                                <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              </button>
+                              
+                              {activeMenuId === p.id && (
+                                <div className="absolute right-0 top-full mt-1 w-36 bg-surface border border-divider rounded-lg shadow-xl shadow-black/20 z-50 py-1 flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    onClick={() => { setRenamePortfolioId(p.id); setActiveMenuId(null); }}
+                                    className="w-full text-left px-4 py-2 text-xs text-secondary hover:bg-background hover:text-primary transition-colors"
+                                  >
+                                    Rename
+                                  </button>
+                                  <button
+                                    onClick={() => { handleCopyPortfolio(p.id); setActiveMenuId(null); }}
+                                    className="w-full text-left px-4 py-2 text-xs text-secondary hover:bg-background hover:text-primary transition-colors"
+                                  >
+                                    Duplicate
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setConfirmationConfig({
+                                        isOpen: true,
+                                        title: 'Delete Portfolio',
+                                        message: `Are you sure you want to delete "${p.name}"? This action cannot be undone.`,
+                                        confirmText: 'Delete Portfolio',
+                                        isDestructive: true,
+                                        requireInputToConfirm: p.name,
+                                        onConfirm: () => {
+                                          handleDeletePortfolio(p.id);
+                                          setConfirmationConfig(null);
+                                        }
+                                      });
+                                      setActiveMenuId(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-xs text-danger hover:bg-danger/10 transition-colors"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    </SortablePortfolioRow>
-                  );
-                })}
-              </SortableContext>
-            </DndContext>
+                          </td>
+                        </SortablePortfolioRow>
+                      );
+                    })}
+                  </SortableContext>
+                </DndContext>
+              </tbody>
+            </table>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">
