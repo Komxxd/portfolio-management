@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import { calculateXIRR } from '../../../utils/xirr'
-import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, Info, User, LogOut, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw, Sun, Moon, GripVertical } from 'lucide-react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, Info, User, LogOut, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw, Sun, Moon, GripVertical, MoreVertical } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -201,7 +201,7 @@ function SortableHeaderCell({
       style={{ ...style, width, minWidth: width, maxWidth: width }}
       {...attributes}
       {...listeners}
-      className={`px-3 py-2 text-[9px] uppercase tracking-wider font-semibold text-secondary cursor-pointer hover:bg-surface-hover transition-colors select-none group relative ${resizingColId === field ? 'bg-surface-hover' : ''} ${isDragging ? 'shadow-md border border-divider cursor-grabbing' : 'bg-surface'} ${isNumber ? 'text-right' : 'text-left'}`}
+      className={`px-1.5 py-1.5 sm:px-3 sm:py-2 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary cursor-pointer hover:bg-surface-hover transition-colors select-none group relative ${resizingColId === field ? 'bg-surface-hover' : ''} ${isDragging ? 'shadow-md border border-divider cursor-grabbing' : 'bg-surface'} ${isNumber ? 'text-right' : 'text-left'}`}
       onClick={(e) => {
         // Prevent sorting if we are dragging or resizing
         if (isDragging) return;
@@ -211,13 +211,13 @@ function SortableHeaderCell({
       <div className={`flex items-center gap-1 overflow-hidden ${isNumber ? 'justify-end' : 'justify-start'}`}>
         <span className="truncate">{label}</span>
         {sortField === field ? (
-          sortDirection === 'asc' ? <ChevronUp className="w-3 h-3 text-primary shrink-0" /> : <ChevronDown className="w-3 h-3 text-primary shrink-0" />
+          sortDirection === 'asc' ? <ChevronUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" /> : <ChevronDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" />
         ) : (
-          <ArrowUpDown className="w-3 h-3 text-tertiary group-hover:text-secondary transition-colors shrink-0" />
+          <ArrowUpDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-tertiary group-hover:text-secondary transition-colors shrink-0" />
         )}
       </div>
       
-      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block z-50 whitespace-nowrap bg-surface text-primary text-[10px] font-medium px-2 py-1 rounded border border-divider pointer-events-none normal-case tracking-normal">
+      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block z-50 whitespace-nowrap bg-surface text-primary text-[8px] sm:text-[10px] font-medium px-2 py-1 rounded border border-divider pointer-events-none normal-case tracking-normal">
         {label}
       </div>
 
@@ -307,6 +307,7 @@ export function PortfolioDashboard() {
   const calculationTime = React.useMemo(() => Date.now(), []);
   const [isPortfolioInfoModalOpen, setIsPortfolioInfoModalOpen] = useState(false);
   const [isRebalanceModalOpen, setIsRebalanceModalOpen] = useState(false);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [addStockPortfolioId, setAddStockPortfolioId] = useState<string | null>(null);
   const [addStockInitialSymbol, setAddStockInitialSymbol] = useState<string>('');
   const [addStockInitialPrice, setAddStockInitialPrice] = useState<number | undefined>(undefined);
@@ -1274,20 +1275,20 @@ export function PortfolioDashboard() {
       case 'totalStocks':
         content = (
           <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm h-full w-full">
-            <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+            <div className="flex items-center gap-1 text-[8px] lg:text-[9px] uppercase tracking-normal lg:tracking-wider font-medium text-secondary mb-[1px]">
               <span>Total Stocks</span>
             </div>
-            <div className="text-xs font-bold text-primary">{filteredSymbolGroups.length}</div>
+            <div className="text-[10px] lg:text-xs font-bold text-primary">{filteredSymbolGroups.length}</div>
           </div>
         );
         break;
       case 'maxNetInvested':
         content = (
           <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm h-full w-full">
-            <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+            <div className="flex items-center gap-1 text-[8px] lg:text-[9px] uppercase tracking-normal lg:tracking-wider font-medium text-secondary mb-[1px]">
               <span>Max Invested</span>
             </div>
-            <div className="text-xs font-bold text-primary truncate" title={`${currencySymbol}${maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+            <div className="text-[10px] lg:text-xs font-bold text-primary whitespace-nowrap" title={`${currencySymbol}${maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               {currencySymbol}{maxNetInvested.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
@@ -1296,10 +1297,10 @@ export function PortfolioDashboard() {
       case 'netInvested':
         content = (
           <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm h-full w-full">
-            <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+            <div className="flex items-center gap-1 text-[8px] lg:text-[9px] uppercase tracking-normal lg:tracking-wider font-medium text-secondary mb-[1px]">
               <span>Net Invested</span>
             </div>
-            <div className="text-xs font-bold text-primary truncate" title={`${currencySymbol}${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+            <div className="text-[10px] lg:text-xs font-bold text-primary whitespace-nowrap" title={`${currencySymbol}${totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               {currencySymbol}{totalInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
@@ -1308,10 +1309,10 @@ export function PortfolioDashboard() {
       case 'currentValue':
         content = (
           <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm h-full w-full">
-            <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+            <div className="flex items-center gap-1 text-[8px] lg:text-[9px] uppercase tracking-normal lg:tracking-wider font-medium text-secondary mb-[1px]">
               <span>Current Value</span>
             </div>
-            <div className="text-xs font-bold text-primary truncate" title={`${currencySymbol}${totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+            <div className="text-[10px] lg:text-xs font-bold text-primary whitespace-nowrap" title={`${currencySymbol}${totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               {currencySymbol}{totalCurrentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
@@ -1320,15 +1321,15 @@ export function PortfolioDashboard() {
       case 'unrealizedPnL':
         content = (
           <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm h-full w-full">
-            <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
-              <span>
+            <div className="flex items-center gap-1 text-[8px] lg:text-[9px] uppercase tracking-normal lg:tracking-wider font-medium text-secondary mb-[1px]">
+              <span className="whitespace-nowrap">
                 Unrealized PnL{' '}
                 <span className={unrealizedPnLPercent >= 0 ? 'text-success' : 'text-danger'}>
                   ({unrealizedPnLPercent >= 0 ? '+' : ''}{unrealizedPnLPercent.toFixed(2)}%)
                 </span>
               </span>
             </div>
-            <div className={`text-xs font-bold truncate ${totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+            <div className={`text-[10px] lg:text-xs font-bold whitespace-nowrap ${totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               {totalUnrealizedPnL >= 0 ? '+' : ''}{currencySymbol}{totalUnrealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
@@ -1337,8 +1338,8 @@ export function PortfolioDashboard() {
       case 'realizedPnL':
         content = (
           <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm h-full w-full">
-            <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
-              <span>
+            <div className="flex items-center gap-1 text-[8px] lg:text-[9px] uppercase tracking-normal lg:tracking-wider font-medium text-secondary mb-[1px]">
+              <span className="whitespace-nowrap">
                 Realized PnL{' '}
                 {portfolioRealizedCostBasis > 0 && (
                   <span className={portfolioRealizedPct >= 0 ? 'text-success' : 'text-danger'}>
@@ -1347,7 +1348,7 @@ export function PortfolioDashboard() {
                 )}
               </span>
             </div>
-            <div className={`text-xs font-bold truncate ${totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+            <div className={`text-[10px] lg:text-xs font-bold whitespace-nowrap ${totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               {totalRealizedPnL >= 0 ? '+' : ''}{currencySymbol}{totalRealizedPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
@@ -1356,15 +1357,15 @@ export function PortfolioDashboard() {
       case 'totalDividend':
         content = (
           <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm h-full w-full">
-            <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
-              <span>
+            <div className="flex items-center gap-1 text-[8px] lg:text-[9px] uppercase tracking-normal lg:tracking-wider font-medium text-secondary mb-[1px]">
+              <span className="whitespace-nowrap">
                 Dividend{' '}
                 <span className="text-success">
                   ({totalInvestment > 0 ? ((portfolioTotalDividend / totalInvestment) * 100).toFixed(2) : '0.00'}%)
                 </span>
               </span>
             </div>
-            <div className={`text-xs font-bold truncate text-primary`} title={`${currencySymbol}${portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+            <div className={`text-[10px] lg:text-xs font-bold whitespace-nowrap text-primary`} title={`${currencySymbol}${portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               {currencySymbol}{portfolioTotalDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
@@ -1373,10 +1374,10 @@ export function PortfolioDashboard() {
       case 'brokerage':
         content = (
           <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm h-full w-full">
-            <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+            <div className="flex items-center gap-1 text-[8px] lg:text-[9px] uppercase tracking-normal lg:tracking-wider font-medium text-secondary mb-[1px]">
               <span>Brokerage & Tax</span>
             </div>
-            <div className={`text-xs font-bold truncate text-danger`} title={`${currencySymbol}${(portfolioTotalBrokerage + portfolioTotalGovtTax).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+            <div className={`text-[10px] lg:text-xs font-bold whitespace-nowrap text-danger`} title={`${currencySymbol}${(portfolioTotalBrokerage + portfolioTotalGovtTax).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               -{currencySymbol}{(portfolioTotalBrokerage + portfolioTotalGovtTax).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
@@ -1385,15 +1386,15 @@ export function PortfolioDashboard() {
       case 'totalPnL':
         content = (
           <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm h-full w-full">
-            <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
-              <span>
+            <div className="flex items-center gap-1 text-[8px] lg:text-[9px] uppercase tracking-normal lg:tracking-wider font-medium text-secondary mb-[1px]">
+              <span className="whitespace-nowrap">
                 Total PnL{' '}
                 <span className={totalPnLPercent >= 0 ? 'text-success' : 'text-danger'}>
                   ({totalPnLPercent >= 0 ? '+' : ''}{totalPnLPercent.toFixed(2)}%)
                 </span>
               </span>
             </div>
-            <div className={`text-xs font-bold truncate ${totalPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+            <div className={`text-[10px] lg:text-xs font-bold whitespace-nowrap ${totalPnL >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               {totalPnL >= 0 ? '+' : ''}{currencySymbol}{totalPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
@@ -1402,15 +1403,15 @@ export function PortfolioDashboard() {
       case 'dayGain':
         content = (
           <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm h-full w-full">
-            <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
-              <span>
+            <div className="flex items-center gap-1 text-[8px] lg:text-[9px] uppercase tracking-normal lg:tracking-wider font-medium text-secondary mb-[1px]">
+              <span className="whitespace-nowrap">
                 Day Gain{' '}
                 <span className={portfolioDayGainPct >= 0 ? 'text-success' : 'text-danger'}>
                   ({portfolioDayGainPct >= 0 ? '+' : ''}{portfolioDayGainPct.toFixed(2)}%)
                 </span>
               </span>
             </div>
-            <div className={`text-xs font-bold truncate ${portfolioTotalDayGain >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${portfolioTotalDayGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+            <div className={`text-[10px] lg:text-xs font-bold whitespace-nowrap ${portfolioTotalDayGain >= 0 ? 'text-success' : 'text-danger'}`} title={`${currencySymbol}${portfolioTotalDayGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
               {portfolioTotalDayGain >= 0 ? '+' : ''}{currencySymbol}{portfolioTotalDayGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
@@ -1419,10 +1420,10 @@ export function PortfolioDashboard() {
       case 'xirr':
         content = (
           <div className="bg-background px-2.5 py-1.5 flex flex-col justify-center rounded-sm h-full w-full">
-            <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-medium text-secondary mb-[1px]">
+            <div className="flex items-center gap-1 text-[8px] lg:text-[9px] uppercase tracking-normal lg:tracking-wider font-medium text-secondary mb-[1px]">
               <span>XIRR</span>
             </div>
-            <div className={`text-xs font-bold truncate ${portfolioXIRR >= 0 ? 'text-success' : 'text-danger'}`} title={`${(portfolioXIRR * 100).toFixed(2)}%`}>
+            <div className={`text-[10px] lg:text-xs font-bold whitespace-nowrap ${portfolioXIRR >= 0 ? 'text-success' : 'text-danger'}`} title={`${(portfolioXIRR * 100).toFixed(2)}%`}>
               {portfolioXIRR >= 0 ? '+' : ''}{(portfolioXIRR * 100).toFixed(2)}%
             </div>
           </div>
@@ -1450,7 +1451,7 @@ export function PortfolioDashboard() {
                   onDragEnd={handleSummaryDragEnd}
                 >
                   <SortableContext items={activeSummaryStatsOrder.filter(id => activeVisibleSummaryStats.has(id))} strategy={horizontalListSortingStrategy}>
-                    <div className="flex flex-wrap gap-2 flex-1 [&>div]:flex-1 [&>div]:min-w-fit">
+                    <div className="flex gap-2 flex-1 min-w-0 overflow-x-auto xl:overflow-x-hidden no-scrollbar pb-1 xl:pb-0 [&>div]:min-w-[115px] xl:[&>div]:min-w-0 [&>div]:flex-1">
                       {activeSummaryStatsOrder.map(id => renderStatCard(id))}
                     </div>
                   </SortableContext>
@@ -1459,10 +1460,10 @@ export function PortfolioDashboard() {
                 <div className="relative shrink-0 flex">
                   <button
                     onClick={() => setIsSummaryDropdownOpen(!isSummaryDropdownOpen)}
-                    className="flex items-center justify-center w-10 bg-background hover:bg-surface-hover border border-divider rounded-md text-secondary hover:text-primary transition-colors"
+                    className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 self-center bg-background hover:bg-surface-hover border border-divider rounded text-secondary hover:text-primary transition-colors"
                     title="Customize Summary"
                   >
-                    <Columns className="w-4 h-4" />
+                    <Columns className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </button>
                   {isSummaryDropdownOpen && (
                     <>
@@ -1510,8 +1511,8 @@ export function PortfolioDashboard() {
 
               {/* Data Table */}
               <div className="bg-surface border border-divider rounded-lg flex flex-col flex-1 min-h-0">
-                <div className="px-3 py-2 border-b border-divider flex justify-between items-center bg-surface shrink-0">
-                  <div className="flex items-center gap-4">
+                <div className="px-3 py-2 border-b border-divider flex flex-wrap justify-between items-center gap-2 bg-surface shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-base text-primary">Assets</h3>
                       <button 
@@ -1610,7 +1611,7 @@ export function PortfolioDashboard() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <button
                       onClick={() => setAddStockPortfolioId(activePortfolioId)}
                       className="text-xs font-medium text-secondary hover:text-primary transition-colors"
@@ -1623,32 +1624,47 @@ export function PortfolioDashboard() {
                     >
                       − Sell Asset
                     </button>
-                    <button
-                      onClick={() => setIsRebalanceModalOpen(true)}
-                      className="text-xs font-medium text-orange-600 hover:text-orange-800 transition-colors"
-                    >
-                      Rebalance
-                    </button>
-                    <div className="w-px h-3 bg-divider mx-1"></div>
-                    <button
-                      onClick={() => setCorporateActionType('bonus')}
-                      className="text-xs font-medium text-blue-400 hover:text-blue-800 transition-colors"
-                    >
-                      Add Bonus
-                    </button>
-                    <button
-                      onClick={() => setCorporateActionType('split')}
-                      className="text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors"
-                    >
-                      Add Split
-                    </button>
-                    <button
-                      onClick={() => setCorporateActionType('dividend')}
-                      className="text-xs font-medium text-success hover:text-success transition-colors"
-                    >
-                      Add Dividend
-                    </button>
-                    <div className="w-px h-3 bg-divider mx-1"></div>
+                    <div className="relative flex items-center">
+                      <button
+                        onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
+                        className="text-secondary hover:text-primary transition-colors flex items-center justify-center p-1 rounded-md hover:bg-surface-hover"
+                        title="More Actions"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      {isActionMenuOpen && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setIsActionMenuOpen(false)} />
+                          <div className="absolute right-0 top-full mt-1 w-32 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 z-20 py-1 flex flex-col">
+                            <button
+                              onClick={() => { setIsRebalanceModalOpen(true); setIsActionMenuOpen(false); }}
+                              className="px-3 py-1.5 text-left text-xs font-medium text-primary hover:bg-surface-hover transition-colors"
+                            >
+                              Rebalance
+                            </button>
+                            <div className="border-t border-divider my-0.5"></div>
+                            <button
+                              onClick={() => { setCorporateActionType('bonus'); setIsActionMenuOpen(false); }}
+                              className="px-3 py-1.5 text-left text-xs font-medium text-primary hover:bg-surface-hover transition-colors"
+                            >
+                              Add Bonus
+                            </button>
+                            <button
+                              onClick={() => { setCorporateActionType('split'); setIsActionMenuOpen(false); }}
+                              className="px-3 py-1.5 text-left text-xs font-medium text-primary hover:bg-surface-hover transition-colors"
+                            >
+                              Add Split
+                            </button>
+                            <button
+                              onClick={() => { setCorporateActionType('dividend'); setIsActionMenuOpen(false); }}
+                              className="px-3 py-1.5 text-left text-xs font-medium text-primary hover:bg-surface-hover transition-colors"
+                            >
+                              Add Dividend
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                     <button
                       onClick={() => {
                         if (expandedSymbols.size > 0) {
@@ -1684,7 +1700,7 @@ export function PortfolioDashboard() {
                     <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
                       <thead className="sticky top-0 z-10 bg-surface ">
                         <tr className="border-b border-divider divide-x divide-divider">
-                          <th className="px-2 py-1.5 text-[8px] uppercase tracking-wider font-semibold text-secondary w-6 bg-surface"></th>
+                          <th className="px-2 py-1.5 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary w-6 bg-surface"></th>
                           <SortableContext items={activeColumnOrder.filter(id => visibleColumns.has(id))} strategy={horizontalListSortingStrategy}>
                             {activeColumnOrder.map(colId => {
                               if (!visibleColumns.has(colId)) return null;
@@ -1705,7 +1721,7 @@ export function PortfolioDashboard() {
                               );
                             })}
                           </SortableContext>
-                          <th className="px-2 py-1.5 text-[8px] text-right w-8 bg-surface"></th>
+                          <th className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right w-8 bg-surface"></th>
                         </tr>
                       </thead>
                     <tbody>
@@ -1719,19 +1735,19 @@ export function PortfolioDashboard() {
                         
                         return (
                           <tr className="border-b-[3px] border-divider bg-surface-hover/50 font-semibold shadow-sm">
-                            <td className="px-2 py-1.5 text-[10px]"></td>
+                            <td className="px-2 py-1.5 text-[9px] sm:text-[10px]"></td>
                             {activeColumnOrder.map(colId => {
                               if (!visibleColumns.has(colId)) return null;
                               switch (colId) {
                                 case 'symbol':
-                                  return <td key="symbol" className="px-2 py-1.5 text-[10px] text-primary uppercase tracking-wider">Total</td>;
+                                  return <td key="symbol" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-primary uppercase tracking-wider">Total</td>;
                                 case 'netCostBasis':
-                                  return <td key="netCostBasis" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(totalInvestment)}</td>;
+                                  return <td key="netCostBasis" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(totalInvestment)}</td>;
                                 case 'currentValue':
-                                  return <td key="currentValue" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(totalCurrentValue)}</td>;
+                                  return <td key="currentValue" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(totalCurrentValue)}</td>;
                                 case 'unrealizedPnL':
                                   return (
-                                    <td key="unrealizedPnL" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                    <td key="unrealizedPnL" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
                                       <span className={totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
                                         {totalUnrealizedPnL >= 0 ? '+' : ''}{currencySymbol}{fmt(totalUnrealizedPnL)}
                                       </span>
@@ -1739,7 +1755,7 @@ export function PortfolioDashboard() {
                                   );
                                 case 'unrealizedPnLPct':
                                   return (
-                                    <td key="unrealizedPnLPct" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                    <td key="unrealizedPnLPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
                                       <span className={unrealizedPct >= 0 ? 'text-success' : 'text-danger'}>
                                         {unrealizedPct >= 0 ? '+' : ''}{unrealizedPct.toFixed(2)}%
                                       </span>
@@ -1747,7 +1763,7 @@ export function PortfolioDashboard() {
                                   );
                                 case 'realizedPnL':
                                   return (
-                                    <td key="realizedPnL" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                    <td key="realizedPnL" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
                                       <span className={totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
                                         {totalRealizedPnL >= 0 ? '+' : ''}{currencySymbol}{fmt(totalRealizedPnL)}
                                       </span>
@@ -1755,7 +1771,7 @@ export function PortfolioDashboard() {
                                   );
                                 case 'realizedPnLPct':
                                   return (
-                                    <td key="realizedPnLPct" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                    <td key="realizedPnLPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
                                       {portfolioRealizedCostBasis > 0 ? (
                                         <span className={portfolioRealizedPct >= 0 ? 'text-success' : 'text-danger'}>
                                           {portfolioRealizedPct >= 0 ? '+' : ''}{portfolioRealizedPct.toFixed(2)}%
@@ -1767,17 +1783,17 @@ export function PortfolioDashboard() {
                                   );
                                 case 'totalDividend':
                                   return (
-                                    <td key="totalDividend" className="px-2 py-1.5 text-[10px] text-right font-mono text-success">
+                                    <td key="totalDividend" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-success">
                                       {currencySymbol}{fmt(portfolioTotalDividend)}
                                     </td>
                                   );
                                 case 'brokerage':
-                                  return <td key="brokerage" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(portfolioTotalBrokerage)}</td>;
+                                  return <td key="brokerage" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(portfolioTotalBrokerage)}</td>;
                                 case 'govtTax':
-                                  return <td key="govtTax" className="px-2 py-1.5 text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(portfolioTotalGovtTax)}</td>;
+                                  return <td key="govtTax" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(portfolioTotalGovtTax)}</td>;
                                 case 'totalPnL':
                                   return (
-                                    <td key="totalPnL" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                    <td key="totalPnL" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
                                       <span className={totalNetPnL >= 0 ? 'text-success' : 'text-danger'}>
                                         {totalNetPnL >= 0 ? '+' : ''}{currencySymbol}{fmt(totalNetPnL)}
                                       </span>
@@ -1785,7 +1801,7 @@ export function PortfolioDashboard() {
                                   );
                                 case 'totalPnLPct':
                                   return (
-                                    <td key="totalPnLPct" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                    <td key="totalPnLPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
                                       <span className={totalNetPct >= 0 ? 'text-success' : 'text-danger'}>
                                         {totalNetPct >= 0 ? '+' : ''}{totalNetPct.toFixed(2)}%
                                       </span>
@@ -1793,7 +1809,7 @@ export function PortfolioDashboard() {
                                   );
                                 case 'xirr':
                                   return (
-                                    <td key="xirr" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                    <td key="xirr" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
                                       <span className={portfolioXIRR >= 0 ? 'text-success' : 'text-danger'}>
                                         {portfolioXIRR >= 0 ? '+' : ''}{(portfolioXIRR * 100).toFixed(2)}%
                                       </span>
@@ -1801,7 +1817,7 @@ export function PortfolioDashboard() {
                                   );
                                 case 'dayGain':
                                   return (
-                                    <td key="dayGain" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                    <td key="dayGain" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
                                       <span className={portfolioTotalDayGain >= 0 ? 'text-success' : 'text-danger'}>
                                         {portfolioTotalDayGain >= 0 ? '+' : ''}{currencySymbol}{fmt(portfolioTotalDayGain)}
                                       </span>
@@ -1809,23 +1825,23 @@ export function PortfolioDashboard() {
                                   );
                                 case 'dayGainPct':
                                   return (
-                                    <td key="dayGainPct" className="px-2 py-1.5 text-[10px] text-right font-mono">
+                                    <td key="dayGainPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
                                       <span className={portfolioDayGainPct >= 0 ? 'text-success' : 'text-danger'}>
                                         {portfolioDayGainPct >= 0 ? '+' : ''}{portfolioDayGainPct.toFixed(2)}%
                                       </span>
                                     </td>
                                   );
                                 default:
-                                  return <td key={colId} className="px-2 py-1.5 text-[10px] text-right font-mono text-tertiary">—</td>;
+                                  return <td key={colId} className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-tertiary">—</td>;
                               }
                             })}
-                            <td className="px-2 py-1.5 text-[10px]"></td>
+                            <td className="px-2 py-1.5 text-[9px] sm:text-[10px]"></td>
                           </tr>
                         );
                       })()}
                       {filteredSymbolGroups.length === 0 ? (
                         <tr>
-                          <td colSpan={visibleColumns.size + 2} className="px-3 py-6 text-center text-secondary text-[10px]">
+                          <td colSpan={visibleColumns.size + 2} className="px-3 py-6 text-center text-secondary text-[9px] sm:text-[10px]">
                             No assets found matching the filter.
                           </td>
                         </tr>
@@ -1855,15 +1871,15 @@ export function PortfolioDashboard() {
                                         <td key="symbol" className="px-2 py-1.5 truncate">
                                           <div className="flex items-center gap-1.5 overflow-hidden">
                                             <div className="min-w-0 flex-1">
-                                              <div className="font-semibold text-[9px] text-primary flex items-center gap-1.5 truncate">
+                                              <div className="font-semibold text-[9px] sm:text-[10px] text-primary flex items-center gap-1.5 truncate">
                                                 <span className="truncate">{group.symbol}</span>
                                                 {group.liveData?.name && (
-                                                  <span className="font-normal text-[9px] text-secondary truncate" title={group.liveData.name}>
+                                                  <span className="font-normal text-[9px] sm:text-[10px] text-secondary truncate" title={group.liveData.name}>
                                                     {group.liveData.name}
                                                   </span>
                                                 )}
                                               </div>
-                                              <div className="text-[8px] text-tertiary mt-0.5 truncate flex items-center gap-1.5">
+                                              <div className="text-[9px] sm:text-[10px] text-tertiary mt-0.5 truncate flex items-center gap-1.5">
                                                 <span>
                                                   {group.totalBoughtQty.toLocaleString()} bought
                                                   {group.totalSoldQty > 0 && <> · <span className="text-danger">{group.totalSoldQty.toLocaleString()} sold</span></>}
@@ -1911,32 +1927,32 @@ export function PortfolioDashboard() {
                                         </td>
                                       );
                                     case 'netQty':
-                                      return <td key="netQty" className="px-2 py-1.5 text-[10px] font-mono text-right font-semibold text-primary truncate">{group.netQty.toLocaleString()}</td>;
+                                      return <td key="netQty" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right font-semibold text-primary truncate">{group.netQty.toLocaleString()}</td>;
                                     case 'avgBuyPrice':
-                                      return <td key="avgBuyPrice" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">{fmtCurrency(group.avgBuyPrice, group.liveData?.currency)}</td>;
+                                      return <td key="avgBuyPrice" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-secondary truncate">{fmtCurrency(group.avgBuyPrice, group.liveData?.currency)}</td>;
                                     case 'netCostBasis':
-                                      return <td key="netCostBasis" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate" title="Avg buy price × remaining shares — money still at work">{fmtCurrency(group.netCostBasis, group.liveData?.currency)}</td>;
+                                      return <td key="netCostBasis" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-secondary truncate" title="Avg buy price × remaining shares — money still at work">{fmtCurrency(group.netCostBasis, group.liveData?.currency)}</td>;
                                     case 'portfolioWeight':
                                       const weight = totalInvestment > 0 ? (group.netCostBasis / totalInvestment) * 100 : 0;
                                       return (
-                                        <td key="portfolioWeight" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">
+                                        <td key="portfolioWeight" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-secondary truncate">
                                           {weight.toFixed(2)}%
                                         </td>
                                       );
                                     case 'currentValueWeight':
                                       const cvWeight = totalCurrentValue > 0 ? (group.currentValue / totalCurrentValue) * 100 : 0;
                                       return (
-                                        <td key="currentValueWeight" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">
+                                        <td key="currentValueWeight" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-secondary truncate">
                                           {cvWeight.toFixed(2)}%
                                         </td>
                                       );
                                     case 'livePrice':
-                                      return <td key="livePrice" className="px-2 py-1.5 text-[10px] font-mono text-right font-medium text-primary truncate">{fmtCurrency(group.livePrice, group.liveData?.currency)}</td>;
+                                      return <td key="livePrice" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right font-medium text-primary truncate">{fmtCurrency(group.livePrice, group.liveData?.currency)}</td>;
                                     case 'currentValue':
-                                      return <td key="currentValue" className="px-2 py-1.5 text-[10px] font-mono text-right font-medium text-primary truncate">{fmtCurrency(group.currentValue, group.liveData?.currency)}</td>;
+                                      return <td key="currentValue" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right font-medium text-primary truncate">{fmtCurrency(group.currentValue, group.liveData?.currency)}</td>;
                                     case 'unrealizedPnL':
                                       return (
-                                        <td key="unrealizedPnL" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
+                                        <td key="unrealizedPnL" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right truncate">
                                           <span className={`font-medium ${group.unrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
                                             {group.unrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(group.unrealizedPnL, group.liveData?.currency)}
                                           </span>
@@ -1944,7 +1960,7 @@ export function PortfolioDashboard() {
                                       );
                                     case 'unrealizedPnLPct':
                                       return (
-                                        <td key="unrealizedPnLPct" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
+                                        <td key="unrealizedPnLPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right truncate">
                                           <span className={`font-medium ${group.unrealizedPnLPct >= 0 ? 'text-success' : 'text-danger'}`}>
                                             {group.unrealizedPnLPct >= 0 ? '+' : ''}{group.unrealizedPnLPct.toFixed(2)}%
                                           </span>
@@ -1952,7 +1968,7 @@ export function PortfolioDashboard() {
                                       );
                                     case 'realizedPnL':
                                       return (
-                                        <td key="realizedPnL" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
+                                        <td key="realizedPnL" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right truncate">
                                           {group.totalSoldQty > 0 ? (
                                             <span className={`font-medium ${group.realizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
                                               {group.realizedPnL >= 0 ? '+' : ''}{fmtCurrency(group.realizedPnL, group.liveData?.currency)}
@@ -1964,7 +1980,7 @@ export function PortfolioDashboard() {
                                       );
                                     case 'realizedPnLPct':
                                       return (
-                                        <td key="realizedPnLPct" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
+                                        <td key="realizedPnLPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right truncate">
                                           {group.totalSoldQty > 0 ? (
                                             <span className={`font-medium ${group.realizedPnLPct >= 0 ? 'text-success' : 'text-danger'}`}>
                                               {group.realizedPnLPct >= 0 ? '+' : ''}{group.realizedPnLPct.toFixed(2)}%
@@ -1976,7 +1992,7 @@ export function PortfolioDashboard() {
                                       );
                                     case 'totalDividend':
                                       return (
-                                        <td key="totalDividend" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
+                                        <td key="totalDividend" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right truncate">
                                           {group.totalDividend > 0 ? (
                                             <span className="font-medium text-success">
                                               {fmtCurrency(group.totalDividend, group.liveData?.currency)}
@@ -1987,12 +2003,12 @@ export function PortfolioDashboard() {
                                         </td>
                                       );
                                     case 'brokerage':
-                                      return <td key="brokerage" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">{fmtCurrency(group.brokerage, group.liveData?.currency)}</td>;
+                                      return <td key="brokerage" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-secondary truncate">{fmtCurrency(group.brokerage, group.liveData?.currency)}</td>;
                                     case 'govtTax':
-                                      return <td key="govtTax" className="px-2 py-1.5 text-[10px] font-mono text-right text-secondary truncate">{fmtCurrency(group.govtTax, group.liveData?.currency)}</td>;
+                                      return <td key="govtTax" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-secondary truncate">{fmtCurrency(group.govtTax, group.liveData?.currency)}</td>;
                                     case 'totalPnL':
                                       return (
-                                        <td key="totalPnL" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
+                                        <td key="totalPnL" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right truncate">
                                           <span className={`font-medium ${group.totalPnL >= 0 ? 'text-success' : 'text-danger'}`}>
                                             {group.totalPnL >= 0 ? '+' : ''}{fmtCurrency(group.totalPnL, group.liveData?.currency)}
                                           </span>
@@ -2000,7 +2016,7 @@ export function PortfolioDashboard() {
                                       );
                                     case 'totalPnLPct':
                                       return (
-                                        <td key="totalPnLPct" className="px-2 py-1.5 text-[10px] font-mono text-right truncate">
+                                        <td key="totalPnLPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right truncate">
                                           <span className={`font-medium ${group.totalPnLPct >= 0 ? 'text-success' : 'text-danger'}`}>
                                             {group.totalPnLPct >= 0 ? '+' : ''}{group.totalPnLPct.toFixed(2)}%
                                           </span>
@@ -2008,60 +2024,60 @@ export function PortfolioDashboard() {
                                       );
                                     case 'xirr':
                                       return (
-                                        <td key="xirr" className={`px-2 py-1.5 text-[9px] font-bold ${group.xirr >= 0 ? 'text-success' : 'text-danger'} truncate`}>
+                                        <td key="xirr" className={`px-2 py-1.5 text-[9px] sm:text-[10px] font-bold ${group.xirr >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {group.xirr >= 0 ? '+' : ''}{(group.xirr * 100).toFixed(2)}%
                                         </td>
                                       );
                                     case 'priceChange':
                                       const priceChange = group.liveData?.change || 0;
                                       return (
-                                        <td key="priceChange" className={`px-2 py-1.5 text-[9px] font-medium ${priceChange >= 0 ? 'text-success' : 'text-danger'} truncate`}>
+                                        <td key="priceChange" className={`px-2 py-1.5 text-[9px] sm:text-[10px] font-medium ${priceChange >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {priceChange >= 0 ? '+' : ''}{fmtCurrency(priceChange, group.liveData?.currency)}
                                         </td>
                                       );
                                     case 'changePercent':
                                       const changePercent = group.liveData?.changePercent || 0;
                                       return (
-                                        <td key="changePercent" className={`px-2 py-1.5 text-[9px] font-medium ${changePercent >= 0 ? 'text-success' : 'text-danger'} truncate`}>
+                                        <td key="changePercent" className={`px-2 py-1.5 text-[9px] sm:text-[10px] font-medium ${changePercent >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%
                                         </td>
                                       );
                                     case 'dayHigh':
-                                      return <td key="dayHigh" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.dayHigh ? `${currencySymbol}${fmt(group.liveData.dayHigh)}` : '—'}</td>;
+                                      return <td key="dayHigh" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate">{group.liveData?.dayHigh ? `${currencySymbol}${fmt(group.liveData.dayHigh)}` : '—'}</td>;
                                     case 'dayLow':
-                                      return <td key="dayLow" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.dayLow ? `${currencySymbol}${fmt(group.liveData.dayLow)}` : '—'}</td>;
+                                      return <td key="dayLow" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate">{group.liveData?.dayLow ? `${currencySymbol}${fmt(group.liveData.dayLow)}` : '—'}</td>;
                                     case '52wkHigh':
-                                      return <td key="52wkHigh" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.fiftyTwoWeekHigh ? `${currencySymbol}${fmt(group.liveData.fiftyTwoWeekHigh)}` : '—'}</td>;
+                                      return <td key="52wkHigh" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate">{group.liveData?.fiftyTwoWeekHigh ? `${currencySymbol}${fmt(group.liveData.fiftyTwoWeekHigh)}` : '—'}</td>;
                                     case '52wkLow':
-                                      return <td key="52wkLow" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.fiftyTwoWeekLow ? `${currencySymbol}${fmt(group.liveData.fiftyTwoWeekLow)}` : '—'}</td>;
+                                      return <td key="52wkLow" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate">{group.liveData?.fiftyTwoWeekLow ? `${currencySymbol}${fmt(group.liveData.fiftyTwoWeekLow)}` : '—'}</td>;
                                     case 'marketCap':
                                       return (
-                                        <td key="marketCap" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">
+                                        <td key="marketCap" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate">
                                           {group.liveData?.marketCap ? formatCurrencyCompact(group.liveData.marketCap, group.liveData?.currency) : '—'}
                                         </td>
                                       );
                                     case 'volume':
-                                      return <td key="volume" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.volume ? group.liveData.volume.toLocaleString() : '—'}</td>;
+                                      return <td key="volume" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate">{group.liveData?.volume ? group.liveData.volume.toLocaleString() : '—'}</td>;
                                     case 'avgVolume':
-                                      return <td key="avgVolume" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">{group.liveData?.avgVolume ? group.liveData.avgVolume.toLocaleString() : '—'}</td>;
+                                      return <td key="avgVolume" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate">{group.liveData?.avgVolume ? group.liveData.avgVolume.toLocaleString() : '—'}</td>;
                                     case 'tradeValue':
                                       const tradeVal = (group.liveData?.volume || 0) * (group.liveData?.price || 0);
                                       return (
-                                        <td key="tradeValue" className="px-2 py-1.5 text-[10px] font-mono text-right text-primary truncate">
+                                        <td key="tradeValue" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate">
                                           {tradeVal > 0 ? formatCurrencyCompact(tradeVal, group.liveData?.currency) : '—'}
                                         </td>
                                       );
                                     case 'dayGain':
                                       const dayGain = group.netQty * (group.liveData?.change || 0);
                                       return (
-                                        <td key="dayGain" className={`px-2 py-1.5 text-[9px] font-medium ${dayGain >= 0 ? 'text-success' : 'text-danger'} truncate`}>
+                                        <td key="dayGain" className={`px-2 py-1.5 text-[9px] sm:text-[10px] font-medium ${dayGain >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {dayGain >= 0 ? '+' : ''}{fmtCurrency(dayGain, group.liveData?.currency)}
                                         </td>
                                       );
                                     case 'dayGainPct':
                                       const dayGainPct = group.liveData?.changePercent || 0;
                                       return (
-                                        <td key="dayGainPct" className={`px-2 py-1.5 text-[9px] font-medium ${dayGainPct >= 0 ? 'text-success' : 'text-danger'} truncate`}>
+                                        <td key="dayGainPct" className={`px-2 py-1.5 text-[9px] sm:text-[10px] font-medium ${dayGainPct >= 0 ? 'text-success' : 'text-danger'} truncate`}>
                                           {dayGainPct >= 0 ? '+' : ''}{dayGainPct.toFixed(2)}%
                                         </td>
                                       );
@@ -2069,7 +2085,7 @@ export function PortfolioDashboard() {
                                       return null;
                                   }
                                 })}
-                                <td className="px-2 py-1.5 text-[10px] text-right">
+                                <td className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right">
                                   <button onClick={(e) => { e.stopPropagation(); handleDeleteAsset(group.symbol); }} className="p-1 text-tertiary hover:text-danger rounded hover:bg-danger/10 transition-colors" title={`Delete ${group.symbol}`}>
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -2082,7 +2098,7 @@ export function PortfolioDashboard() {
                                   <td colSpan={visibleColumns.size + 2} className="p-2">
                                     <div className="space-y-2">
                                       {group.fifoBuyLots.length === 0 ? (
-                                        <p className="text-[10px] text-tertiary py-2 text-center">No buy entries found.</p>
+                                        <p className="text-[9px] sm:text-[10px] text-tertiary py-2 text-center">No buy entries found.</p>
                                       ) : (
                                         group.fifoBuyLots.map((lot: any, lotIdx: number) => (
                                           <div key={`lot-${lot.buy.id}`} className="bg-surface border border-divider rounded-lg p-2 shadow-xs">
@@ -2095,7 +2111,7 @@ export function PortfolioDashboard() {
                                                     <span>Buy Position{group.fifoBuyLots.length > 1 ? ` #${lotIdx + 1}` : ''}</span>
                                                   </div>
                                                   <div className="flex items-center gap-2">
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${lot.status === 'CLOSED'
+                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold ${lot.status === 'CLOSED'
                                                         ? 'bg-surface-hover text-secondary'
                                                         : lot.status === 'PARTIALLY_SOLD'
                                                           ? 'bg-amber-100 text-amber-700'
@@ -2110,9 +2126,9 @@ export function PortfolioDashboard() {
                                                   </div>
                                                 </div>
 
-                                                <table className="w-full text-left text-[10px] whitespace-nowrap">
+                                                <table className="w-full text-left text-[9px] sm:text-[10px] whitespace-nowrap">
                                                   <thead>
-                                                    <tr className="text-[9px] text-tertiary uppercase border-b border-divider">
+                                                    <tr className="text-[9px] sm:text-[10px] text-tertiary uppercase border-b border-divider">
                                                       <th className="pb-1 font-medium">Type</th>
                                                       <th className="pb-1 font-medium">Date</th>
                                                       <th className="pb-1 font-medium">Qty</th>
@@ -2129,7 +2145,7 @@ export function PortfolioDashboard() {
                                                     {lot.history && lot.history.length > 0 && (
                                                       <tr className="bg-blue-500/10/30">
                                                         <td className="py-1">
-                                                          <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/20 text-blue-300">COMBINED</span>
+                                                          <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold bg-blue-500/20 text-blue-300">COMBINED</span>
                                                         </td>
                                                         <td className="py-1 text-secondary font-medium">
                                                           {new Date(lot.history[lot.history.length - 1].date).toLocaleDateString()}
@@ -2143,7 +2159,7 @@ export function PortfolioDashboard() {
                                                           <span className={lot.unrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
                                                             {lot.unrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(lot.unrealizedPnL, group.liveData?.currency)}
                                                           </span>
-                                                          <span className="text-[9px] ml-1 text-tertiary">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
+                                                          <span className="text-[9px] sm:text-[10px] ml-1 text-tertiary">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
                                                         </td>
                                                         <td className="py-1 text-right"></td>
                                                       </tr>
@@ -2160,13 +2176,13 @@ export function PortfolioDashboard() {
                                                         <tr key={`${ev.type}-${idx}`} className="border-t border-divider">
                                                           <td className="py-1">
                                                             {ev.type === 'BONUS' ? (
-                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-500/20 text-purple-300">BONUS</span>
+                                                              <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold bg-purple-500/20 text-purple-300">BONUS</span>
                                                             ) : ev.type === 'SPLIT' ? (
-                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-700">SPLIT</span>
+                                                              <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold bg-amber-100 text-amber-700">SPLIT</span>
                                                             ) : ev.type === 'DIVIDEND' ? (
-                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/20 text-blue-300">DIVIDEND</span>
+                                                              <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold bg-blue-500/20 text-blue-300">DIVIDEND</span>
                                                             ) : (
-                                                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-success/20 text-success">BUY</span>
+                                                              <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold bg-success/20 text-success">BUY</span>
                                                             )}
                                                           </td>
                                                           <td className="py-1 text-tertiary">{new Date(ev.date).toLocaleDateString()}</td>
@@ -2179,10 +2195,10 @@ export function PortfolioDashboard() {
                                                             {ev.type === 'SPLIT' ? '—' : ev.type === 'DIVIDEND' ? `${currencySymbol}${fmt(ev.qty)}/sh` : (ev.price !== undefined ? `${currencySymbol}${fmt(ev.price)}` : `${currencySymbol}0.00`)}
                                                           </td>
                                                           <td className="py-1 text-secondary font-medium">{eventCost > 0 ? `${currencySymbol}${fmt(eventCost)}` : '—'}</td>
-                                                          <td className="py-1 text-secondary text-[10px]">
+                                                          <td className="py-1 text-secondary text-[9px] sm:text-[10px]">
                                                             {ev.brokerage ? `${currencySymbol}${fmt(ev.brokerage)}` : '—'}
                                                           </td>
-                                                          <td className="py-1 text-secondary text-[10px]">
+                                                          <td className="py-1 text-secondary text-[9px] sm:text-[10px]">
                                                             {ev.govtTax ? `${currencySymbol}${fmt(ev.govtTax)}` : '—'}
                                                           </td>
                                                           <td className="py-1 font-medium">
@@ -2191,7 +2207,7 @@ export function PortfolioDashboard() {
                                                                 <span className={eventUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
                                                                   {eventUnrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(eventUnrealizedPnL, group.liveData?.currency)}
                                                                 </span>
-                                                                <span className="text-[9px] ml-1 text-tertiary">({eventUnrealizedPct >= 0 ? '+' : ''}{eventUnrealizedPct.toFixed(2)}%)</span>
+                                                                <span className="text-[9px] sm:text-[10px] ml-1 text-tertiary">({eventUnrealizedPct >= 0 ? '+' : ''}{eventUnrealizedPct.toFixed(2)}%)</span>
                                                               </>
                                                             ) : '—'}
                                                           </td>
@@ -2216,9 +2232,9 @@ export function PortfolioDashboard() {
                                                       <tr>
                                                         <td className="py-1">
                                                           {lot.entryPrice === 0 ? (
-                                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-purple-500/20 text-purple-300">BONUS</span>
+                                                            <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold bg-purple-500/20 text-purple-300">BONUS</span>
                                                           ) : (
-                                                            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-success/20 text-success">BUY</span>
+                                                            <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold bg-success/20 text-success">BUY</span>
                                                           )}
                                                         </td>
                                                         <td className="py-1 text-secondary">{new Date(lot.buy.entry_date).toLocaleDateString()}</td>
@@ -2229,7 +2245,7 @@ export function PortfolioDashboard() {
                                                           <span className={lot.unrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
                                                             {lot.unrealizedPnL >= 0 ? '+' : ''}{fmtCurrency(lot.unrealizedPnL, group.liveData?.currency)}
                                                           </span>
-                                                          <span className="text-[9px] ml-1 text-tertiary">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
+                                                          <span className="text-[9px] sm:text-[10px] ml-1 text-tertiary">({lot.unrealizedPct >= 0 ? '+' : ''}{lot.unrealizedPct.toFixed(2)}%)</span>
                                                         </td>
                                                         <td className="py-1 text-right">
                                                           <div className="flex items-center justify-end gap-1">
