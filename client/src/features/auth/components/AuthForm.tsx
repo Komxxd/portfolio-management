@@ -45,11 +45,9 @@ export function AuthForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm bg-surface border border-divider rounded-xl shadow-lg p-8">
-        <div className="flex justify-center mb-6">
-          <img src="/favicon.svg" alt="Logo" className="w-12 h-12" />
-        </div>
-        <h2 className="text-2xl font-semibold text-primary mb-6 text-center">
+      <div className="w-full max-w-sm bg-surface border border-divider rounded-md shadow-lg px-4 py-8 sm:px-6 sm:py-12">
+
+        <h2 className="text-lg sm:text-xl font-semibold text-primary mb-6 sm:mb-8 text-center">
           {isLogin ? 'Welcome back' : 'Create an account'}
         </h2>
         
@@ -59,45 +57,45 @@ export function AuthForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-secondary mb-1">Email address</label>
+            <label className="block text-xs sm:text-sm font-medium text-secondary mb-1">Email address</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full bg-background border border-divider rounded-lg px-4 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-background border border-divider rounded-md px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm text-primary focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
               placeholder="you@example.com"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-secondary mb-1">Password</label>
+            <label className="block text-xs sm:text-sm font-medium text-secondary mb-1">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full bg-background border border-divider rounded-lg px-4 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-background border border-divider rounded-md px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm text-primary focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900"
               placeholder="••••••••"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-primary text-background hover:opacity-90 font-medium py-1.5 px-3 sm:py-2 sm:px-4 rounded-md transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
           >
             {loading ? 'Please wait...' : (isLogin ? 'Sign in' : 'Sign up')}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-secondary">
+        <div className="mt-8 text-center text-xs sm:text-sm text-secondary">
           {isLogin ? "Don't have an account? " : "Already have an account? "}
           <button
             type="button"
             onClick={() => setIsLogin(!isLogin)}
-            className="text-blue-500 hover:text-blue-400 font-medium"
+            className="text-primary hover:text-secondary font-medium underline underline-offset-4"
           >
             {isLogin ? 'Sign up' : 'Sign in'}
           </button>
