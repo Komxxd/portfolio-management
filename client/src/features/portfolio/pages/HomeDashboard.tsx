@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Plus, BarChart2, Briefcase, TrendingUp, Search, ChevronDown, Check, MoreVertical, LineChart, Trash2, Loader2, Pencil, GripVertical, Columns } from 'lucide-react';
+import { Plus, BarChart2, Briefcase, TrendingUp, Search, ChevronDown, ChevronUp, ArrowUpDown, Check, MoreVertical, LineChart, Trash2, Loader2, Pencil, GripVertical, Columns, FilterX } from 'lucide-react';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
@@ -260,6 +260,84 @@ export function HomeDashboard() {
     return [];
   });
 
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const sortedPortfolioOrder = React.useMemo(() => {
+    if (!sortField) return portfolioOrder;
+    const sorted = [...portfolioOrder];
+    sorted.sort((a, b) => {
+      const pA = portfolios.find(p => p.id === a);
+      const pB = portfolios.find(p => p.id === b);
+      const psA = portfolioSummaries[a];
+      const psB = portfolioSummaries[b];
+      
+      let valA: any = 0;
+      let valB: any = 0;
+      
+      if (sortField === 'name') {
+        valA = pA?.name || '';
+        valB = pB?.name || '';
+      } else if (sortField === 'totalStocks') {
+        const pStocksA = stocks.filter(s => s.portfolio_id === a && Number(s.entry_price) > 0);
+        valA = new Set(pStocksA.map(s => s.symbol)).size;
+        const pStocksB = stocks.filter(s => s.portfolio_id === b && Number(s.entry_price) > 0);
+        valB = new Set(pStocksB.map(s => s.symbol)).size;
+      } else if (sortField === 'maxNetInvested') {
+        valA = psA?.maxNetInvested || 0;
+        valB = psB?.maxNetInvested || 0;
+      } else if (sortField === 'netInvested') {
+        valA = psA?.totalInvestment || 0;
+        valB = psB?.totalInvestment || 0;
+      } else if (sortField === 'unrealizedPnL') {
+        valA = psA?.totalUnrealizedPnL || 0;
+        valB = psB?.totalUnrealizedPnL || 0;
+      } else if (sortField === 'realizedPnL') {
+        valA = psA?.totalRealizedPnL || 0;
+        valB = psB?.totalRealizedPnL || 0;
+      } else if (sortField === 'totalDividend') {
+        valA = psA?.totalDividend || 0;
+        valB = psB?.totalDividend || 0;
+      } else if (sortField === 'dayGain') {
+        valA = psA?.totalDayGain || 0;
+        valB = psB?.totalDayGain || 0;
+      } else if (sortField === 'totalPnL') {
+        valA = psA?.totalPnL || 0;
+        valB = psB?.totalPnL || 0;
+      } else if (sortField === 'currentValue') {
+        valA = psA?.totalCurrentValue || 0;
+        valB = psB?.totalCurrentValue || 0;
+      } else if (sortField === 'brokerage') {
+        valA = (psA?.totalBrokerage || 0) + (psA?.totalGovtTax || 0);
+        valB = (psB?.totalBrokerage || 0) + (psB?.totalGovtTax || 0);
+      } else if (sortField === 'xirr') {
+        valA = psA?.xirr || 0;
+        valB = psB?.xirr || 0;
+      }
+
+      valA = valA ?? 0;
+      valB = valB ?? 0;
+
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      }
+
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [portfolioOrder, sortField, sortDirection, portfolios, portfolioSummaries, stocks]);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
   useEffect(() => {
     setPortfolioOrder(prev => {
       const actualIds = portfolios.map(p => p.id);
@@ -279,10 +357,12 @@ export function HomeDashboard() {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       setPortfolioOrder((items) => {
-        const oldIndex = items.indexOf(active.id as string);
-        const newIndex = items.indexOf(over.id as string);
-        return arrayMove(items, oldIndex, newIndex);
+        const currentOrder = sortField ? [...sortedPortfolioOrder] : items;
+        const oldIndex = currentOrder.indexOf(active.id as string);
+        const newIndex = currentOrder.indexOf(over.id as string);
+        return arrayMove(currentOrder, oldIndex, newIndex);
       });
+      setSortField(null);
     }
   };
 
@@ -613,6 +693,18 @@ export function HomeDashboard() {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-3">
+          {sortField !== null && (
+            <button
+              onClick={() => {
+                setSortField(null);
+              }}
+              className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-medium text-secondary hover:text-primary hover:bg-surface-hover transition-colors rounded border border-divider"
+              title="Clear sorting"
+            >
+              <FilterX className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          )}
           <button
             onClick={() => setIsCreateModalOpen(true)}
             className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-medium bg-primary text-background hover:opacity-90 transition-opacity rounded"
@@ -678,11 +770,31 @@ export function HomeDashboard() {
               <thead className="bg-surface sticky top-0 z-20">
                 <tr className="border-b border-divider">
                   <th className="w-6 px-2 py-1.5 bg-surface z-20 sticky left-0"></th>
-                  <th className="px-2 py-1.5 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary min-w-[120px] bg-surface">Portfolio</th>
+                  <th className="px-2 py-1.5 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary min-w-[120px] bg-surface cursor-pointer hover:bg-surface-hover transition-colors group" onClick={() => handleSort('name')}>
+                    <div className="flex items-center gap-1 justify-start">
+                      <span>Portfolio</span>
+                      {sortField === 'name' ? (
+                        sortDirection === 'asc' ? <ChevronUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" /> : <ChevronDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" />
+                      ) : (
+                        <ArrowUpDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-tertiary group-hover:text-secondary transition-colors shrink-0 opacity-0 group-hover:opacity-100" />
+                      )}
+                    </div>
+                  </th>
                   {summaryOrder.map(id => {
                     if (!visibleStats.has(id)) return null;
                     const stat = SUMMARY_STATS.find(s => s.id === id);
-                    return <th key={id} className="px-2 py-1.5 text-[7px] sm:text-[9px] uppercase tracking-wider font-semibold text-secondary text-right bg-surface">{stat?.label}</th>;
+                    return (
+                      <th key={id} className="px-2 py-1.5 text-[7px] sm:text-[9px] uppercase tracking-wider font-semibold text-secondary bg-surface cursor-pointer hover:bg-surface-hover transition-colors group" onClick={() => handleSort(id)}>
+                        <div className="flex items-center gap-1 justify-end">
+                          <span>{stat?.label}</span>
+                          {sortField === id ? (
+                            sortDirection === 'asc' ? <ChevronUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" /> : <ChevronDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" />
+                          ) : (
+                            <ArrowUpDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-tertiary group-hover:text-secondary transition-colors shrink-0 opacity-0 group-hover:opacity-100" />
+                          )}
+                        </div>
+                      </th>
+                    );
                   })}
                   <th className="px-2 py-1.5 w-16 bg-surface"></th>
                 </tr>
@@ -720,8 +832,8 @@ export function HomeDashboard() {
                   collisionDetection={closestCenter}
                   onDragEnd={handlePortfolioDragEnd}
                 >
-                  <SortableContext items={portfolioOrder} strategy={verticalListSortingStrategy}>
-                    {portfolioOrder.filter(pid => !selectedSummaryPortfolioIds || selectedSummaryPortfolioIds.includes(pid)).map(pid => {
+                  <SortableContext items={sortedPortfolioOrder} strategy={verticalListSortingStrategy}>
+                    {sortedPortfolioOrder.filter(pid => !selectedSummaryPortfolioIds || selectedSummaryPortfolioIds.includes(pid)).map(pid => {
                       const p = portfolios.find(p => p.id === pid);
                       if (!p) return null;
                       

@@ -1035,29 +1035,57 @@ export function PortfolioDashboard() {
       if (sortField === 'totalPnL') {
         valA = a.unrealizedPnL + a.realizedPnL;
         valB = b.unrealizedPnL + b.realizedPnL;
-      } else if (sortField === 'xirr') {
-        valA = a.xirr;
-        valB = b.xirr;
       } else if (sortField === 'portfolioWeight') {
         valA = totalInvestment > 0 ? (a.netCostBasis / totalInvestment) * 100 : 0;
         valB = totalInvestment > 0 ? (b.netCostBasis / totalInvestment) * 100 : 0;
+      } else if (sortField === 'currentValueWeight') {
+        valA = totalCurrentValue > 0 ? (a.currentValue / totalCurrentValue) * 100 : 0;
+        valB = totalCurrentValue > 0 ? (b.currentValue / totalCurrentValue) * 100 : 0;
       } else if (sortField === 'dayGain') {
         valA = a.netQty * (a.liveData?.change || 0);
         valB = b.netQty * (b.liveData?.change || 0);
-      } else if (sortField === 'dayGainPct') {
+      } else if (sortField === 'dayGainPct' || sortField === 'changePercent') {
         valA = a.liveData?.changePercent || 0;
         valB = b.liveData?.changePercent || 0;
       } else if (sortField === 'priceChange') {
         valA = a.liveData?.change || 0;
         valB = b.liveData?.change || 0;
-      } else if (sortField === 'changePercent') {
-        valA = a.liveData?.changePercent || 0;
-        valB = b.liveData?.changePercent || 0;
+      } else if (sortField === 'dayHigh') {
+        valA = a.liveData?.dayHigh || 0;
+        valB = b.liveData?.dayHigh || 0;
+      } else if (sortField === 'dayLow') {
+        valA = a.liveData?.dayLow || 0;
+        valB = b.liveData?.dayLow || 0;
+      } else if (sortField === '52wkHigh') {
+        valA = a.liveData?.fiftyTwoWeekHigh || 0;
+        valB = b.liveData?.fiftyTwoWeekHigh || 0;
+      } else if (sortField === '52wkLow') {
+        valA = a.liveData?.fiftyTwoWeekLow || 0;
+        valB = b.liveData?.fiftyTwoWeekLow || 0;
+      } else if (sortField === 'marketCap') {
+        valA = a.liveData?.marketCap || 0;
+        valB = b.liveData?.marketCap || 0;
+      } else if (sortField === 'volume') {
+        valA = a.liveData?.volume || 0;
+        valB = b.liveData?.volume || 0;
+      } else if (sortField === 'avgVolume') {
+        valA = a.liveData?.avgVolume || 0;
+        valB = b.liveData?.avgVolume || 0;
+      } else if (sortField === 'tradeValue') {
+        valA = (a.liveData?.volume || 0) * (a.liveData?.price || 0);
+        valB = (b.liveData?.volume || 0) * (b.liveData?.price || 0);
       }
 
       // Handle nulls/undefined safely for all number comparisons
       valA = valA ?? 0;
       valB = valB ?? 0;
+
+      // Handle string comparisons (e.g., symbol)
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return sortDirection === 'asc' 
+          ? valA.localeCompare(valB) 
+          : valB.localeCompare(valA);
+      }
 
       if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
       if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
