@@ -167,11 +167,11 @@ export function AppLayout() {
         </header>
 
       {/* Full-width scrollable container */}
-      <div className="flex-1 w-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="flex-1 w-full flex flex-col min-h-0">
         {/* Main Content constraints */}
-        <div className="flex flex-col flex-1 w-full max-w-[1600px] mx-auto bg-background min-h-full">
-          <main className="flex-1 flex flex-col min-w-0 bg-background relative z-0">
-            <div className="flex-1 p-2 md:p-4 flex flex-col">
+        <div className="flex flex-col flex-1 w-full max-w-[1600px] mx-auto bg-background min-h-0">
+          <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-background relative z-0">
+            <div className="flex-1 p-2 md:p-4 flex flex-col min-h-0">
               <Outlet />
             </div>
           </main>

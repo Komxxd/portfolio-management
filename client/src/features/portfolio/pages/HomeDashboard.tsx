@@ -638,7 +638,7 @@ export function HomeDashboard() {
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full min-h-0">
       {/* Summary Section */}
       <div className="flex items-center justify-between gap-2 sm:gap-4 mb-3 mt-2 sm:mt-3">
         <div className="flex items-center gap-2">
@@ -767,9 +767,9 @@ export function HomeDashboard() {
       {isChartVisible && <PerformanceChart selectedPortfolioId={selectedSummaryPortfolioIds?.length ? selectedSummaryPortfolioIds.join(',') : 'NONE'} />}
 
       {/* Portfolio List */}
-      <div className="mt-4 mb-4">
+      <div className="flex-1 flex flex-col min-h-0 mt-4 mb-4">
         {portfolios.length > 0 ? (
-          <div className="flex-1 bg-surface overflow-x-auto rounded-lg border border-divider shadow-sm">
+          <div className="flex-1 bg-surface overflow-auto rounded-lg border border-divider shadow-sm relative min-h-0">
             <table className="w-full text-left border-collapse whitespace-nowrap">
               <thead className="bg-surface sticky top-0 z-20">
                 <tr className="border-b border-divider">

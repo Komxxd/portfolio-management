@@ -1445,7 +1445,7 @@ export function PortfolioDashboard() {
 
   return (
     <>
-    <div className="w-full flex flex-col min-h-0">
+    <div className="flex-1 w-full flex flex-col min-h-0">
       <div className="flex items-center justify-between mb-4 mt-2">
         <div className="relative flex items-center" ref={portfolioMenuRef}>
           <button 
@@ -1746,7 +1746,7 @@ export function PortfolioDashboard() {
                   collisionDetection={closestCenter}
                   onDragEnd={handleColumnDragEnd}
                 >
-                  <div className="flex-1 bg-surface overflow-x-auto">
+                  <div className="flex-1 bg-surface overflow-auto relative min-h-0">
                     <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
                       <thead className="sticky top-0 z-30 bg-surface ">
                         <tr className="border-b border-divider divide-x divide-divider">
