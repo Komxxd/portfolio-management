@@ -167,7 +167,8 @@ function SortableHeaderCell({
   sortDirection, 
   resizingColId,
   onSort, 
-  onResizeStart 
+  onResizeStart,
+  className
 }: { 
   field: string, 
   label: string, 
@@ -177,7 +178,8 @@ function SortableHeaderCell({
   sortDirection: 'asc' | 'desc', 
   resizingColId: string | undefined,
   onSort: (field: string) => void, 
-  onResizeStart: (e: React.MouseEvent, id: string, w: number) => void 
+  onResizeStart: (e: React.MouseEvent, id: string, w: number) => void,
+  className?: string
 }) {
   const {
     attributes,
@@ -188,20 +190,22 @@ function SortableHeaderCell({
     isDragging
   } = useSortable({ id: field });
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 100 : 'auto',
     opacity: isDragging ? 0.9 : 1,
   };
+  
+  if (isDragging) {
+    style.zIndex = 100;
+  }
 
   return (
     <th 
       ref={setNodeRef}
       style={{ ...style, width, minWidth: width, maxWidth: width }}
-      {...attributes}
       {...listeners}
-      className={`px-1.5 py-1.5 sm:px-3 sm:py-2 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary cursor-pointer hover:bg-surface-hover transition-colors select-none group relative ${resizingColId === field ? 'bg-surface-hover' : ''} ${isDragging ? 'shadow-md border border-divider cursor-grabbing' : 'bg-surface'} ${isNumber ? 'text-right' : 'text-left'}`}
+      className={`px-1.5 py-1.5 sm:px-3 sm:py-2 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary cursor-pointer hover:bg-surface-hover transition-colors select-none group relative ${resizingColId === field ? 'bg-surface-hover' : ''} ${isDragging ? 'shadow-md border border-divider cursor-grabbing' : 'bg-surface'} ${isNumber ? 'text-right' : 'text-left'} ${className || ''}`}
       onClick={(e) => {
         // Prevent sorting if we are dragging or resizing
         if (isDragging) return;
@@ -223,7 +227,11 @@ function SortableHeaderCell({
 
       <div 
         className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-        onMouseDown={(e) => onResizeStart(e, field, width)}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onResizeStart(e, field, width);
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       />
     </th>
@@ -1788,11 +1796,26 @@ export function PortfolioDashboard() {
                 >
                   <div className="flex-1 bg-surface overflow-x-auto">
                     <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
-                      <thead className="sticky top-0 z-10 bg-surface ">
+                      <thead className="sticky top-0 z-30 bg-surface ">
                         <tr className="border-b border-divider divide-x divide-divider">
-                          <th className="px-2 py-1.5 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary w-6 bg-surface"></th>
-                          <SortableContext items={activeColumnOrder.filter(id => visibleColumns.has(id))} strategy={horizontalListSortingStrategy}>
-                            {activeColumnOrder.map(colId => {
+                          <th className="px-2 py-1.5 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary w-6 bg-surface sticky left-0 z-30"></th>
+                          {visibleColumns.has('symbol') && (
+                            <SortableHeaderCell 
+                              key="symbol"
+                              field="symbol"
+                              label="Symbol"
+                              width={activeColumnWidths['symbol'] || 180}
+                              isNumber={false}
+                              sortField={sortField}
+                              sortDirection={sortDirection}
+                              resizingColId={resizingCol?.id}
+                              onSort={handleSort}
+                              onResizeStart={handleResizeStart}
+                              className="sticky left-6 z-30 bg-surface border-r border-divider"
+                            />
+                          )}
+                          <SortableContext items={activeColumnOrder.filter(id => visibleColumns.has(id) && id !== 'symbol')} strategy={horizontalListSortingStrategy}>
+                            {activeColumnOrder.filter(id => id !== 'symbol').map(colId => {
                               if (!visibleColumns.has(colId)) return null;
                               const col = ALL_COLUMNS.find(c => c.id === colId)!;
                               return (
@@ -1800,7 +1823,7 @@ export function PortfolioDashboard() {
                                   key={col.id}
                                   field={col.id}
                                   label={col.label}
-                                  width={activeColumnWidths[col.id] || (col.id === 'symbol' ? 180 : 100)}
+                                  width={activeColumnWidths[col.id] || 100}
                                   isNumber={col.id !== 'symbol'}
                                   sortField={sortField}
                                   sortDirection={sortDirection}
@@ -1813,122 +1836,123 @@ export function PortfolioDashboard() {
                           </SortableContext>
                           <th className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right w-8 bg-surface"></th>
                         </tr>
+                        {filteredSymbolGroups.length > 0 && (() => {
+                          const fmt = (n: any) => (typeof n === 'number' && !isNaN(n)) ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+                          const unrealizedPct = totalInvestment > 0 ? (totalUnrealizedPnL / totalInvestment) * 100 : 0;
+                          const totalNetPnL = totalUnrealizedPnL + totalRealizedPnL + portfolioTotalDividend - portfolioTotalBrokerage - portfolioTotalGovtTax;
+                          
+                          const portfolioRealizedPct = portfolioRealizedCostBasis > 0 ? (totalRealizedPnL / portfolioRealizedCostBasis) * 100 : 0;
+                          const totalNetPct = maxNetInvested > 0 ? (totalNetPnL / maxNetInvested) * 100 : 0;
+                          
+                          return (
+                            <tr className="border-b-[3px] border-divider bg-surface-hover font-semibold shadow-sm">
+                              <td className="px-2 py-1.5 text-[9px] sm:text-[10px] sticky left-0 z-30 bg-surface-hover"></td>
+                              {visibleColumns.has('symbol') && (
+                                <td key="symbol" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-primary uppercase tracking-wider sticky left-6 z-30 bg-surface-hover border-r border-divider">Total</td>
+                              )}
+                              {activeColumnOrder.filter(id => id !== 'symbol').map(colId => {
+                                if (!visibleColumns.has(colId)) return null;
+                                switch (colId) {
+                                  case 'netCostBasis':
+                                    return <td key="netCostBasis" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(totalInvestment)}</td>;
+                                  case 'currentValue':
+                                    return <td key="currentValue" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(totalCurrentValue)}</td>;
+                                  case 'unrealizedPnL':
+                                    return (
+                                      <td key="unrealizedPnL" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
+                                        <span className={totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
+                                          {totalUnrealizedPnL >= 0 ? '+' : ''}{currencySymbol}{fmt(totalUnrealizedPnL)}
+                                        </span>
+                                      </td>
+                                    );
+                                  case 'unrealizedPnLPct':
+                                    return (
+                                      <td key="unrealizedPnLPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
+                                        <span className={unrealizedPct >= 0 ? 'text-success' : 'text-danger'}>
+                                          {unrealizedPct >= 0 ? '+' : ''}{unrealizedPct.toFixed(2)}%
+                                        </span>
+                                      </td>
+                                    );
+                                  case 'realizedPnL':
+                                    return (
+                                      <td key="realizedPnL" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
+                                        <span className={totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
+                                          {totalRealizedPnL >= 0 ? '+' : ''}{currencySymbol}{fmt(totalRealizedPnL)}
+                                        </span>
+                                      </td>
+                                    );
+                                  case 'realizedPnLPct':
+                                    return (
+                                      <td key="realizedPnLPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
+                                        {portfolioRealizedCostBasis > 0 ? (
+                                          <span className={portfolioRealizedPct >= 0 ? 'text-success' : 'text-danger'}>
+                                            {portfolioRealizedPct >= 0 ? '+' : ''}{portfolioRealizedPct.toFixed(2)}%
+                                          </span>
+                                        ) : (
+                                          <span className="text-tertiary">—</span>
+                                        )}
+                                      </td>
+                                    );
+                                  case 'totalDividend':
+                                    return (
+                                      <td key="totalDividend" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-success">
+                                        {currencySymbol}{fmt(portfolioTotalDividend)}
+                                      </td>
+                                    );
+                                  case 'brokerage':
+                                    return <td key="brokerage" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(portfolioTotalBrokerage)}</td>;
+                                  case 'govtTax':
+                                    return <td key="govtTax" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(portfolioTotalGovtTax)}</td>;
+                                  case 'totalPnL':
+                                    return (
+                                      <td key="totalPnL" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
+                                        <span className={totalNetPnL >= 0 ? 'text-success' : 'text-danger'}>
+                                          {totalNetPnL >= 0 ? '+' : ''}{currencySymbol}{fmt(totalNetPnL)}
+                                        </span>
+                                      </td>
+                                    );
+                                  case 'totalPnLPct':
+                                    return (
+                                      <td key="totalPnLPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
+                                        <span className={totalNetPct >= 0 ? 'text-success' : 'text-danger'}>
+                                          {totalNetPct >= 0 ? '+' : ''}{totalNetPct.toFixed(2)}%
+                                        </span>
+                                      </td>
+                                    );
+                                  case 'xirr':
+                                    return (
+                                      <td key="xirr" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
+                                        <span className={portfolioXIRR >= 0 ? 'text-success' : 'text-danger'}>
+                                          {portfolioXIRR >= 0 ? '+' : ''}{(portfolioXIRR * 100).toFixed(2)}%
+                                        </span>
+                                      </td>
+                                    );
+                                  case 'dayGain':
+                                    return (
+                                      <td key="dayGain" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
+                                        <span className={portfolioTotalDayGain >= 0 ? 'text-success' : 'text-danger'}>
+                                          {portfolioTotalDayGain >= 0 ? '+' : ''}{currencySymbol}{fmt(portfolioTotalDayGain)}
+                                        </span>
+                                      </td>
+                                    );
+                                  case 'dayGainPct':
+                                    return (
+                                      <td key="dayGainPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
+                                        <span className={portfolioDayGainPct >= 0 ? 'text-success' : 'text-danger'}>
+                                          {portfolioDayGainPct >= 0 ? '+' : ''}{portfolioDayGainPct.toFixed(2)}%
+                                        </span>
+                                      </td>
+                                    );
+                                  default:
+                                    return <td key={colId} className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-tertiary">—</td>;
+                                }
+                              })}
+                              <td className="px-2 py-1.5 text-[9px] sm:text-[10px]"></td>
+                            </tr>
+                          );
+                        })()}
                       </thead>
                     <tbody>
-                      {filteredSymbolGroups.length > 0 && (() => {
-                        const fmt = (n: any) => (typeof n === 'number' && !isNaN(n)) ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
-                        const unrealizedPct = totalInvestment > 0 ? (totalUnrealizedPnL / totalInvestment) * 100 : 0;
-                        const totalNetPnL = totalUnrealizedPnL + totalRealizedPnL + portfolioTotalDividend - portfolioTotalBrokerage - portfolioTotalGovtTax;
-                        
-                        const portfolioRealizedPct = portfolioRealizedCostBasis > 0 ? (totalRealizedPnL / portfolioRealizedCostBasis) * 100 : 0;
-                        const totalNetPct = maxNetInvested > 0 ? (totalNetPnL / maxNetInvested) * 100 : 0;
-                        
-                        return (
-                          <tr className="border-b-[3px] border-divider bg-surface-hover/50 font-semibold shadow-sm">
-                            <td className="px-2 py-1.5 text-[9px] sm:text-[10px]"></td>
-                            {activeColumnOrder.map(colId => {
-                              if (!visibleColumns.has(colId)) return null;
-                              switch (colId) {
-                                case 'symbol':
-                                  return <td key="symbol" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-primary uppercase tracking-wider">Total</td>;
-                                case 'netCostBasis':
-                                  return <td key="netCostBasis" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(totalInvestment)}</td>;
-                                case 'currentValue':
-                                  return <td key="currentValue" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(totalCurrentValue)}</td>;
-                                case 'unrealizedPnL':
-                                  return (
-                                    <td key="unrealizedPnL" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
-                                      <span className={totalUnrealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
-                                        {totalUnrealizedPnL >= 0 ? '+' : ''}{currencySymbol}{fmt(totalUnrealizedPnL)}
-                                      </span>
-                                    </td>
-                                  );
-                                case 'unrealizedPnLPct':
-                                  return (
-                                    <td key="unrealizedPnLPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
-                                      <span className={unrealizedPct >= 0 ? 'text-success' : 'text-danger'}>
-                                        {unrealizedPct >= 0 ? '+' : ''}{unrealizedPct.toFixed(2)}%
-                                      </span>
-                                    </td>
-                                  );
-                                case 'realizedPnL':
-                                  return (
-                                    <td key="realizedPnL" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
-                                      <span className={totalRealizedPnL >= 0 ? 'text-success' : 'text-danger'}>
-                                        {totalRealizedPnL >= 0 ? '+' : ''}{currencySymbol}{fmt(totalRealizedPnL)}
-                                      </span>
-                                    </td>
-                                  );
-                                case 'realizedPnLPct':
-                                  return (
-                                    <td key="realizedPnLPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
-                                      {portfolioRealizedCostBasis > 0 ? (
-                                        <span className={portfolioRealizedPct >= 0 ? 'text-success' : 'text-danger'}>
-                                          {portfolioRealizedPct >= 0 ? '+' : ''}{portfolioRealizedPct.toFixed(2)}%
-                                        </span>
-                                      ) : (
-                                        <span className="text-tertiary">—</span>
-                                      )}
-                                    </td>
-                                  );
-                                case 'totalDividend':
-                                  return (
-                                    <td key="totalDividend" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-success">
-                                      {currencySymbol}{fmt(portfolioTotalDividend)}
-                                    </td>
-                                  );
-                                case 'brokerage':
-                                  return <td key="brokerage" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(portfolioTotalBrokerage)}</td>;
-                                case 'govtTax':
-                                  return <td key="govtTax" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(portfolioTotalGovtTax)}</td>;
-                                case 'totalPnL':
-                                  return (
-                                    <td key="totalPnL" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
-                                      <span className={totalNetPnL >= 0 ? 'text-success' : 'text-danger'}>
-                                        {totalNetPnL >= 0 ? '+' : ''}{currencySymbol}{fmt(totalNetPnL)}
-                                      </span>
-                                    </td>
-                                  );
-                                case 'totalPnLPct':
-                                  return (
-                                    <td key="totalPnLPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
-                                      <span className={totalNetPct >= 0 ? 'text-success' : 'text-danger'}>
-                                        {totalNetPct >= 0 ? '+' : ''}{totalNetPct.toFixed(2)}%
-                                      </span>
-                                    </td>
-                                  );
-                                case 'xirr':
-                                  return (
-                                    <td key="xirr" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
-                                      <span className={portfolioXIRR >= 0 ? 'text-success' : 'text-danger'}>
-                                        {portfolioXIRR >= 0 ? '+' : ''}{(portfolioXIRR * 100).toFixed(2)}%
-                                      </span>
-                                    </td>
-                                  );
-                                case 'dayGain':
-                                  return (
-                                    <td key="dayGain" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
-                                      <span className={portfolioTotalDayGain >= 0 ? 'text-success' : 'text-danger'}>
-                                        {portfolioTotalDayGain >= 0 ? '+' : ''}{currencySymbol}{fmt(portfolioTotalDayGain)}
-                                      </span>
-                                    </td>
-                                  );
-                                case 'dayGainPct':
-                                  return (
-                                    <td key="dayGainPct" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono">
-                                      <span className={portfolioDayGainPct >= 0 ? 'text-success' : 'text-danger'}>
-                                        {portfolioDayGainPct >= 0 ? '+' : ''}{portfolioDayGainPct.toFixed(2)}%
-                                      </span>
-                                    </td>
-                                  );
-                                default:
-                                  return <td key={colId} className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-tertiary">—</td>;
-                              }
-                            })}
-                            <td className="px-2 py-1.5 text-[9px] sm:text-[10px]"></td>
-                          </tr>
-                        );
-                      })()}
                       {filteredSymbolGroups.length === 0 ? (
                         <tr>
                           <td colSpan={visibleColumns.size + 2} className="px-3 py-6 text-center text-secondary text-[9px] sm:text-[10px]">
@@ -1946,76 +1970,76 @@ export function PortfolioDashboard() {
                                 onClick={() => toggleSymbol(group.symbol)}
                                 className="border-b border-divider divide-x divide-divider hover:bg-background cursor-pointer transition-colors group"
                               >
-                                <td className="pl-2 pr-1 py-1.5">
+                                <td className="pl-2 pr-1 py-1.5 sticky left-0 z-20 bg-background group-hover:bg-surface-hover">
                                   <span className="text-tertiary group-hover:text-secondary transition-colors">
-                                    {isExpanded
-                                      ? <ChevronDown className="w-3 h-3" />
-                                      : <ChevronRight className="w-3 h-3" />}
+                                    {isExpanded ? <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                                   </span>
                                 </td>
-                                {activeColumnOrder.map(colId => {
+                                  
+                                {visibleColumns.has('symbol') && (
+                                  <td className="px-2 py-1.5 sticky left-6 z-20 bg-background group-hover:bg-surface-hover border-r border-divider min-w-[140px] w-[140px] truncate">
+                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                      <div className="min-w-0 flex-1">
+                                        <div className="font-semibold text-[9px] sm:text-[10px] text-primary flex items-center gap-1.5 truncate">
+                                          <span className="truncate">{group.symbol}</span>
+                                          {group.liveData?.name && (
+                                            <span className="font-normal text-[9px] sm:text-[10px] text-secondary truncate" title={group.liveData.name}>
+                                              {group.liveData.name}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-[9px] sm:text-[10px] text-tertiary mt-0.5 truncate flex items-center gap-1.5">
+                                          <span>
+                                            {group.totalBoughtQty.toLocaleString()} bought
+                                            {group.totalSoldQty > 0 && <> · <span className="text-danger">{group.totalSoldQty.toLocaleString()} sold</span></>}
+                                          </span>
+                                          <span>·</span>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setAddStockInitialSymbol(group.symbol);
+                                              setAddStockInitialPrice(group.livePrice);
+                                              setAddStockPortfolioId(activePortfolioId);
+                                            }}
+                                            className="text-success hover:text-success hover:underline transition-colors focus:outline-none"
+                                            title={`Buy more ${group.symbol}`}
+                                          >
+                                            Buy
+                                          </button>
+                                          <span>·</span>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSellStockInitialSymbol(group.symbol);
+                                              setSellStockInitialPrice(group.livePrice);
+                                              setSellStockPortfolioId(activePortfolioId);
+                                            }}
+                                            className="text-danger hover:text-danger hover:underline transition-colors focus:outline-none"
+                                            title={`Sell ${group.symbol}`}
+                                          >
+                                            Sell
+                                          </button>
+                                          <span>·</span>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setViewCorporateActionsSymbol(group.symbol);
+                                            }}
+                                            className="text-blue-500 hover:text-blue-300 hover:underline transition-colors focus:outline-none"
+                                            title={`View Corporate Actions for ${group.symbol}`}
+                                          >
+                                            Corporate Actions
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                )}
+
+                                {activeColumnOrder.filter(id => id !== 'symbol').map(colId => {
                                   if (!visibleColumns.has(colId)) return null;
                                   switch (colId) {
-                                    case 'symbol':
-                                      return (
-                                        <td key="symbol" className="px-2 py-1.5 truncate">
-                                          <div className="flex items-center gap-1.5 overflow-hidden">
-                                            <div className="min-w-0 flex-1">
-                                              <div className="font-semibold text-[9px] sm:text-[10px] text-primary flex items-center gap-1.5 truncate">
-                                                <span className="truncate">{group.symbol}</span>
-                                                {group.liveData?.name && (
-                                                  <span className="font-normal text-[9px] sm:text-[10px] text-secondary truncate" title={group.liveData.name}>
-                                                    {group.liveData.name}
-                                                  </span>
-                                                )}
-                                              </div>
-                                              <div className="text-[9px] sm:text-[10px] text-tertiary mt-0.5 truncate flex items-center gap-1.5">
-                                                <span>
-                                                  {group.totalBoughtQty.toLocaleString()} bought
-                                                  {group.totalSoldQty > 0 && <> · <span className="text-danger">{group.totalSoldQty.toLocaleString()} sold</span></>}
-                                                </span>
-                                                <span>·</span>
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setAddStockInitialSymbol(group.symbol);
-                                                    setAddStockInitialPrice(group.livePrice);
-                                                    setAddStockPortfolioId(activePortfolioId);
-                                                  }}
-                                                  className="text-success hover:text-success hover:underline transition-colors focus:outline-none"
-                                                  title={`Buy more ${group.symbol}`}
-                                                >
-                                                  Buy
-                                                </button>
-                                                <span>·</span>
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSellStockInitialSymbol(group.symbol);
-                                                    setSellStockInitialPrice(group.livePrice);
-                                                    setSellStockPortfolioId(activePortfolioId);
-                                                  }}
-                                                  className="text-danger hover:text-danger hover:underline transition-colors focus:outline-none"
-                                                  title={`Sell ${group.symbol}`}
-                                                >
-                                                  Sell
-                                                </button>
-                                                <span>·</span>
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setViewCorporateActionsSymbol(group.symbol);
-                                                  }}
-                                                  className="text-blue-500 hover:text-blue-300 hover:underline transition-colors focus:outline-none"
-                                                  title={`View Corporate Actions for ${group.symbol}`}
-                                                >
-                                                  Corporate Actions
-                                                </button>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </td>
-                                      );
+
                                     case 'netQty':
                                       return <td key="netQty" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right font-semibold text-primary truncate">{group.netQty.toLocaleString()}</td>;
                                     case 'avgBuyPrice':

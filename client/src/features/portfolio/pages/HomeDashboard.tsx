@@ -93,7 +93,7 @@ function SortablePortfolioRow({ id, children }: { id: string, children: React.Re
       <td 
         {...attributes} 
         {...listeners} 
-        className="px-2 py-1.5 w-6 cursor-grab active:cursor-grabbing text-secondary/30 hover:text-secondary transition-opacity bg-surface group-hover/row:bg-surface-hover"
+        className="px-2 py-1.5 w-6 cursor-grab active:cursor-grabbing text-secondary/30 hover:text-secondary transition-opacity bg-surface group-hover/row:bg-surface-hover sticky left-0 z-20"
       >
         <GripVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
       </td>
@@ -777,8 +777,8 @@ export function HomeDashboard() {
             <table className="w-full text-left border-collapse whitespace-nowrap">
               <thead className="bg-surface sticky top-0 z-20">
                 <tr className="border-b border-divider">
-                  <th className="w-6 px-2 py-1.5 bg-surface z-20 sticky left-0"></th>
-                  <th className="px-2 py-1.5 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary min-w-[120px] bg-surface cursor-pointer hover:bg-surface-hover transition-colors group" onClick={() => handleSort('name')}>
+                  <th className="w-6 px-2 py-1.5 bg-surface z-30 sticky left-0"></th>
+                  <th className="px-2 py-1.5 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary min-w-[120px] bg-surface cursor-pointer hover:bg-surface-hover transition-colors group z-30 sticky left-6 border-r border-divider" onClick={() => handleSort('name')}>
                     <div className="flex items-center gap-1 justify-start">
                       <span>Portfolio</span>
                       {sortField === 'name' ? (
@@ -804,13 +804,10 @@ export function HomeDashboard() {
                       </th>
                     );
                   })}
-                  <th className="px-2 py-1.5 w-16 bg-surface"></th>
                 </tr>
-              </thead>
-              <tbody>
-                <tr className="bg-surface-hover/50 border-b-2 border-divider">
-                  <td className="w-6 px-2 py-2 sticky left-0 bg-surface-hover/50"></td>
-                  <td className="px-2 py-2 text-[10px] sm:text-[11px] font-semibold text-primary">Total</td>
+                <tr className="bg-surface-hover border-b-[3px] border-divider shadow-sm">
+                  <td className="w-6 px-2 py-2 sticky left-0 bg-surface-hover z-30"></td>
+                  <td className="px-2 py-2 text-[10px] sm:text-[11px] font-semibold text-primary sticky left-6 bg-surface-hover z-30 border-r border-divider">Total</td>
                   {summaryOrder.map(id => renderTotalCell(id))}
                   <td className="px-2 py-2 text-right">
                     <div className="flex items-center justify-end gap-1 relative shrink-0">
@@ -835,6 +832,8 @@ export function HomeDashboard() {
                     </div>
                   </td>
                 </tr>
+              </thead>
+              <tbody>
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -909,7 +908,7 @@ export function HomeDashboard() {
 
                       return (
                         <SortablePortfolioRow key={p.id} id={p.id}>
-                          <td className="px-2 py-2 min-w-[120px] max-w-[200px]">
+                          <td className="px-2 py-2 min-w-[120px] max-w-[200px] bg-surface group-hover/row:bg-surface-hover sticky left-6 z-20 border-r border-divider">
                             <p 
                               className="text-[10px] sm:text-[11px] font-medium text-primary group-hover/row:underline decoration-tertiary underline-offset-2 truncate cursor-pointer"
                               title={p.name}
