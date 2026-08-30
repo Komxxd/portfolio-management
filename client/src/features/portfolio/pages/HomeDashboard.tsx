@@ -365,7 +365,7 @@ export function HomeDashboard() {
   // Modal states
   const [renamePortfolioId, setRenamePortfolioId] = useState<string | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState<{top: number, right: number} | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{bottom: number, right: number} | null>(null);
 
   useEffect(() => {
     const handleClickOutside = () => setActiveMenuId(null);
@@ -941,7 +941,7 @@ export function HomeDashboard() {
                                     setMenuPosition(null);
                                   } else {
                                     const rect = e.currentTarget.getBoundingClientRect();
-                                    setMenuPosition({ top: rect.bottom, right: window.innerWidth - rect.right });
+                                    setMenuPosition({ bottom: window.innerHeight - rect.top, right: window.innerWidth - rect.right });
                                     setActiveMenuId(p.id);
                                   }
                                 }}
@@ -954,7 +954,7 @@ export function HomeDashboard() {
                               {activeMenuId === p.id && menuPosition && (
                                 <div 
                                   className="fixed w-36 bg-surface border border-divider rounded-lg shadow-xl shadow-black/20 z-[9999] py-1 flex flex-col" 
-                                  style={{ top: `${menuPosition.top + 4}px`, right: `${menuPosition.right}px` }}
+                                  style={{ bottom: `${menuPosition.bottom + 4}px`, right: `${menuPosition.right}px` }}
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <button
