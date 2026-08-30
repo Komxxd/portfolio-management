@@ -53,7 +53,7 @@ export const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ isOpen, onClos
   const executePermanentDelete = async () => {
     if (!portfolioToPermanentlyDelete) return;
     try {
-      await api.delete(`/api/portfolios/${portfolioToPermanentlyDelete}`);
+      await api.delete(`/api/portfolios/${portfolioToPermanentlyDelete}?permanent=true`);
       
       setDeletedPortfolios(prev => prev.filter(p => p.id !== portfolioToPermanentlyDelete));
     } catch (err) {
