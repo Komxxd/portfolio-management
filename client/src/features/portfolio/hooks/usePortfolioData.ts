@@ -50,8 +50,7 @@ export function usePortfolioData() {
 
       const portfoliosDataArray = await api.get('/api/portfolios') || [];
 
-      // Legacy fallback: Use local storage order if not present in settings yet
-      const savedOrder = settingsData?.portfolioOrder || JSON.parse(localStorage.getItem('portfolioOrder') || '[]');
+      const savedOrder = settingsData?.portfolioOrder || [];
       
       if (savedOrder && savedOrder.length > 0) {
         portfoliosDataArray.sort((a: any, b: any) => {
