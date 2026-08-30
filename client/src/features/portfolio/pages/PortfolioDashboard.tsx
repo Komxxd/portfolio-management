@@ -1517,8 +1517,8 @@ export function PortfolioDashboard() {
                   </button>
                   {isSummaryDropdownOpen && (
                     <>
-                      <div className="fixed inset-0 z-10" onClick={() => setIsSummaryDropdownOpen(false)} />
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 z-20 py-1 max-h-64 overflow-y-auto">
+                      <div className="fixed inset-0 z-40" onClick={() => setIsSummaryDropdownOpen(false)} />
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 z-50 py-1 max-h-64 overflow-y-auto">
                         <div className="border-b border-divider p-1 mb-0.5 space-y-0.5">
                           <button
                             onClick={applySummaryLayoutToAll}
@@ -1621,8 +1621,8 @@ export function PortfolioDashboard() {
                       
                       {isColumnsDropdownOpen && (
                         <>
-                          <div className="fixed inset-0 z-10" onClick={() => setIsColumnsDropdownOpen(false)} />
-                          <div className="absolute left-0 mt-1 w-48 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 shadow-black/40 z-20 py-1 max-h-64 overflow-y-auto">
+                          <div className="fixed inset-0 z-40" onClick={() => setIsColumnsDropdownOpen(false)} />
+                          <div className="absolute left-0 mt-1 w-48 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 shadow-black/40 z-50 py-1 max-h-64 overflow-y-auto">
                             <div className="border-b border-divider p-1 mb-0.5 space-y-0.5">
                               <button
                                 onClick={applyColumnLayoutToAll}
@@ -1684,8 +1684,8 @@ export function PortfolioDashboard() {
                       </button>
                       {isActionMenuOpen && (
                         <>
-                          <div className="fixed inset-0 z-10" onClick={() => setIsActionMenuOpen(false)} />
-                          <div className="absolute right-0 top-full mt-1 w-32 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 z-20 py-1 flex flex-col">
+                          <div className="fixed inset-0 z-40" onClick={() => setIsActionMenuOpen(false)} />
+                          <div className="absolute right-0 top-full mt-1 w-32 bg-surface border border-divider rounded-lg shadow-2xl shadow-black/50 z-50 py-1 flex flex-col">
                             <button
                               onClick={() => { setIsRebalanceModalOpen(true); setIsActionMenuOpen(false); }}
                               className="px-3 py-1.5 text-left text-xs font-medium text-primary hover:bg-surface-hover transition-colors"
