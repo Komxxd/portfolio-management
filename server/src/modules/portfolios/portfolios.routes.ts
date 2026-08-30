@@ -91,4 +91,58 @@ router.post('/:id/restore', authMiddleware, async (req: any, res: any) => {
   res.json({ success: true });
 });
 
+// POST /api/portfolios/:id/duplicate
+router.post('/:id/duplicate', authMiddleware, async (req: any, res: any) => {
+  const { id } = req.params;
+  const { name } = req.body;
+  
+  // 1. Get original portfolio
+  const { data: original, error: origError } = await req.supabase
+    .from('portfolios')
+    .select('*')
+    .eq('id', id)
+    .single();
+    
+  if (origError || !original) return res.status(404).json({ error: 'Portfolio not found' });
+  
+  // 2. Create new portfolio
+  const { data: newPortfolio, error: createError } = await req.supabase
+    .from('portfolios')
+    .insert([{ name: name || `${original.name} (Copy)`, user_id: req.user.id, auto_sync_corporate_actions: original.auto_sync_corporate_actions }])
+    .select()
+    .single();
+    
+  if (createError) return res.status(500).json({ error: createError.message });
+  
+  // 3. Get stocks from original portfolio
+  const { data: stocks, error: stocksError } = await req.supabase
+    .from('stocks')
+    .select('*')
+    .eq('portfolio_id', id);
+    
+  if (stocksError) return res.status(500).json({ error: stocksError.message });
+  
+  // 4. Insert stocks into new portfolio
+  if (stocks && stocks.length > 0) {
+    const newStocks = stocks.map((s: any) => ({
+      portfolio_id: newPortfolio.id,
+      user_id: req.user.id,
+      symbol: s.symbol,
+      quantity: s.quantity,
+      entry_price: s.entry_price,
+      brokerage: s.brokerage,
+      govt_tax: s.govt_tax,
+      entry_date: s.entry_date,
+    }));
+    
+    const { error: insertError } = await req.supabase
+      .from('stocks')
+      .insert(newStocks);
+      
+    if (insertError) return res.status(500).json({ error: insertError.message });
+  }
+  
+  res.json(newPortfolio);
+});
+
 export default router;

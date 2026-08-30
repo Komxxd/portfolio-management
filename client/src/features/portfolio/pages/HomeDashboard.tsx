@@ -408,7 +408,7 @@ export function HomeDashboard() {
     try {
       const p = portfolios.find(p => p.id === id);
       if (!p) return;
-      await api.post(`/api/portfolios`, { name: `${p.name} (Copy)` });
+      await api.post(`/api/portfolios/${id}/duplicate`, { name: `${p.name} (Copy)` });
       await fetchData();
     } catch (e) {
       console.error(e);
@@ -448,10 +448,18 @@ export function HomeDashboard() {
     });
   };
 
+  const prevPortfoliosRef = useRef(portfolios);
   useEffect(() => {
     if (portfolios.length > 0 && selectedSummaryPortfolioIds === null) {
       setSelectedSummaryPortfolioIds(portfolios.map(p => p.id));
+    } else if (selectedSummaryPortfolioIds !== null) {
+      const prevIds = new Set(prevPortfoliosRef.current.map(p => p.id));
+      const newPortfolios = portfolios.filter(p => !prevIds.has(p.id));
+      if (newPortfolios.length > 0) {
+        setSelectedSummaryPortfolioIds(prev => [...(prev || []), ...newPortfolios.map(p => p.id)]);
+      }
     }
+    prevPortfoliosRef.current = portfolios;
   }, [portfolios, selectedSummaryPortfolioIds]);
 
   useEffect(() => {
@@ -931,15 +939,29 @@ export function HomeDashboard() {
                                 <LineChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               </button>
                               <button
-                                onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === p.id ? null : p.id); }}
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  if (activeMenuId === p.id) {
+                                    setActiveMenuId(null);
+                                    setMenuPosition(null);
+                                  } else {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setMenuPosition({ top: rect.bottom, right: window.innerWidth - rect.right });
+                                    setActiveMenuId(p.id);
+                                  }
+                                }}
                                 className="p-1 sm:p-1.5 text-tertiary hover:text-primary hover:bg-surface-hover rounded transition-colors"
                                 title="Options"
                               >
                                 <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               </button>
                               
-                              {activeMenuId === p.id && (
-                                <div className="absolute right-0 top-full mt-1 w-36 bg-surface border border-divider rounded-lg shadow-xl shadow-black/20 z-50 py-1 flex flex-col" onClick={(e) => e.stopPropagation()}>
+                              {activeMenuId === p.id && menuPosition && (
+                                <div 
+                                  className="fixed w-36 bg-surface border border-divider rounded-lg shadow-xl shadow-black/20 z-[9999] py-1 flex flex-col" 
+                                  style={{ top: `${menuPosition.top + 4}px`, right: `${menuPosition.right}px` }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
                                   <button
                                     onClick={() => { setRenamePortfolioId(p.id); setActiveMenuId(null); }}
                                     className="w-full text-left px-4 py-2 text-xs text-secondary hover:bg-background hover:text-primary transition-colors"
