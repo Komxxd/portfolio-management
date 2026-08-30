@@ -11,6 +11,9 @@ export function usePortfolioData() {
   const [soldStocks, setSoldStocks] = useState<SoldStock[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [settings, setSettings] = useState<any>({});
+  const [settingsLoading, setSettingsLoading] = useState(true);
+
   // Real-time prices state
   const [livePrices, setLivePrices] = useState<Record<string, { 
     price: number; 
@@ -36,11 +39,21 @@ export function usePortfolioData() {
     if (!session) return;
     setLoading(true);
     try {
+      let settingsData: any = {};
+      try {
+        settingsData = await api.get('/api/settings');
+        setSettings(settingsData || {});
+      } catch (err) {
+        console.error('Failed to load settings', err);
+      }
+      setSettingsLoading(false);
+
       const portfoliosDataArray = await api.get('/api/portfolios') || [];
 
-      const savedOrder = JSON.parse(localStorage.getItem('portfolioOrder') || '[]');
+      // Legacy fallback: Use local storage order if not present in settings yet
+      const savedOrder = settingsData?.portfolioOrder || JSON.parse(localStorage.getItem('portfolioOrder') || '[]');
       
-      if (savedOrder.length > 0) {
+      if (savedOrder && savedOrder.length > 0) {
         portfoliosDataArray.sort((a: any, b: any) => {
           const idxA = savedOrder.indexOf(a.id);
           const idxB = savedOrder.indexOf(b.id);
@@ -86,6 +99,17 @@ export function usePortfolioData() {
     setPricesLoading(false);
   }, [fetchData]);
 
+  const updateSettings = useCallback(async (newSettings: any) => {
+    setSettings((prev: any) => {
+      const merged = { ...prev, ...newSettings };
+      // Fire and forget API call to persist settings
+      api.put('/api/settings', merged).catch(err => {
+        console.error('Failed to save settings to backend:', err);
+      });
+      return merged;
+    });
+  }, []);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -106,6 +130,9 @@ export function usePortfolioData() {
     fetchData,
     handleManualRefresh,
     isCreateModalOpen,
-    setIsCreateModalOpen
+    setIsCreateModalOpen,
+    settings,
+    updateSettings,
+    settingsLoading
   };
 }

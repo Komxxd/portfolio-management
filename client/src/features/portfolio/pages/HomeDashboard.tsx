@@ -157,7 +157,7 @@ function AutoScaleRow({ children, className = '' }: { children: React.ReactNode,
 }
 
 export function HomeDashboard() {
-  const { portfolios, setPortfolios, stocks, setIsCreateModalOpen, isCreateModalOpen, fetchData } = usePortfolioContext();
+  const { portfolios, setPortfolios, stocks, setIsCreateModalOpen, isCreateModalOpen, fetchData, settings, updateSettings, settingsLoading } = usePortfolioContext();
   const { currencySymbol, formatCurrency: fmtCurrency, formatCurrencyCompact, convert } = useCurrency();
   const navigate = useNavigate();
   const [homeStats, setHomeStats] = useState<any>(null);
@@ -170,27 +170,42 @@ export function HomeDashboard() {
   const summaryDropdownRef = useRef<HTMLDivElement>(null);
 
   // Summary Layout State (shared by global summary card and portfolio list)
-  const [summaryOrder, setSummaryOrder] = useState<string[]>(() => {
-    const saved = localStorage.getItem('home_summary_order');
-    if (saved) {
-      try {
-        const order = JSON.parse(saved);
+  const [summaryOrder, setSummaryOrder] = useState<string[]>(SUMMARY_STATS.map(s => s.id));
+  const [visibleStats, setVisibleStats] = useState<Set<string>>(new Set(SUMMARY_STATS.map(s => s.id)));
+  const [portfolioOrder, setPortfolioOrder] = useState<string[]>([]);
+  const [isSettingsInitialized, setIsSettingsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (!settingsLoading && !isSettingsInitialized) {
+      if (settings?.home_summary_order) {
+        const order = settings.home_summary_order;
         const existingIds = new Set(order);
         const missingStats = SUMMARY_STATS.map(s => s.id).filter(id => !existingIds.has(id));
-        return [...order, ...missingStats];
-      } catch (e) {}
+        setSummaryOrder([...order, ...missingStats]);
+      }
+      
+      if (settings?.home_summary_visible) {
+        setVisibleStats(new Set(settings.home_summary_visible));
+      }
+      
+      if (settings?.home_portfolio_order) {
+        setPortfolioOrder(settings.home_portfolio_order);
+      }
+      
+      setIsSettingsInitialized(true);
     }
-    return SUMMARY_STATS.map(s => s.id);
-  });
-  const [visibleStats, setVisibleStats] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('home_summary_visible');
-    if (saved) {
-      try {
-        return new Set(JSON.parse(saved));
-      } catch (e) {}
+  }, [settings, settingsLoading, isSettingsInitialized]);
+
+  // Sync state changes back to settings
+  useEffect(() => {
+    if (isSettingsInitialized) {
+      updateSettings({
+        home_summary_order: summaryOrder,
+        home_summary_visible: Array.from(visibleStats),
+        home_portfolio_order: portfolioOrder,
+      });
     }
-    return new Set(SUMMARY_STATS.map(s => s.id));
-  });
+  }, [summaryOrder, visibleStats, portfolioOrder, isSettingsInitialized, updateSettings]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
@@ -244,21 +259,6 @@ export function HomeDashboard() {
       },
     })
   );
-
-  useEffect(() => {
-    localStorage.setItem('home_summary_order', JSON.stringify(summaryOrder));
-  }, [summaryOrder]);
-  useEffect(() => {
-    localStorage.setItem('home_summary_visible', JSON.stringify(Array.from(visibleStats)));
-  }, [visibleStats]);
-
-  const [portfolioOrder, setPortfolioOrder] = useState<string[]>(() => {
-    const saved = localStorage.getItem('home_portfolio_order');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { return []; }
-    }
-    return [];
-  });
 
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -348,10 +348,6 @@ export function HomeDashboard() {
       return newOrder;
     });
   }, [portfolios]);
-
-  useEffect(() => {
-    localStorage.setItem('home_portfolio_order', JSON.stringify(portfolioOrder));
-  }, [portfolioOrder]);
 
   const handlePortfolioDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;

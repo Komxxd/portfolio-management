@@ -342,17 +342,7 @@ export function PortfolioDashboard() {
 
   const [corporateActionType, setCorporateActionType] = useState<'bonus' | 'split' | 'dividend' | null>(null);
   const [viewCorporateActionsSymbol, setViewCorporateActionsSymbol] = useState<string | null>(null);
-  const [portfolioFilters, setPortfolioFilters] = useState<Record<string, { filterType: 'open' | 'closed' | 'all'; searchSelectedSymbols: string[]; sortField: string | null; sortDirection: 'asc' | 'desc' }>>(() => {
-    const saved = localStorage.getItem('portfolioFilters');
-    if (saved) {
-      try { return JSON.parse(saved); } catch(e) {}
-    }
-    return {};
-  });
-
-  useEffect(() => {
-    localStorage.setItem('portfolioFilters', JSON.stringify(portfolioFilters));
-  }, [portfolioFilters]);
+  const [portfolioFilters, setPortfolioFilters] = useState<Record<string, { filterType: 'open' | 'closed' | 'all'; searchSelectedSymbols: string[]; sortField: string | null; sortDirection: 'asc' | 'desc' }>>({});
 
   const currentFilters = activePortfolioId && portfolioFilters[activePortfolioId] 
     ? portfolioFilters[activePortfolioId] 
@@ -399,20 +389,7 @@ export function PortfolioDashboard() {
 
 
 
-  const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(() => {
-    const saved = localStorage.getItem('expandedSymbols');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return new Set<string>(parsed);
-      } catch (e) {}
-    }
-    return new Set();
-  });
-
-  useEffect(() => {
-    localStorage.setItem('expandedSymbols', JSON.stringify(Array.from(expandedSymbols)));
-  }, [expandedSymbols]);
+  const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(new Set());
 
   const [isColumnsDropdownOpen, setIsColumnsDropdownOpen] = useState(false);
   const [confirmationConfig, setConfirmationConfig] = useState<{
@@ -425,64 +402,11 @@ export function PortfolioDashboard() {
     requireInputToConfirm?: string;
   } | null>(null);
 
-  const [portfolioVisibleSummaryStats, setPortfolioVisibleSummaryStats] = useState<Record<string, Set<string>>>(() => {
-    const saved = localStorage.getItem('portfolioVisibleSummaryStats');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        const result: Record<string, Set<string>> = {};
-        for (const key in parsed) {
-          result[key] = new Set(parsed[key]);
-        }
-        return result;
-      } catch (e) {}
-    }
-    // Fallback to legacy global setting
-    const legacySaved = localStorage.getItem('visibleSummaryStats');
-    if (legacySaved) {
-      try {
-        const parsed = JSON.parse(legacySaved);
-        if (Array.isArray(parsed)) return { 'global_fallback': new Set<string>(parsed) };
-      } catch (e) {}
-    }
-    return {};
-  });
-
-  useEffect(() => {
-    const toSave: Record<string, string[]> = {};
-    for (const key in portfolioVisibleSummaryStats) {
-      toSave[key] = Array.from(portfolioVisibleSummaryStats[key]);
-    }
-    localStorage.setItem('portfolioVisibleSummaryStats', JSON.stringify(toSave));
-  }, [portfolioVisibleSummaryStats]);
+  const [portfolioVisibleSummaryStats, setPortfolioVisibleSummaryStats] = useState<Record<string, Set<string>>>({});
 
   const [isSummaryDropdownOpen, setIsSummaryDropdownOpen] = useState(false);
 
-  const [portfolioSummaryStatsOrder, setPortfolioSummaryStatsOrder] = useState<Record<string, string[]>>(() => {
-    const saved = localStorage.getItem('portfolioSummaryStatsOrder');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {}
-    }
-    // Fallback to legacy global setting
-    const legacySaved = localStorage.getItem('summaryStatsOrder');
-    if (legacySaved) {
-      try {
-        const parsed = JSON.parse(legacySaved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const existingIds = new Set(parsed);
-          const newIds = ALL_SUMMARY_STATS.map(s => s.id).filter(id => !existingIds.has(id));
-          return { 'global_fallback': [...parsed, ...newIds] };
-        }
-      } catch (e) {}
-    }
-    return {};
-  });
-
-  useEffect(() => {
-    localStorage.setItem('portfolioSummaryStatsOrder', JSON.stringify(portfolioSummaryStatsOrder));
-  }, [portfolioSummaryStatsOrder]);
+  const [portfolioSummaryStatsOrder, setPortfolioSummaryStatsOrder] = useState<Record<string, string[]>>({});
 
   const activeVisibleSummaryStats = (() => {
     if (activePortfolioId && portfolioVisibleSummaryStats[activePortfolioId]) {
@@ -570,38 +494,82 @@ export function PortfolioDashboard() {
     setIsSummaryDropdownOpen(false);
   };
 
-  const [portfolioVisibleColumns, setPortfolioVisibleColumns] = useState<Record<string, Set<string>>>(() => {
-    const saved = localStorage.getItem('portfolioVisibleColumns');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
+  const [portfolioVisibleColumns, setPortfolioVisibleColumns] = useState<Record<string, Set<string>>>({});
+  const [portfolioColumnOrder, setPortfolioColumnOrder] = useState<Record<string, string[]>>({});
+  const [portfolioColumnWidths, setPortfolioColumnWidths] = useState<Record<string, Record<string, number>>>({});
+
+  const { settings, updateSettings, settingsLoading } = usePortfolioContext();
+  const [isSettingsInitialized, setIsSettingsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (!settingsLoading && !isSettingsInitialized) {
+      if (settings?.portfolioFilters) setPortfolioFilters(settings.portfolioFilters);
+      
+      if (settings?.expandedSymbols) {
+        setExpandedSymbols(new Set(settings.expandedSymbols));
+      }
+      
+      if (settings?.portfolioVisibleSummaryStats) {
         const result: Record<string, Set<string>> = {};
-        for (const key in parsed) {
-          result[key] = new Set(parsed[key]);
+        for (const key in settings.portfolioVisibleSummaryStats) {
+          result[key] = new Set(settings.portfolioVisibleSummaryStats[key]);
         }
-        return result;
-      } catch (e) {}
+        setPortfolioVisibleSummaryStats(result);
+      }
+      
+      if (settings?.portfolioSummaryStatsOrder) {
+        setPortfolioSummaryStatsOrder(settings.portfolioSummaryStatsOrder);
+      }
+      
+      if (settings?.portfolioVisibleColumns) {
+        const result: Record<string, Set<string>> = {};
+        for (const key in settings.portfolioVisibleColumns) {
+          result[key] = new Set(settings.portfolioVisibleColumns[key]);
+        }
+        setPortfolioVisibleColumns(result);
+      }
+      
+      if (settings?.portfolioColumnOrder) setPortfolioColumnOrder(settings.portfolioColumnOrder);
+      if (settings?.portfolioColumnWidths) setPortfolioColumnWidths(settings.portfolioColumnWidths);
+      
+      setIsSettingsInitialized(true);
     }
-    return {};
-  });
+  }, [settings, settingsLoading, isSettingsInitialized]);
 
-  const [portfolioColumnOrder, setPortfolioColumnOrder] = useState<Record<string, string[]>>(() => {
-    const saved = localStorage.getItem('portfolioColumnOrder');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return {};
-  });
+  // Sync settings back to backend
+  useEffect(() => {
+    if (isSettingsInitialized) {
+      const serializedVisibleSummaryStats: Record<string, string[]> = {};
+      for (const key in portfolioVisibleSummaryStats) {
+        serializedVisibleSummaryStats[key] = Array.from(portfolioVisibleSummaryStats[key]);
+      }
+      
+      const serializedVisibleColumns: Record<string, string[]> = {};
+      for (const key in portfolioVisibleColumns) {
+        serializedVisibleColumns[key] = Array.from(portfolioVisibleColumns[key]);
+      }
 
-  const [portfolioColumnWidths, setPortfolioColumnWidths] = useState<Record<string, Record<string, number>>>(() => {
-    const saved = localStorage.getItem('portfolioColumnWidths');
-    if (saved) {
-      try { return JSON.parse(saved); } catch(e) {}
+      updateSettings({
+        portfolioFilters,
+        expandedSymbols: Array.from(expandedSymbols),
+        portfolioVisibleSummaryStats: serializedVisibleSummaryStats,
+        portfolioSummaryStatsOrder,
+        portfolioVisibleColumns: serializedVisibleColumns,
+        portfolioColumnOrder,
+        portfolioColumnWidths
+      });
     }
-    return {};
-  });
+  }, [
+    portfolioFilters, 
+    expandedSymbols, 
+    portfolioVisibleSummaryStats, 
+    portfolioSummaryStatsOrder, 
+    portfolioVisibleColumns, 
+    portfolioColumnOrder, 
+    portfolioColumnWidths, 
+    isSettingsInitialized,
+    updateSettings
+  ]);
 
   const [resizingCol, setResizingCol] = useState<{ id: string, startX: number, startWidth: number } | null>(null);
   const hasDraggedRef = useRef(false);
@@ -637,23 +605,7 @@ export function PortfolioDashboard() {
     };
   }, [resizingCol, activePortfolioId]);
 
-  useEffect(() => {
-    localStorage.setItem('portfolioColumnWidths', JSON.stringify(portfolioColumnWidths));
-  }, [portfolioColumnWidths]);
-
   const [draggedColId, setDraggedColId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const toSave: Record<string, string[]> = {};
-    for (const key in portfolioVisibleColumns) {
-      toSave[key] = Array.from(portfolioVisibleColumns[key]);
-    }
-    localStorage.setItem('portfolioVisibleColumns', JSON.stringify(toSave));
-  }, [portfolioVisibleColumns]);
-
-  useEffect(() => {
-    localStorage.setItem('portfolioColumnOrder', JSON.stringify(portfolioColumnOrder));
-  }, [portfolioColumnOrder]);
 
   const visibleColumns = (() => {
     return (activePortfolioId && portfolioVisibleColumns[activePortfolioId]) 
@@ -1121,10 +1073,10 @@ export function PortfolioDashboard() {
 
 
   useEffect(() => {
-    if (portfolios.length > 0) {
-      localStorage.setItem('portfolioOrder', JSON.stringify(portfolios.map(p => p.id)));
+    if (isSettingsInitialized && portfolios.length > 0) {
+      updateSettings({ portfolioOrder: portfolios.map(p => p.id) });
     }
-  }, [portfolios]);
+  }, [portfolios, isSettingsInitialized, updateSettings]);
 
   const totalPnL = totalUnrealizedPnL + totalRealizedPnL + portfolioTotalDividend - portfolioTotalBrokerage - portfolioTotalGovtTax;
   const totalPnLPercent = maxNetInvested > 0 ? (totalPnL / maxNetInvested) * 100 : 0;
