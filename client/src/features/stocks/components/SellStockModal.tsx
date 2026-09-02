@@ -93,43 +93,28 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
       setError('');
 
       try {
-        // 1. Fetch all buy records for this portfolio
-        const bought = await api.get(`/api/stocks?portfolio_id=${portfolioId}`);
+        // Use the server's FIFO-aware portfolio summary for consistent quantities
+        // This accounts for corporate actions (bonus, splits, dividends) properly
+        const result = await api.get(`/api/calculations/portfolio/${portfolioId}/summary`);
+        const symbolGroups = result?.symbolGroups || [];
 
-        if (!bought || bought.length === 0) {
+        if (symbolGroups.length === 0) {
           setOwnedStocks([]);
           setLoadingStocks(false);
           return;
         }
 
-        // 2. Fetch all sell records for this portfolio
-        const sold = await api.get(`/api/sold-stocks?portfolio_id=${portfolioId}`);
-
-        // 3. Aggregate by symbol
-        const buyMap: Record<string, { totalBought: number; entryPrice: number }> = {};
-        for (const row of bought) {
-          const sym = row.symbol;
-          if (!buyMap[sym]) buyMap[sym] = { totalBought: 0, entryPrice: row.entry_price };
-          buyMap[sym].totalBought += Number(row.quantity);
-        }
-
-        const sellMap: Record<string, number> = {};
-        for (const row of sold ?? []) {
-          const sym = row.symbol;
-          sellMap[sym] = (sellMap[sym] ?? 0) + Number(row.quantity);
-        }
-
-        // 4. Build final list – only symbols with available qty > 0
-        const list: OwnedStock[] = Object.entries(buyMap)
-          .map(([symbol, { totalBought, entryPrice }]) => ({
-            symbol,
-            totalBought,
-            entryPrice,
-            totalSold: sellMap[symbol] ?? 0,
-            available: totalBought - (sellMap[symbol] ?? 0),
+        // Build list from server-calculated FIFO data
+        const list: OwnedStock[] = symbolGroups
+          .filter((g: any) => g.netQty > 0)
+          .map((g: any) => ({
+            symbol: g.symbol,
+            totalBought: g.totalBoughtQty,
+            entryPrice: g.avgBuyPrice,
+            totalSold: g.totalSoldQty,
+            available: g.netQty,
           }))
-          .filter(s => s.available > 0)
-          .sort((a, b) => a.symbol.localeCompare(b.symbol));
+          .sort((a: OwnedStock, b: OwnedStock) => a.symbol.localeCompare(b.symbol));
 
         setOwnedStocks(list);
       } catch (err: any) {

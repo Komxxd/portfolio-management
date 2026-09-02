@@ -46,7 +46,7 @@ export function calculatePortfolioStats(
     const buys = stocks.filter(s => s.symbol === symbol);
     const sells = soldStocks.filter(s => s.symbol === symbol);
 
-    const totalBoughtQty = buys.reduce((sum, b) => Number(b.entry_price) > 0 ? sum + Number(b.quantity) : sum, 0);
+    // totalBoughtQty is computed after FIFO processing to include bonus/split adjustments
     const totalSoldQty = sells.reduce((sum, s) => sum + Number(s.quantity), 0);
 
     const events: { type: 'BUY' | 'BONUS' | 'SPLIT' | 'DIVIDEND' | 'SELL'; date: number; raw: any }[] = [];
@@ -200,6 +200,7 @@ export function calculatePortfolioStats(
     });
 
     const netQty = openLots.reduce((sum, lot) => sum + lot.remainingQty, 0);
+    const totalBoughtQty = openLots.reduce((sum, lot) => sum + lot.buyQty, 0);
     const netCostBasis = openLots.reduce((sum, lot) => sum + (lot.remainingQty * lot.entryPrice), 0);
     const avgBuyPrice = netQty > 0 ? netCostBasis / netQty : 0;
     const currentValue = netQty * livePrice;
