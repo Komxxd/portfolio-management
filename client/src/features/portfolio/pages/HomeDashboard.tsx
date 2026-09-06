@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { Plus, BarChart2, Briefcase, TrendingUp, Search, ChevronDown, ChevronUp, ArrowUpDown, Check, MoreVertical, LineChart, Trash2, Loader2, Pencil, GripVertical, Columns, FilterX } from 'lucide-react';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
@@ -11,7 +12,7 @@ import { useCurrency } from '../../../app/providers/CurrencyProvider';
 
 import { CreatePortfolioModal } from '../components/CreatePortfolioModal';
 import { RenamePortfolioModal } from '../components/RenamePortfolioModal';
-import { RecycleBinModal } from '../components/RecycleBinModal';
+
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal';
 import { PerformanceChart } from '../components/PerformanceChart';
 
@@ -174,6 +175,13 @@ export function HomeDashboard() {
   const [visibleStats, setVisibleStats] = useState<Set<string>>(new Set(SUMMARY_STATS.map(s => s.id)));
   const [portfolioOrder, setPortfolioOrder] = useState<string[]>([]);
   const [isSettingsInitialized, setIsSettingsInitialized] = useState(false);
+  
+  const [navbarPortalElement, setNavbarPortalElement] = useState<HTMLElement | null>(null);
+  const [navbarLeftPortalElement, setNavbarLeftPortalElement] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setNavbarPortalElement(document.getElementById('navbar-actions-portal'));
+    setNavbarLeftPortalElement(document.getElementById('navbar-left-portal'));
+  }, []);
 
   useEffect(() => {
     if (!settingsLoading && !isSettingsInitialized) {
@@ -379,7 +387,7 @@ export function HomeDashboard() {
       window.removeEventListener('scroll', handleScroll, true);
     };
   }, []);
-  const [isRecycleBinModalOpen, setIsRecycleBinModalOpen] = useState(false);
+
   const [confirmationConfig, setConfirmationConfig] = useState<{
     isOpen: boolean;
     title: string;
@@ -640,63 +648,65 @@ export function HomeDashboard() {
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Summary Section */}
-      <div className="flex items-center justify-between gap-2 sm:gap-4 mb-3 mt-2 sm:mt-3">
-        <div className="flex items-center gap-2">
-          <div className="relative z-40" ref={summaryDropdownRef}>
-            <button 
-              onClick={() => setIsSummaryDropdownOpen(!isSummaryDropdownOpen)}
-              className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold text-primary hover:opacity-80 transition-opacity bg-surface py-1 sm:py-1.5 px-1.5 sm:px-3 rounded border border-divider"
-            >
-              {selectedSummaryPortfolioIds === null || selectedSummaryPortfolioIds.length === portfolios.length 
-                ? 'All Portfolios' 
-                : selectedSummaryPortfolioIds.length === 1 
-                  ? portfolios.find(p => p.id === selectedSummaryPortfolioIds[0])?.name || 'Selected'
-                  : selectedSummaryPortfolioIds.length === 0 
-                    ? 'None Selected'
-                    : `${selectedSummaryPortfolioIds.length} Portfolios Selected`}
-              <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-secondary" />
-            </button>
-            
-            {isSummaryDropdownOpen && (
-              <div className="absolute left-0 top-full mt-1.5 w-56 bg-surface border border-divider rounded-lg shadow-xl shadow-black/20 py-1 max-h-64 overflow-y-auto z-50">
-                <button
-                  onClick={() => {
-                    const allSelected = selectedSummaryPortfolioIds?.length === portfolios.length;
-                    if (allSelected) {
-                      setSelectedSummaryPortfolioIds([]);
-                    } else {
-                      setSelectedSummaryPortfolioIds(portfolios.map(p => p.id));
-                    }
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center gap-2 border-b border-divider text-primary hover:bg-surface-hover font-medium mb-1"
-                >
-                  <div className={`w-3.5 h-3.5 shrink-0 rounded-sm border ${selectedSummaryPortfolioIds?.length === portfolios.length ? 'bg-primary border-primary flex items-center justify-center' : 'border-secondary'}`}>
-                    {selectedSummaryPortfolioIds?.length === portfolios.length && <Check className="w-2.5 h-2.5 text-background" />}
-                  </div>
-                  <span>{selectedSummaryPortfolioIds?.length === portfolios.length ? 'Unselect All' : 'Select All'}</span>
-                </button>
-                {portfolios.map(p => {
-                  const isSelected = selectedSummaryPortfolioIds?.includes(p.id) || false;
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => toggleSummaryPortfolioSelection(p.id)}
-                      className={`w-full text-left px-4 py-2 text-xs transition-colors flex items-center gap-2 truncate ${isSelected ? 'bg-primary/10 text-primary font-medium' : 'text-secondary hover:bg-surface-hover hover:text-primary'}`}
-                      title={p.name}
-                    >
-                      <div className={`w-3.5 h-3.5 shrink-0 rounded-sm border ${isSelected ? 'bg-primary border-primary flex items-center justify-center' : 'border-secondary'}`}>
-                        {isSelected && <Check className="w-2.5 h-2.5 text-background" />}
-                      </div>
-                      <span className="truncate">{p.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 sm:gap-3">
+      {navbarLeftPortalElement && createPortal(
+        <div className="relative z-40" ref={summaryDropdownRef}>
+          <button 
+            onClick={() => setIsSummaryDropdownOpen(!isSummaryDropdownOpen)}
+            className="flex items-center justify-between gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold text-primary hover:opacity-80 transition-opacity bg-surface py-1 sm:py-1.5 px-1.5 sm:px-3 rounded border border-divider min-w-[110px] sm:w-[140px]"
+          >
+            <span className="truncate text-left">
+            {selectedSummaryPortfolioIds === null || selectedSummaryPortfolioIds.length === portfolios.length 
+              ? 'All Portfolios' 
+              : selectedSummaryPortfolioIds.length === 1 
+                ? portfolios.find(p => p.id === selectedSummaryPortfolioIds[0])?.name || 'Selected'
+                : selectedSummaryPortfolioIds.length === 0 
+                  ? 'None Selected'
+                  : `${selectedSummaryPortfolioIds.length} Portfolios Selected`}
+            </span>
+            <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0 text-secondary transition-transform ${isSummaryDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {isSummaryDropdownOpen && (
+            <div className="absolute left-0 top-full mt-1.5 w-56 bg-surface border border-divider rounded-lg shadow-xl shadow-black/20 py-1 max-h-64 overflow-y-auto z-50">
+              <button
+                onClick={() => {
+                  const allSelected = selectedSummaryPortfolioIds?.length === portfolios.length;
+                  if (allSelected) {
+                    setSelectedSummaryPortfolioIds([]);
+                  } else {
+                    setSelectedSummaryPortfolioIds(portfolios.map(p => p.id));
+                  }
+                }}
+                className="w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center gap-2 border-b border-divider text-primary hover:bg-surface-hover font-medium mb-1"
+              >
+                <div className={`w-3.5 h-3.5 shrink-0 rounded-sm border ${selectedSummaryPortfolioIds?.length === portfolios.length ? 'bg-primary border-primary flex items-center justify-center' : 'border-secondary'}`}>
+                  {selectedSummaryPortfolioIds?.length === portfolios.length && <Check className="w-2.5 h-2.5 text-background" />}
+                </div>
+                <span>{selectedSummaryPortfolioIds?.length === portfolios.length ? 'Unselect All' : 'Select All'}</span>
+              </button>
+              {portfolios.map(p => {
+                const isSelected = selectedSummaryPortfolioIds?.includes(p.id) || false;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => toggleSummaryPortfolioSelection(p.id)}
+                    className={`w-full text-left px-4 py-2 text-xs transition-colors flex items-center gap-2 truncate ${isSelected ? 'bg-primary/10 text-primary font-medium' : 'text-secondary hover:bg-surface-hover hover:text-primary'}`}
+                    title={p.name}
+                  >
+                    <div className={`w-3.5 h-3.5 shrink-0 rounded-sm border ${isSelected ? 'bg-primary border-primary flex items-center justify-center' : 'border-secondary'}`}>
+                      {isSelected && <Check className="w-2.5 h-2.5 text-background" />}
+                    </div>
+                    <span className="truncate">{p.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>,
+        navbarLeftPortalElement
+      )}
+      {navbarPortalElement && createPortal(
+        <>
           {sortField !== null && (
             <button
               onClick={() => {
@@ -709,60 +719,52 @@ export function HomeDashboard() {
               <span className="hidden sm:inline">Clear</span>
             </button>
           )}
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-medium bg-primary text-background hover:opacity-90 transition-opacity rounded"
-            title="Create New Portfolio"
-          >
-            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">Create New Portfolio</span>
-          </button>
-          <button
-            onClick={() => setIsRecycleBinModalOpen(true)}
-            className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-medium text-secondary hover:text-primary hover:bg-surface-hover transition-colors rounded border border-divider"
-            title="Bin"
-          >
-            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">Bin</span>
-          </button>
-          
-          <div className="relative flex" ref={settingsRef}>
-            <button
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 bg-surface hover:bg-surface-hover border border-divider rounded text-secondary hover:text-primary transition-colors"
-              title="Customize Summary"
-            >
-              <Columns className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-            
-            {isSettingsOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-48 bg-surface border border-divider rounded-lg shadow-xl shadow-black/20 py-1 max-h-80 overflow-y-auto z-50">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleStatDragEnd}
-                >
-                  <SortableContext items={summaryOrder} strategy={verticalListSortingStrategy}>
-                    {summaryOrder.map(id => {
-                      const stat = SUMMARY_STATS.find(s => s.id === id);
-                      if (!stat) return null;
-                      return (
-                        <SortableMenuItem
-                          key={id}
-                          stat={stat}
-                          isVisible={visibleStats.has(id)}
-                          onToggle={toggleStat}
-                        />
-                      );
-                    })}
-                  </SortableContext>
-                </DndContext>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 sm:px-3 sm:py-1.5 text-[10px] sm:text-xs font-medium bg-primary text-background hover:opacity-90 transition-opacity rounded"
+                title="Create New Portfolio"
+              >
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Create New Portfolio</span>
+              </button>
 
+              <div className="relative flex" ref={settingsRef}>
+                <button
+                  onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                  className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 bg-surface hover:bg-surface-hover border border-divider rounded text-secondary hover:text-primary transition-colors"
+                  title="Customize Summary"
+                >
+                  <Columns className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </button>
+                
+                {isSettingsOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 w-48 bg-surface border border-divider rounded-lg shadow-xl shadow-black/20 py-1 max-h-80 overflow-y-auto z-50">
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleStatDragEnd}
+                    >
+                      <SortableContext items={summaryOrder} strategy={verticalListSortingStrategy}>
+                        {summaryOrder.map(id => {
+                          const stat = SUMMARY_STATS.find(s => s.id === id);
+                          if (!stat) return null;
+                          return (
+                            <SortableMenuItem
+                              key={id}
+                              stat={stat}
+                              isVisible={visibleStats.has(id)}
+                              onToggle={toggleStat}
+                            />
+                          );
+                        })}
+                      </SortableContext>
+                    </DndContext>
+                  </div>
+                )}
+              </div>
+            </>,
+            navbarPortalElement
+          )}
       
       {isChartVisible && <PerformanceChart selectedPortfolioId={selectedSummaryPortfolioIds?.length ? selectedSummaryPortfolioIds.join(',') : 'NONE'} />}
 
@@ -771,7 +773,7 @@ export function HomeDashboard() {
         {portfolios.length > 0 ? (
           <div className="flex-1 bg-surface overflow-auto rounded-lg border border-divider shadow-sm relative min-h-0">
             <table className="w-full text-left border-collapse whitespace-nowrap">
-              <thead className="bg-surface sticky top-0 z-20">
+              <thead className="bg-surface sticky top-0 z-40">
                 <tr className="border-b border-divider">
                   <th className="w-6 px-2 py-1.5 bg-surface z-30 sticky left-0"></th>
                   <th className="px-2 py-1.5 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary min-w-[120px] bg-surface cursor-pointer hover:bg-surface-hover transition-colors group z-30 sticky left-6 border-r border-divider" onClick={() => handleSort('name')}>
@@ -800,6 +802,7 @@ export function HomeDashboard() {
                       </th>
                     );
                   })}
+                  <th className="px-2 py-1.5 text-[7px] sm:text-[9px] uppercase tracking-wider font-semibold text-secondary bg-surface text-right">Actions</th>
                 </tr>
                 <tr className="bg-surface-hover border-b-[3px] border-divider shadow-sm">
                   <td className="w-6 px-2 py-2 sticky left-0 bg-surface-hover z-30"></td>
@@ -824,7 +827,9 @@ export function HomeDashboard() {
                       >
                         <LineChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
-                      <div className="w-6"></div> {/* Placeholder to align with options button in other rows */}
+                      <div className="p-1 sm:p-1.5 invisible pointer-events-none">
+                        <div className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -1027,11 +1032,6 @@ export function HomeDashboard() {
         currentName={portfolios.find(p => p.id === renamePortfolioId)?.name || ''}
       />
 
-      <RecycleBinModal
-        isOpen={isRecycleBinModalOpen}
-        onClose={() => setIsRecycleBinModalOpen(false)}
-        onRestore={() => fetchData()}
-      />
 
       {confirmationConfig && (
         <ConfirmationModal

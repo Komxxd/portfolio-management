@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Briefcase, Trash2, Pencil, ChevronRight, ChevronDown, Info, User, LogOut, Folder, Home, RefreshCw, Sun, Moon, Check } from 'lucide-react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronRight, ChevronDown, Info, User, LogOut, Folder, Home, Sun, Moon, Check } from 'lucide-react'
 import { api } from '../../services/api/client'
 import { usePortfolioContext } from '../../features/portfolio/hooks/PortfolioContext'
 import { useTheme } from '../../app/providers/ThemeProvider'
@@ -11,6 +11,7 @@ import { MarketTicker } from './MarketTicker'
 
 import { CreatePortfolioModal } from '../../features/portfolio/components/CreatePortfolioModal'
 import { ConfirmationModal } from '../ui/ConfirmationModal'
+import { RecycleBinModal } from '../../features/portfolio/components/RecycleBinModal'
 
 export function AppLayout() {
   const { session, loading } = useAuth();
@@ -23,7 +24,6 @@ export function AppLayout() {
     stocks,
     soldStocks,
     pricesLoading,
-    handleManualRefresh,
     isCreateModalOpen,
     setIsCreateModalOpen,
     fetchData
@@ -36,13 +36,11 @@ export function AppLayout() {
   const portfolioId = isPortfolioPage ? location.pathname.split('/')[2] : null;
   const portfolioName = portfolioId ? portfolios.find(p => p.id === portfolioId)?.name : null;
 
-  // Derive unique stock symbols for manual refresh
-  const allStockSymbols = [...new Set([...stocks.map(s => s.symbol), ...soldStocks.map(s => s.symbol)])];
-
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const [isPortfolioMenuOpen, setIsPortfolioMenuOpen] = useState(false);
   const portfolioMenuRef = useRef<HTMLDivElement>(null);
+  const [isRecycleBinModalOpen, setIsRecycleBinModalOpen] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -95,6 +93,17 @@ export function AppLayout() {
                 
                 {isPortfolioMenuOpen && (
                   <div className="absolute top-full left-0 mt-1.5 w-56 bg-surface border border-divider rounded-lg py-1 z-50 shadow-2xl shadow-black/50">
+                    <button
+                      onClick={() => {
+                        setIsPortfolioMenuOpen(false);
+                        navigate('/portfolios');
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surface-hover transition-colors flex items-center gap-2"
+                    >
+                      <Briefcase className="w-3.5 h-3.5 text-tertiary" />
+                      View All Portfolios
+                    </button>
+                    <div className="border-b border-divider my-1" />
                     {portfolios.map(p => (
                       <button
                         key={p.id}
@@ -114,53 +123,20 @@ export function AppLayout() {
                         <span className="truncate">{p.name}</span>
                       </button>
                     ))}
-                    <div className="border-t border-divider my-1" />
-                    <button
-                      onClick={() => {
-                        setIsPortfolioMenuOpen(false);
-                        navigate('/portfolios');
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surface-hover transition-colors flex items-center gap-2"
-                    >
-                      <Briefcase className="w-3.5 h-3.5 text-tertiary" />
-                      View All Portfolios
-                    </button>
                   </div>
                 )}
               </div>
             )}
+            
+            <div id="navbar-left-portal" className="flex items-center"></div>
 
             <div className="flex-1 max-w-md">
               <GlobalSearch />
             </div>
-
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <button
-              onClick={toggleTheme}
-              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-colors border bg-surface-hover text-secondary border-divider hover:bg-divider"
-              title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-              {theme === 'dark' ? <Sun className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : <Moon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
-            </button>
-
-            <button
-              onClick={() => setDisplayCurrency(displayCurrency === 'INR' ? 'USD' : 'INR')}
-              className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-colors border bg-surface-hover text-secondary border-divider hover:bg-divider font-semibold text-[10px] sm:text-[11px]"
-              title={`Display Currency: ${displayCurrency}. Click to switch to ${displayCurrency === 'INR' ? 'USD' : 'INR'}`}
-            >
-              {currencySymbol}
-            </button>
-
-            <button
-              onClick={() => handleManualRefresh(allStockSymbols.join(','))}
-              disabled={pricesLoading}
-              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-colors border bg-surface-hover text-secondary border-divider hover:bg-divider ${pricesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title="Refresh Portfolio & Prices"
-            >
-              <RefreshCw className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${pricesLoading ? 'animate-spin text-primary' : ''}`} />
-            </button>
+            <div id="navbar-actions-portal" className="flex items-center gap-1 sm:gap-2"></div>
 
             <div className="relative group" ref={accountMenuRef}>
               <button
@@ -177,12 +153,42 @@ export function AppLayout() {
 
 
               {isAccountMenuOpen && (
-                <div className="absolute right-0 mt-2 min-w-[240px] max-w-sm bg-surface border border-divider rounded-lg py-1 z-50 shadow-2xl shadow-black/50 shadow-black/40 shadow-gray-400/30">
+                <div className="absolute right-0 mt-2 min-w-[240px] max-w-sm bg-surface border border-divider rounded-lg py-1 z-50 shadow-xl shadow-black/50">
                   <div className="px-4 py-3 border-b border-divider">
                     <p className="text-[10px] text-secondary mb-0.5 uppercase tracking-wide">Signed in as</p>
                     <p className="text-xs font-medium text-primary truncate">
                       {session?.user?.email}
                     </p>
+                  </div>
+                  <div className="py-1 border-b border-divider">
+                    <button
+                      onClick={toggleTheme}
+                      className="w-full text-left px-4 py-2 text-xs text-secondary hover:bg-background hover:text-primary flex items-center gap-2"
+                    >
+                      {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                      {theme === 'dark' ? "Light Mode" : "Dark Mode"}
+                    </button>
+                    <button
+                      onClick={() => setDisplayCurrency(displayCurrency === 'INR' ? 'USD' : 'INR')}
+                      className="w-full text-left px-4 py-2 text-xs text-secondary hover:bg-background hover:text-primary flex items-center gap-2"
+                    >
+                      <span className="w-3.5 h-3.5 flex items-center justify-center font-bold text-[10px] bg-surface-hover rounded-sm border border-divider">
+                        {displayCurrency === 'INR' ? '$' : '₹'}
+                      </span>
+                      Switch to {displayCurrency === 'INR' ? 'USD' : 'INR'}
+                    </button>
+                  </div>
+                  <div className="py-1 border-b border-divider">
+                    <button
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        setIsRecycleBinModalOpen(true);
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs text-secondary hover:bg-background hover:text-primary flex items-center gap-2"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Recycle Bin
+                    </button>
                   </div>
                   <div className="py-1">
                     <button
@@ -208,12 +214,18 @@ export function AppLayout() {
         {/* Main Content constraints */}
         <div className="flex flex-col flex-1 w-full max-w-[1600px] mx-auto bg-background min-h-0">
           <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-background relative z-0">
-            <div className="flex-1 p-2 md:p-4 flex flex-col min-h-0">
+            <div className="flex-1 px-2 md:px-4 pt-2 md:pt-3 pb-2 md:pb-4 flex flex-col min-h-0">
               <Outlet />
             </div>
           </main>
         </div>
       </div>
+      
+      <RecycleBinModal
+        isOpen={isRecycleBinModalOpen}
+        onClose={() => setIsRecycleBinModalOpen(false)}
+        onRestore={() => fetchData()}
+      />
     </div>
   );
 }

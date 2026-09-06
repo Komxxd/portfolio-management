@@ -82,22 +82,6 @@ export function usePortfolioData() {
     }
   }, [session]);
 
-  const handleManualRefresh = useCallback(async (allStockSymbols: string) => {
-    setPricesLoading(true);
-    await fetchData();
-    if (allStockSymbols) {
-      try {
-        const prices = await api.get(`/api/prices?symbols=${encodeURIComponent(allStockSymbols)}&t=${Date.now()}`);
-        if (prices) {
-          setLivePrices(prev => ({ ...prev, ...prices }));
-        }
-      } catch (err) {
-        console.error('Failed to fetch live prices', err);
-      }
-    }
-    setPricesLoading(false);
-  }, [fetchData]);
-
   const updateSettings = useCallback(async (newSettings: any) => {
     setSettings((prev: any) => {
       const merged = { ...prev, ...newSettings };
@@ -127,7 +111,6 @@ export function usePortfolioData() {
     pricesLoading,
     setPricesLoading,
     fetchData,
-    handleManualRefresh,
     isCreateModalOpen,
     setIsCreateModalOpen,
     settings,

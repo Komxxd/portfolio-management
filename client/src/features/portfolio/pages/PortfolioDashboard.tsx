@@ -1442,11 +1442,8 @@ export function PortfolioDashboard() {
   return (
     <>
     <div className="flex-1 w-full flex flex-col min-h-0">
-      <div className="flex items-center justify-end mb-4 mt-2">
-      </div>
-      
               {/* Stats Cards & Customize */}
-              <div className="flex gap-2 mb-4">
+              <div className="flex gap-2 mb-2 md:mb-3">
                 <DndContext 
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -1700,7 +1697,7 @@ export function PortfolioDashboard() {
                 >
                   <div className="flex-1 bg-surface overflow-auto relative min-h-0">
                     <table className="w-full text-left border-collapse whitespace-nowrap table-fixed">
-                      <thead className="sticky top-0 z-30 bg-surface ">
+                      <thead className="sticky top-0 z-40 bg-surface ">
                         <tr className="border-b border-divider divide-x divide-divider">
                           <th className="px-2 py-1.5 text-[9px] sm:text-[10px] uppercase tracking-wider font-semibold text-secondary w-6 bg-surface sticky left-0 z-30"></th>
                           {visibleColumns.has('symbol') && (
