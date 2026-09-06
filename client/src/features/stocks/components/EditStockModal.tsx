@@ -53,12 +53,15 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
   const isSplit = stock.entry_price === -1;
   const isDividend = stock.entry_price === -2;
   const isCorporateAction = isBonus || isSplit || isDividend;
+  
+  const isFractionalAllowed = stock.symbol ? !(stock.symbol.toUpperCase().endsWith('.NS') || stock.symbol.toUpperCase().endsWith('.BO')) : true;
 
   const handleQuantityChange = (val: string) => {
-    setQuantity(val);
-    if (entryPrice && val && !isNaN(parseFloat(val)) && !isNaN(parseFloat(entryPrice))) {
-      setValue((parseFloat(val) * parseFloat(entryPrice)).toFixed(2));
-    } else if (!val) {
+    const sanitizedVal = isFractionalAllowed ? val : val.replace(/[^0-9]/g, '');
+    setQuantity(sanitizedVal);
+    if (entryPrice && sanitizedVal && !isNaN(parseFloat(sanitizedVal)) && !isNaN(parseFloat(entryPrice))) {
+      setValue((parseFloat(sanitizedVal) * parseFloat(entryPrice)).toFixed(2));
+    } else if (!sanitizedVal) {
       setValue('');
     }
   };
@@ -66,7 +69,8 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
   const handleValueChange = (val: string) => {
     setValue(val);
     if (entryPrice && val && !isNaN(parseFloat(val)) && !isNaN(parseFloat(entryPrice)) && parseFloat(entryPrice) !== 0) {
-      setQuantity(Math.floor(parseFloat(val) / parseFloat(entryPrice)).toString());
+      const calculatedQty = parseFloat(val) / parseFloat(entryPrice);
+      setQuantity(isFractionalAllowed ? String(Number(calculatedQty.toFixed(6))) : Math.floor(calculatedQty).toString());
     } else if (!val) {
       setQuantity('');
     }
@@ -77,7 +81,8 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
     if (quantity && val && !isNaN(parseFloat(quantity)) && !isNaN(parseFloat(val))) {
       setValue((parseFloat(quantity) * parseFloat(val)).toFixed(2));
     } else if (value && val && !isNaN(parseFloat(value)) && !isNaN(parseFloat(val)) && parseFloat(val) !== 0) {
-      setQuantity(Math.floor(parseFloat(value) / parseFloat(val)).toString());
+      const calculatedQty = parseFloat(value) / parseFloat(val);
+      setQuantity(isFractionalAllowed ? String(Number(calculatedQty.toFixed(6))) : Math.floor(calculatedQty).toString());
     }
   };
 
@@ -177,9 +182,15 @@ export function EditStockModal({ isOpen, onClose, onEdited, stock }: EditStockMo
                   type="number"
                   id="editQuantity"
                   value={quantity}
-                  onChange={(e) => isCorporateAction ? setQuantity(e.target.value) : handleQuantityChange(e.target.value.replace(/[^0-9]/g, ''))}
+                  onChange={(e) => {
+                    if (isCorporateAction) {
+                      setQuantity(isFractionalAllowed ? e.target.value : e.target.value.replace(/[^0-9]/g, ''));
+                    } else {
+                      handleQuantityChange(e.target.value);
+                    }
+                  }}
                   className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
-                  step={isCorporateAction ? "any" : "1"}
+                  step={isCorporateAction ? (isFractionalAllowed ? "any" : "1") : (isFractionalAllowed ? "any" : "1")}
                   min={isSplit || isDividend ? "0.0001" : "0"}
                 />
               </div>

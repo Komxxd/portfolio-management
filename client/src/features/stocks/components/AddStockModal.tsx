@@ -36,6 +36,8 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const isFractionalAllowed = ticker ? !(ticker.toUpperCase().endsWith('.NS') || ticker.toUpperCase().endsWith('.BO')) : true;
+
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Reset form when modal opens
@@ -113,10 +115,11 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
   if (!isOpen || !portfolioId) return null;
 
   const handleQuantityChange = (val: string) => {
-    setQuantity(val);
-    if (entryPrice && val && !isNaN(parseFloat(val)) && !isNaN(parseFloat(entryPrice))) {
-      setValue((parseFloat(val) * parseFloat(entryPrice)).toFixed(2));
-    } else if (!val) {
+    const sanitizedVal = isFractionalAllowed ? val : val.replace(/[^0-9]/g, '');
+    setQuantity(sanitizedVal);
+    if (entryPrice && sanitizedVal && !isNaN(parseFloat(sanitizedVal)) && !isNaN(parseFloat(entryPrice))) {
+      setValue((parseFloat(sanitizedVal) * parseFloat(entryPrice)).toFixed(2));
+    } else if (!sanitizedVal) {
       setValue('');
     }
   };
@@ -124,7 +127,8 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
   const handleValueChange = (val: string) => {
     setValue(val);
     if (entryPrice && val && !isNaN(parseFloat(val)) && !isNaN(parseFloat(entryPrice)) && parseFloat(entryPrice) !== 0) {
-      setQuantity(Math.floor(parseFloat(val) / parseFloat(entryPrice)).toString());
+      const calculatedQty = parseFloat(val) / parseFloat(entryPrice);
+      setQuantity(isFractionalAllowed ? String(Number(calculatedQty.toFixed(6))) : Math.floor(calculatedQty).toString());
     } else if (!val) {
       setQuantity('');
     }
@@ -135,7 +139,8 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
     if (quantity && val && !isNaN(parseFloat(quantity)) && !isNaN(parseFloat(val))) {
       setValue((parseFloat(quantity) * parseFloat(val)).toFixed(2));
     } else if (value && val && !isNaN(parseFloat(value)) && !isNaN(parseFloat(val)) && parseFloat(val) !== 0) {
-      setQuantity(Math.floor(parseFloat(value) / parseFloat(val)).toString());
+      const calculatedQty = parseFloat(value) / parseFloat(val);
+      setQuantity(isFractionalAllowed ? String(Number(calculatedQty.toFixed(6))) : Math.floor(calculatedQty).toString());
     }
   };
 
@@ -163,7 +168,8 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
           if (quantity && !isNaN(parseFloat(quantity))) {
             setValue((parseFloat(quantity) * parseFloat(priceStr)).toFixed(2));
           } else if (value && !isNaN(parseFloat(value))) {
-            setQuantity(Math.floor(parseFloat(value) / parseFloat(priceStr)).toString());
+            const calculatedQty = parseFloat(value) / parseFloat(priceStr);
+            setQuantity(isFractionalAllowed ? String(Number(calculatedQty.toFixed(6))) : Math.floor(calculatedQty).toString());
           }
         }
       }
@@ -322,10 +328,10 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
                     type="number"
                     id="quantity"
                     value={quantity}
-                    onChange={(e) => handleQuantityChange(e.target.value.replace(/[^0-9]/g, ''))}
+                    onChange={(e) => handleQuantityChange(e.target.value)}
                     className="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow"
                     placeholder="0"
-                    step="1"
+                    step={isFractionalAllowed ? "any" : "1"}
                     min="0"
                   />
                 </div>

@@ -37,8 +37,8 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Derive the selected stock info for inline hints
   const selectedStock = ownedStocks.find(s => s.symbol === selectedSymbol) ?? null;
+  const isFractionalAllowed = selectedSymbol ? !(selectedSymbol.toUpperCase().endsWith('.NS') || selectedSymbol.toUpperCase().endsWith('.BO')) : true;
   const filteredStocks = ownedStocks.filter(s =>
     s.symbol.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -130,10 +130,11 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
   if (!isOpen || !portfolioId) return null;
 
   const handleQuantityChange = (val: string) => {
-    setQuantity(val);
-    if (exitPrice && val && !isNaN(parseFloat(val)) && !isNaN(parseFloat(exitPrice))) {
-      setValue((parseFloat(val) * parseFloat(exitPrice)).toFixed(2));
-    } else if (!val) {
+    const sanitizedVal = isFractionalAllowed ? val : val.replace(/[^0-9]/g, '');
+    setQuantity(sanitizedVal);
+    if (exitPrice && sanitizedVal && !isNaN(parseFloat(sanitizedVal)) && !isNaN(parseFloat(exitPrice))) {
+      setValue((parseFloat(sanitizedVal) * parseFloat(exitPrice)).toFixed(2));
+    } else if (!sanitizedVal) {
       setValue('');
     }
   };
@@ -141,7 +142,8 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
   const handleValueChange = (val: string) => {
     setValue(val);
     if (exitPrice && val && !isNaN(parseFloat(val)) && !isNaN(parseFloat(exitPrice)) && parseFloat(exitPrice) !== 0) {
-      setQuantity(Math.floor(parseFloat(val) / parseFloat(exitPrice)).toString());
+      const calculatedQty = parseFloat(val) / parseFloat(exitPrice);
+      setQuantity(isFractionalAllowed ? String(Number(calculatedQty.toFixed(6))) : Math.floor(calculatedQty).toString());
     } else if (!val) {
       setQuantity('');
     }
@@ -152,7 +154,8 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
     if (quantity && val && !isNaN(parseFloat(quantity)) && !isNaN(parseFloat(val))) {
       setValue((parseFloat(quantity) * parseFloat(val)).toFixed(2));
     } else if (value && val && !isNaN(parseFloat(value)) && !isNaN(parseFloat(val)) && parseFloat(val) !== 0) {
-      setQuantity(Math.floor(parseFloat(value) / parseFloat(val)).toString());
+      const calculatedQty = parseFloat(value) / parseFloat(val);
+      setQuantity(isFractionalAllowed ? String(Number(calculatedQty.toFixed(6))) : Math.floor(calculatedQty).toString());
     }
   };
 
@@ -174,7 +177,8 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
           if (quantity && !isNaN(parseFloat(quantity))) {
             setValue((parseFloat(quantity) * parseFloat(priceStr)).toFixed(2));
           } else if (value && !isNaN(parseFloat(value))) {
-            setQuantity(Math.floor(parseFloat(value) / parseFloat(priceStr)).toString());
+            const calculatedQty = parseFloat(value) / parseFloat(priceStr);
+            setQuantity(isFractionalAllowed ? String(Number(calculatedQty.toFixed(6))) : Math.floor(calculatedQty).toString());
           }
         }
       }
@@ -351,7 +355,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
                     type="number"
                     id="sell-quantity"
                     value={quantity}
-                    onChange={(e) => handleQuantityChange(e.target.value.replace(/[^0-9]/g, ''))}
+                    onChange={(e) => handleQuantityChange(e.target.value)}
                     max={selectedStock?.available}
                     className={`w-full bg-surface border rounded-lg px-3 py-2 text-sm text-primary placeholder-gray-400 focus:outline-none focus:ring-1 transition-shadow ${
                       qtyExceedsHolding
@@ -359,7 +363,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
                         : 'border-divider focus:ring-zinc-900 focus:border-zinc-900'
                     }`}
                     placeholder="0"
-                    step="1"
+                    step={isFractionalAllowed ? "any" : "1"}
                     min="0"
                     disabled={!selectedSymbol}
                   />
