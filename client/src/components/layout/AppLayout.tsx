@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Briefcase, Trash2, Pencil, ChevronRight, ChevronDown, Info, User, LogOut, Folder, Home, RefreshCw, Sun, Moon } from 'lucide-react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronRight, ChevronDown, Info, User, LogOut, Folder, Home, RefreshCw, Sun, Moon, Check } from 'lucide-react'
 import { api } from '../../services/api/client'
 import { usePortfolioContext } from '../../features/portfolio/hooks/PortfolioContext'
 import { useTheme } from '../../app/providers/ThemeProvider'
@@ -81,22 +81,59 @@ export function AppLayout() {
           <div className="flex items-center gap-2 sm:gap-4 flex-1">
             <div className="hidden md:flex items-center shrink-0 cursor-pointer" onClick={() => navigate('/portfolios')}>
               <img src="/favicon.svg" alt="Logo" className="w-8 h-8" />
-              <span className="ml-2 font-bold text-sm tracking-tight text-primary">Portfolio</span>
             </div>
+
+            {isPortfolioPage && (
+              <div className="relative flex items-center" ref={portfolioMenuRef}>
+                <button 
+                  onClick={() => setIsPortfolioMenuOpen(!isPortfolioMenuOpen)}
+                  className="flex items-center justify-between gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold text-primary hover:opacity-80 transition-opacity bg-surface py-1 sm:py-1.5 px-1.5 sm:px-3 rounded border border-divider w-[110px] sm:w-[140px]"
+                >
+                  <span className="truncate text-left">{portfolioName || 'Select Portfolio'}</span>
+                  <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0 text-secondary transition-transform ${isPortfolioMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isPortfolioMenuOpen && (
+                  <div className="absolute top-full left-0 mt-1.5 w-56 bg-surface border border-divider rounded-lg py-1 z-50 shadow-2xl shadow-black/50">
+                    {portfolios.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          setIsPortfolioMenuOpen(false);
+                          navigate(`/portfolio/${p.id}`);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-xs transition-colors flex items-center gap-2 truncate ${
+                          p.id === portfolioId 
+                            ? 'bg-primary/10 text-primary font-medium' 
+                            : 'text-secondary hover:bg-surface-hover hover:text-primary'
+                        }`}
+                      >
+                        <div className={`w-3.5 h-3.5 shrink-0 rounded-sm border ${p.id === portfolioId ? 'bg-primary border-primary flex items-center justify-center' : 'border-secondary'}`}>
+                          {p.id === portfolioId && <Check className="w-2.5 h-2.5 text-background" />}
+                        </div>
+                        <span className="truncate">{p.name}</span>
+                      </button>
+                    ))}
+                    <div className="border-t border-divider my-1" />
+                    <button
+                      onClick={() => {
+                        setIsPortfolioMenuOpen(false);
+                        navigate('/portfolios');
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surface-hover transition-colors flex items-center gap-2"
+                    >
+                      <Briefcase className="w-3.5 h-3.5 text-tertiary" />
+                      View All Portfolios
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex-1 max-w-md">
               <GlobalSearch />
             </div>
 
-            <nav className="hidden md:flex items-center gap-2 ml-2">
-              <button
-                onClick={() => navigate('/portfolios')}
-                className={`text-sm font-medium transition-colors focus:outline-none ${location.pathname === '/portfolios' ? 'text-primary' : 'text-secondary hover:text-primary'}`}
-              >
-                My Portfolio
-              </button>
-
-            </nav>
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
