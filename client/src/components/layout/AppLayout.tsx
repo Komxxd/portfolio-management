@@ -72,7 +72,7 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background text-primary font-sans overflow-hidden">
+    <div className={`flex flex-col bg-background text-primary font-sans ${isPortfolioPage ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
       <MarketTicker />
       {/* Unified Top Header */}
       <header className="h-14 sm:h-16 bg-surface border-b border-divider px-2 sm:px-4 flex items-center justify-between gap-3 sm:gap-4 shrink-0 z-10 w-full">
@@ -210,11 +210,11 @@ export function AppLayout() {
         </header>
 
       {/* Full-width scrollable container */}
-      <div className="flex-1 w-full flex flex-col min-h-0">
+      <div className={`flex-1 w-full flex flex-col ${isPortfolioPage ? 'min-h-0' : ''}`}>
         {/* Main Content constraints */}
-        <div className="flex flex-col flex-1 w-full max-w-[1600px] mx-auto bg-background min-h-0">
-          <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-background relative z-0">
-            <div className="flex-1 px-2 md:px-4 pt-2 md:pt-3 pb-2 md:pb-4 flex flex-col min-h-0">
+        <div className={`flex flex-col flex-1 w-full max-w-[1600px] mx-auto bg-background ${isPortfolioPage ? 'min-h-0' : ''}`}>
+          <main className={`flex-1 flex flex-col min-w-0 bg-background relative z-0 ${isPortfolioPage ? 'min-h-0' : ''}`}>
+            <div className={`flex-1 px-2 md:px-4 pt-2 md:pt-3 pb-2 md:pb-4 flex flex-col ${isPortfolioPage ? 'min-h-0' : ''}`}>
               <Outlet />
             </div>
           </main>

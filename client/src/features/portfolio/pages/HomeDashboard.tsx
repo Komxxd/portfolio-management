@@ -646,7 +646,7 @@ export function HomeDashboard() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col">
       {/* Summary Section */}
       {navbarLeftPortalElement && createPortal(
         <div className="relative z-40" ref={summaryDropdownRef}>
@@ -769,9 +769,9 @@ export function HomeDashboard() {
       {isChartVisible && <PerformanceChart selectedPortfolioId={selectedSummaryPortfolioIds?.length ? selectedSummaryPortfolioIds.join(',') : 'NONE'} />}
 
       {/* Portfolio List */}
-      <div className="flex-1 flex flex-col min-h-0 mt-4 mb-4">
+      <div className="flex flex-col mt-4 mb-4">
         {portfolios.length > 0 ? (
-          <div className="flex-1 bg-surface overflow-auto rounded-lg border border-divider shadow-sm relative min-h-0">
+          <div className="bg-surface overflow-x-auto rounded-lg border border-divider shadow-sm relative">
             <table className="w-full text-left border-collapse whitespace-nowrap">
               <thead className="bg-surface sticky top-0 z-40">
                 <tr className="border-b border-divider">
