@@ -220,7 +220,7 @@ export function SellStockModal({ isOpen, onClose, onAdded, portfolioId, initialS
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-overlay backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-overlay">
       <div className="bg-surface w-full max-w-md rounded-lg p-6 relative shadow-2xl shadow-black/50 max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}

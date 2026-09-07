@@ -37,7 +37,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   const isConfirmDisabled = requireInputToConfirm ? inputValue !== requireInputToConfirm : false;
 
   return (
-    <div className="fixed inset-0 bg-overlay backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-[100]">
       <div className="bg-surface rounded-lg shadow-2xl w-full max-w-sm overflow-hidden flex flex-col">
         <div className="p-5">
           <div className="flex items-start gap-4">

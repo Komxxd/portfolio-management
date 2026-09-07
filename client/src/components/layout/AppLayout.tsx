@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Briefcase, Trash2, Pencil, ChevronRight, ChevronDown, Info, User, LogOut, Folder, Home, Sun, Moon, Check } from 'lucide-react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronRight, ChevronDown, Info, User, LogOut, Folder, Home, Sun, Moon, Check, Settings } from 'lucide-react'
 import { api } from '../../services/api/client'
 import { usePortfolioContext } from '../../features/portfolio/hooks/PortfolioContext'
 import { useTheme } from '../../app/providers/ThemeProvider'
@@ -12,6 +12,7 @@ import { MarketTicker } from './MarketTicker'
 import { CreatePortfolioModal } from '../../features/portfolio/components/CreatePortfolioModal'
 import { ConfirmationModal } from '../ui/ConfirmationModal'
 import { RecycleBinModal } from '../../features/portfolio/components/RecycleBinModal'
+import { SettingsModal } from '../../features/settings/components/SettingsModal'
 
 export function AppLayout() {
   const { session, loading } = useAuth();
@@ -37,6 +38,7 @@ export function AppLayout() {
   const portfolioName = portfolioId ? portfolios.find(p => p.id === portfolioId)?.name : null;
 
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const [isPortfolioMenuOpen, setIsPortfolioMenuOpen] = useState(false);
   const portfolioMenuRef = useRef<HTMLDivElement>(null);
@@ -189,6 +191,16 @@ export function AppLayout() {
                       <Trash2 className="w-3.5 h-3.5" />
                       Recycle Bin
                     </button>
+                    <button
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        setIsSettingsModalOpen(true);
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs text-secondary hover:bg-background hover:text-primary flex items-center gap-2"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      Indices Setting
+                    </button>
                   </div>
                   <div className="py-1">
                     <button
@@ -225,6 +237,10 @@ export function AppLayout() {
         isOpen={isRecycleBinModalOpen}
         onClose={() => setIsRecycleBinModalOpen(false)}
         onRestore={() => fetchData()}
+      />
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
       />
     </div>
   );

@@ -320,7 +320,7 @@ export function PortfolioInfoModal({ symbols, isOpen, onClose, portfolioId, onSu
   };
 
   return (
-    <div className="fixed inset-0 bg-overlay backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-50">
       <div className="bg-surface rounded-lg shadow-2xl shadow-black/50 w-full max-w-2xl overflow-hidden flex flex-col h-[500px]">
         <div className="px-4 py-3 border-b border-divider flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">

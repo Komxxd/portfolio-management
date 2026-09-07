@@ -128,7 +128,7 @@ export function RebalanceModal({ isOpen, onClose, portfolioId, symbolGroups, tot
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-overlay backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-50">
       <div className="bg-surface rounded-lg shadow-2xl shadow-black/50 w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh]">
         <div className="px-6 py-4 border-b border-divider flex items-center justify-between shrink-0 bg-surface">
           <div>

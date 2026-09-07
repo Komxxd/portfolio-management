@@ -67,7 +67,7 @@ export const RecycleBinModal: React.FC<RecycleBinModalProps> = ({ isOpen, onClos
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-overlay backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-50">
       <div className="bg-surface rounded-lg shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
         <div className="px-4 py-3 border-b border-divider flex items-center justify-between bg-background shrink-0">
           <h2 className="text-sm font-semibold text-primary">Recycle Bin</h2>

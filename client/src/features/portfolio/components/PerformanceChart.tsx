@@ -165,7 +165,7 @@ export function PerformanceChart({ selectedPortfolioId = 'ALL' }: PerformanceCha
 
       <div className="pt-6 w-full h-[280px] relative">
         {loading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-sm">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50">
             <div className="w-8 h-8 border-2 border-divider border-t-primary rounded-full animate-spin" />
           </div>
         )}

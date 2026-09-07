@@ -160,7 +160,7 @@ export function CorporateActionModal({ isOpen, onClose, type, portfolioId, owned
   };
 
   return (
-    <div className="fixed inset-0 bg-overlay backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-overlay flex items-center justify-center p-4 z-50">
       <div className="bg-surface rounded-lg shadow-2xl shadow-black/50 w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="px-6 py-4 border-b border-divider flex items-center justify-between shrink-0">

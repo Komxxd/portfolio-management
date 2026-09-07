@@ -2,24 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { ChevronDown, TrendingUp, TrendingDown } from 'lucide-react';
 import { api } from '../../services/api/client';
 
-const REGIONS = {
+import { useSettings } from '../../app/providers/SettingsProvider';
+
+export const REGIONS = {
   India: [
-    { symbol: '^NSEI', name: 'Nifty 50' },
-    { symbol: '^NSEBANK', name: 'Nifty Bank' },
-    { symbol: 'NIFTY_MIDCAP_100.NS', name: 'Nifty Midcap 100' },
-    { symbol: '^BSESN', name: 'Sensex' }
+    { symbol: '^NSEI', name: 'NIFTY' },
+    { symbol: '^BSESN', name: 'SENSEX' },
+    { symbol: '^NSEBANK', name: 'BANKNIFTY' },
+    { symbol: 'BSE-BANK.BO', name: 'BANKEX' },
+    { symbol: 'NIFTY_MIDCAP_100.NS', name: 'MIDCPNIFTY' },
+    { symbol: 'NIFTY_FIN_SERVICE.NS', name: 'FINNIFTY' },
+    { symbol: '^INDIAVIX', name: 'INDIA VIX' },
+    { symbol: '^NSMIDCP', name: 'NIFTYNXT50' }
   ],
-  US: [
+  USA: [
     { symbol: '^GSPC', name: 'S&P 500' },
-    { symbol: '^DJI', name: 'Dow 30' },
+    { symbol: '^DJI', name: 'Dow Jones' },
     { symbol: '^IXIC', name: 'Nasdaq' },
-    { symbol: '^RUT', name: 'Russell 2000' }
+    { symbol: '^RUT', name: 'Russell 2000' },
+    { symbol: 'DX-Y.NYB', name: 'Dollar Index' },
+    { symbol: '^TNX', name: 'US 10 YR Treasury' },
+    { symbol: '^GSPTSE', name: 'TSX' }
   ],
   Europe: [
     { symbol: '^FTSE', name: 'FTSE 100' },
     { symbol: '^FCHI', name: 'CAC 40' },
     { symbol: '^GDAXI', name: 'DAX' },
-    { symbol: '^N100', name: 'Euronext 100' }
+    { symbol: '^N100', name: 'Euronext 100' },
+    { symbol: '^OMX', name: 'OMX' }
   ],
   Asia: [
     { symbol: '^N225', name: 'Nikkei 225' },
@@ -32,13 +42,23 @@ const REGIONS = {
 type Region = keyof typeof REGIONS;
 
 export function MarketTicker() {
+  const { settings } = useSettings();
   const [activeRegion, setActiveRegion] = useState<Region>('India');
   const [prices, setPrices] = useState<Record<string, any>>({});
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+  // Filter indices based on user settings
+  const hiddenIndices = settings.hiddenIndices || [];
+  const visibleIndices = REGIONS[activeRegion].filter(idx => !hiddenIndices.includes(idx.symbol));
+
   useEffect(() => {
     // Fetch initial prices for the selected region
-    const symbols = REGIONS[activeRegion].map(idx => idx.symbol).join(',');
+    const symbols = visibleIndices.map(idx => idx.symbol).join(',');
+    
+    if (!symbols) {
+      setPrices({});
+      return;
+    }
     
     // We'll just fetch via REST to keep it simple, or SSE. 
     // Since we don't have a reliable SSE mock, let's use the REST endpoint and poll every 30s.
@@ -54,7 +74,7 @@ export function MarketTicker() {
     fetchPrices();
     const interval = setInterval(fetchPrices, 30000);
     return () => clearInterval(interval);
-  }, [activeRegion]);
+  }, [activeRegion, visibleIndices.map(idx => idx.symbol).join(',')]);
 
   return (
     <div className="h-8 sm:h-10 bg-surface border-b border-divider flex items-center shrink-0 text-[10px] sm:text-xs w-full select-none relative z-20">
@@ -94,7 +114,10 @@ export function MarketTicker() {
       {/* Still Ticker */}
       <div className="flex-1 overflow-hidden relative h-full flex items-center group">
         <div className="flex items-center whitespace-nowrap px-2 sm:px-4 overflow-x-auto no-scrollbar w-full">
-          {REGIONS[activeRegion].map((indexInfo, i) => {
+          {visibleIndices.length === 0 && (
+            <span className="text-secondary text-xs italic">No indices selected</span>
+          )}
+          {visibleIndices.map((indexInfo, i) => {
             const data = prices[indexInfo.symbol];
             const change = data?.change || 0;
             const changePercent = data?.changePercent || 0;
