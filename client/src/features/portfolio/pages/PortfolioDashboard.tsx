@@ -1868,10 +1868,12 @@ export function PortfolioDashboard() {
                             <React.Fragment key={group.symbol}>
                               {/* ── Summary row ── */}
                               <tr
-                                onClick={() => toggleSymbol(group.symbol)}
-                                className="border-b border-divider divide-x divide-divider hover:bg-background cursor-pointer transition-colors group"
+                                className="border-b border-divider divide-x divide-divider hover:bg-background transition-colors group"
                               >
-                                <td className="pl-2 pr-1 py-1.5 sticky left-0 z-20 bg-background group-hover:bg-surface-hover">
+                                <td 
+                                  onClick={() => toggleSymbol(group.symbol)}
+                                  className="pl-2 pr-1 py-1.5 sticky left-0 z-20 bg-background group-hover:bg-surface-hover cursor-pointer"
+                                >
                                   <span className="text-tertiary group-hover:text-secondary transition-colors">
                                     {isExpanded ? <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                                   </span>
@@ -1881,7 +1883,10 @@ export function PortfolioDashboard() {
                                   <td className="px-2 py-1.5 sticky left-6 z-20 bg-background group-hover:bg-surface-hover border-r border-divider min-w-[140px] w-[140px] truncate">
                                     <div className="flex items-center gap-1.5 overflow-hidden">
                                       <div className="min-w-0 flex-1">
-                                        <div className="font-semibold text-[9px] sm:text-[10px] text-primary flex items-center gap-1.5 truncate">
+                                        <div 
+                                          className="font-semibold text-[9px] sm:text-[10px] text-primary flex items-center gap-1.5 truncate cursor-pointer hover:underline"
+                                          onClick={() => navigate(`/stocks/${group.symbol}`)}
+                                        >
                                           <span className="truncate">{group.symbol}</span>
                                           {group.liveData?.name && (
                                             <span className="font-normal text-[9px] sm:text-[10px] text-secondary truncate" title={group.liveData.name}>
