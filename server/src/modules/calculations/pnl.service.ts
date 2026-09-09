@@ -137,6 +137,7 @@ export function calculatePortfolioStats(
         const bonusQty = Number(b.quantity);
         const totalOpen = openLots.reduce((sum, lot) => sum + lot.remainingQty, 0);
         
+        (ev as any).totalShares = totalOpen;
         if (totalOpen > 0) {
           openLots.forEach(lot => {
             if (lot.remainingQty > 0) {
@@ -151,6 +152,9 @@ export function calculatePortfolioStats(
       } else if (ev.type === 'SPLIT') {
         const b = ev.raw as Stock;
         const multiplier = Number(b.quantity);
+        const totalOpen = openLots.reduce((sum, lot) => sum + lot.remainingQty, 0);
+        
+        (ev as any).totalShares = totalOpen;
         openLots.forEach(lot => {
           if (lot.remainingQty > 0) {
             lot.buyQty *= multiplier;
@@ -163,9 +167,11 @@ export function calculatePortfolioStats(
         const b = ev.raw as Stock;
         const dividendPerShare = Number(b.quantity);
         let totalDividendReceived = 0;
+        let eligibleShares = 0;
         
         openLots.forEach(lot => {
           if (lot.remainingQty > 0) {
+            eligibleShares += lot.remainingQty;
             const dividendAmount = lot.remainingQty * dividendPerShare;
             totalDividendReceived += dividendAmount;
             lot.realizedPnL += dividendAmount;
@@ -181,6 +187,9 @@ export function calculatePortfolioStats(
             });
           }
         });
+        
+        (ev as any).totalShares = eligibleShares;
+        (ev as any).totalAmount = totalDividendReceived;
         
         if (totalDividendReceived > 0) {
           stockTotalDividend += totalDividendReceived;

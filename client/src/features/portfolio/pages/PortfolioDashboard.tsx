@@ -1131,17 +1131,17 @@ export function PortfolioDashboard() {
             Type: 'DIVIDEND',
             Date: ev.raw.entry_date,
             Ticker: group.symbol,
-            Quantity: '-',
+            Quantity: ev.totalShares ?? '-',
             Price: ev.raw.quantity,
-            'Total Amount': '-'
+            'Total Amount': ev.totalAmount ?? '-'
           });
         } else if (ev.type === 'SPLIT') {
           detailsData.push({
             Type: 'SPLIT',
             Date: ev.raw.entry_date,
             Ticker: group.symbol,
-            Quantity: ev.raw.quantity,
-            Price: '-',
+            Quantity: ev.totalShares ?? '-',
+            Price: ev.raw.quantity,
             'Total Amount': '-'
           });
         } else if (ev.type === 'BONUS') {
@@ -1149,8 +1149,8 @@ export function PortfolioDashboard() {
             Type: 'BONUS',
             Date: ev.raw.entry_date,
             Ticker: group.symbol,
-            Quantity: ev.raw.quantity,
-            Price: '-',
+            Quantity: ev.totalShares ?? '-',
+            Price: ev.raw.quantity,
             'Total Amount': '-'
           });
         }
