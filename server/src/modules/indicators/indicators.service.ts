@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import YahooFinance from 'yahoo-finance2';
+import { createServiceClient } from '../../config/supabase';
 
 const yahooFinance = new YahooFinance();
 
@@ -217,3 +218,55 @@ export async function syncSymbolHistorical(symbol: string, period = 14): Promise
     return { rsi: null, cached: false, count: 0 };
   }
 }
+
+/**
+ * Daily batch sync for all active portfolio symbols.
+ * Used by scheduled cron tasks to keep historical data fresh every morning.
+ */
+export async function syncAllActiveStockIndicators(): Promise<{ totalSynced: number }> {
+  const symbolsToSync = new Set<string>();
+
+  try {
+    const supabase = createServiceClient();
+    const { data: stocks, error } = await supabase.from('stocks').select('symbol');
+    if (!error && stocks) {
+      stocks.forEach((s: any) => {
+        if (s.symbol) symbolsToSync.add(s.symbol);
+      });
+    }
+  } catch (err: any) {
+    console.warn('[Indicator Cron] Supabase query notice:', err.message);
+  }
+
+  // Also include any local historical files that already exist
+  ensureDirectoryExists();
+  try {
+    const files = fs.readdirSync(HISTORICAL_DIR);
+    files.forEach(f => {
+      if (f.endsWith('.json')) {
+        try {
+          const raw = fs.readFileSync(path.join(HISTORICAL_DIR, f), 'utf8');
+          const parsed = JSON.parse(raw);
+          if (parsed.symbol) symbolsToSync.add(parsed.symbol);
+        } catch {}
+      }
+    });
+  } catch {}
+
+  const symbolList = Array.from(symbolsToSync);
+  console.log(`[Indicator Cron] Starting daily sync for ${symbolList.length} unique symbols...`);
+
+  let totalSynced = 0;
+  for (const sym of symbolList) {
+    try {
+      await syncSymbolHistorical(sym);
+      totalSynced++;
+    } catch (err: any) {
+      console.error(`[Indicator Cron] Failed to sync ${sym}:`, err.message);
+    }
+  }
+
+  console.log(`[Indicator Cron] Completed daily sync. Updated ${totalSynced}/${symbolList.length} symbols.`);
+  return { totalSynced };
+}
+
