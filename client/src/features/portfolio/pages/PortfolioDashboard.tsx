@@ -263,6 +263,8 @@ const ALL_COLUMNS = [
   { id: 'dayLow', label: 'Day Low' },
   { id: '52wkHigh', label: '52W High' },
   { id: '52wkLow', label: '52W Low' },
+  { id: 'dma50', label: '50 DMA' },
+  { id: 'dma200', label: '200 DMA' },
   { id: 'marketCap', label: 'Mkt Cap' },
   { id: 'volume', label: 'Volume' },
   { id: 'avgVolume', label: 'Avg Volume (3M)' },
@@ -520,7 +522,14 @@ export function PortfolioDashboard() {
       if (settings?.portfolioVisibleColumns) {
         const result: Record<string, Set<string>> = {};
         for (const key in settings.portfolioVisibleColumns) {
-          result[key] = new Set(settings.portfolioVisibleColumns[key]);
+          const arr: string[] = settings.portfolioVisibleColumns[key] || [];
+          const colSet = new Set(arr);
+          // If saved settings predate DMA columns, add them by default
+          if (!arr.includes('dma50') && !arr.includes('dma200')) {
+            colSet.add('dma50');
+            colSet.add('dma200');
+          }
+          result[key] = colSet;
         }
         setPortfolioVisibleColumns(result);
       }
@@ -626,6 +635,12 @@ export function PortfolioDashboard() {
           if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
         } else if (missingCol === 'totalPnLPct') {
           const idx = order.indexOf('totalPnL');
+          if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
+        } else if (missingCol === 'dma50') {
+          const idx = order.indexOf('52wkLow');
+          if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
+        } else if (missingCol === 'dma200') {
+          const idx = order.indexOf('dma50');
           if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
         }
         
@@ -1018,6 +1033,12 @@ export function PortfolioDashboard() {
       } else if (sortField === '52wkLow') {
         valA = a.liveData?.fiftyTwoWeekLow || 0;
         valB = b.liveData?.fiftyTwoWeekLow || 0;
+      } else if (sortField === 'dma50') {
+        valA = livePrices[a.symbol]?.dma50 ?? a.liveData?.dma50 ?? 0;
+        valB = livePrices[b.symbol]?.dma50 ?? b.liveData?.dma50 ?? 0;
+      } else if (sortField === 'dma200') {
+        valA = livePrices[a.symbol]?.dma200 ?? a.liveData?.dma200 ?? 0;
+        valB = livePrices[b.symbol]?.dma200 ?? b.liveData?.dma200 ?? 0;
       } else if (sortField === 'marketCap') {
         valA = a.liveData?.marketCap || 0;
         valB = b.liveData?.marketCap || 0;
@@ -1100,7 +1121,9 @@ export function PortfolioDashboard() {
         'Current Value': currentValue,
         'P&L': pnl,
         'P&L %': pnlPct,
-        'Total Dividend': group.totalDividend
+        'Total Dividend': group.totalDividend,
+        '50 DMA': livePrices[group.symbol]?.dma50 ?? '—',
+        '200 DMA': livePrices[group.symbol]?.dma200 ?? '—'
       };
     });
 
@@ -2070,6 +2093,34 @@ export function PortfolioDashboard() {
                                       return <td key="52wkHigh" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate">{group.liveData?.fiftyTwoWeekHigh ? `${currencySymbol}${fmt(group.liveData.fiftyTwoWeekHigh)}` : '—'}</td>;
                                     case '52wkLow':
                                       return <td key="52wkLow" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate">{group.liveData?.fiftyTwoWeekLow ? `${currencySymbol}${fmt(group.liveData.fiftyTwoWeekLow)}` : '—'}</td>;
+                                    case 'dma50': {
+                                      const dma = livePrices[group.symbol]?.dma50 ?? group.liveData?.dma50;
+                                      if (!dma) return <td key="dma50" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-tertiary truncate">—</td>;
+                                      const currentPrice = livePrices[group.symbol]?.price ?? group.livePrice ?? group.liveData?.price;
+                                      const diffPct = currentPrice ? ((currentPrice - dma) / dma) * 100 : null;
+                                      const tooltip = diffPct !== null
+                                        ? `${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}% vs 50 DMA (${diffPct >= 0 ? 'Above' : 'Below'})`
+                                        : undefined;
+                                      return (
+                                        <td key="dma50" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate" title={tooltip}>
+                                          {fmtCurrency(dma, group.liveData?.currency)}
+                                        </td>
+                                      );
+                                    }
+                                    case 'dma200': {
+                                      const dma = livePrices[group.symbol]?.dma200 ?? group.liveData?.dma200;
+                                      if (!dma) return <td key="dma200" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-tertiary truncate">—</td>;
+                                      const currentPrice = livePrices[group.symbol]?.price ?? group.livePrice ?? group.liveData?.price;
+                                      const diffPct = currentPrice ? ((currentPrice - dma) / dma) * 100 : null;
+                                      const tooltip = diffPct !== null
+                                        ? `${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}% vs 200 DMA (${diffPct >= 0 ? 'Above' : 'Below'})`
+                                        : undefined;
+                                      return (
+                                        <td key="dma200" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate" title={tooltip}>
+                                          {fmtCurrency(dma, group.liveData?.currency)}
+                                        </td>
+                                      );
+                                    }
                                     case 'marketCap':
                                       return (
                                         <td key="marketCap" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate">
