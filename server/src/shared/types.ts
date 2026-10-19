@@ -51,6 +51,7 @@ export interface LivePrice {
   previousClose?: number;
   dma50?: number;
   dma200?: number;
+  rsi?: number;
 }
 
 export interface SearchResult {

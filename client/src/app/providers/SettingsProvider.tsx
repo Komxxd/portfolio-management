@@ -4,6 +4,11 @@ import { useAuth } from './AuthProvider';
 
 export interface UserSettings {
   hiddenIndices?: string[];
+  indicatorConfig?: {
+    rsiPeriod?: number;
+    rsiOverbought?: number;
+    rsiOversold?: number;
+  };
 }
 
 interface SettingsContextType {

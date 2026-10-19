@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import { calculateXIRR } from '../../../utils/xirr'
-import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, Info, User, LogOut, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw, Sun, Moon, GripVertical, MoreVertical } from 'lucide-react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, Info, User, LogOut, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw, Sun, Moon, GripVertical, MoreVertical, Activity } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -37,6 +37,7 @@ import { AssetSearch } from '../../stocks/components/AssetSearch'
 import { PortfolioInfoModal } from '../components/PortfolioInfoModal'
 import { RebalanceModal } from '../../stocks/components/RebalanceModal'
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal'
+import { IndicatorsModal, type IndicatorConfig, DEFAULT_INDICATOR_CONFIG } from '../components/IndicatorsModal'
 
 const ALL_SUMMARY_STATS = [
   { id: 'totalStocks', label: 'Total Stocks' },
@@ -265,6 +266,7 @@ const ALL_COLUMNS = [
   { id: '52wkLow', label: '52W Low' },
   { id: 'dma50', label: '50 DMA' },
   { id: 'dma200', label: '200 DMA' },
+  { id: 'rsi', label: 'RSI (14)' },
   { id: 'marketCap', label: 'Mkt Cap' },
   { id: 'volume', label: 'Volume' },
   { id: 'avgVolume', label: 'Avg Volume (3M)' },
@@ -317,6 +319,8 @@ export function PortfolioDashboard() {
   const calculationTime = React.useMemo(() => Date.now(), []);
   const [isPortfolioInfoModalOpen, setIsPortfolioInfoModalOpen] = useState(false);
   const [isRebalanceModalOpen, setIsRebalanceModalOpen] = useState(false);
+  const [isIndicatorsModalOpen, setIsIndicatorsModalOpen] = useState(false);
+  const [indicatorConfig, setIndicatorConfig] = useState<IndicatorConfig>(DEFAULT_INDICATOR_CONFIG);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [addStockPortfolioId, setAddStockPortfolioId] = useState<string | null>(null);
   const [addStockInitialSymbol, setAddStockInitialSymbol] = useState<string>('');
@@ -536,6 +540,9 @@ export function PortfolioDashboard() {
       
       if (settings?.portfolioColumnOrder) setPortfolioColumnOrder(settings.portfolioColumnOrder);
       if (settings?.portfolioColumnWidths) setPortfolioColumnWidths(settings.portfolioColumnWidths);
+      if (settings?.indicatorConfig) {
+        setIndicatorConfig(prev => ({ ...prev, ...settings.indicatorConfig }));
+      }
       
       setIsSettingsInitialized(true);
     }
@@ -641,6 +648,9 @@ export function PortfolioDashboard() {
           if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
         } else if (missingCol === 'dma200') {
           const idx = order.indexOf('dma50');
+          if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
+        } else if (missingCol === 'rsi') {
+          const idx = order.indexOf('dma200');
           if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
         }
         
@@ -1039,6 +1049,9 @@ export function PortfolioDashboard() {
       } else if (sortField === 'dma200') {
         valA = livePrices[a.symbol]?.dma200 ?? a.liveData?.dma200 ?? 0;
         valB = livePrices[b.symbol]?.dma200 ?? b.liveData?.dma200 ?? 0;
+      } else if (sortField === 'rsi') {
+        valA = livePrices[a.symbol]?.rsi ?? a.liveData?.rsi ?? 0;
+        valB = livePrices[b.symbol]?.rsi ?? b.liveData?.rsi ?? 0;
       } else if (sortField === 'marketCap') {
         valA = a.liveData?.marketCap || 0;
         valB = b.liveData?.marketCap || 0;
@@ -1123,7 +1136,8 @@ export function PortfolioDashboard() {
         'P&L %': pnlPct,
         'Total Dividend': group.totalDividend,
         '50 DMA': livePrices[group.symbol]?.dma50 ?? '—',
-        '200 DMA': livePrices[group.symbol]?.dma200 ?? '—'
+        '200 DMA': livePrices[group.symbol]?.dma200 ?? '—',
+        [`RSI (${indicatorConfig.rsiPeriod})`]: livePrices[group.symbol]?.rsi ?? '—'
       };
     });
 
@@ -1582,6 +1596,15 @@ export function PortfolioDashboard() {
                       </button>
                     )}
                     
+                    <button
+                      onClick={() => setIsIndicatorsModalOpen(true)}
+                      className="flex items-center gap-1 px-2 py-1 bg-surface border border-divider rounded-md text-[10px] font-medium text-secondary hover:text-primary transition-colors"
+                      title="Add Technical Indicators"
+                    >
+                      <Activity className="w-3 h-3 text-primary" />
+                      Add Indicators
+                    </button>
+
                     <div className="relative">
                       <button
                         onClick={() => setIsColumnsDropdownOpen(!isColumnsDropdownOpen)}
@@ -1617,10 +1640,11 @@ export function PortfolioDashboard() {
                               <SortableContext items={activeColumnOrder} strategy={verticalListSortingStrategy}>
                                 {activeColumnOrder.map(colId => {
                                   const col = ALL_COLUMNS.find(c => c.id === colId)!;
+                                  const colItem = col.id === 'rsi' ? { ...col, label: `RSI (${indicatorConfig.rsiPeriod})` } : col;
                                   return (
                                     <SortableColumnMenuItem
                                       key={col.id}
-                                      col={col}
+                                      col={colItem}
                                       isVisible={visibleColumns.has(col.id)}
                                       onToggle={toggleColumn}
                                     />
@@ -1742,11 +1766,12 @@ export function PortfolioDashboard() {
                             {activeColumnOrder.filter(id => id !== 'symbol').map(colId => {
                               if (!visibleColumns.has(colId)) return null;
                               const col = ALL_COLUMNS.find(c => c.id === colId)!;
+                              const displayLabel = col.id === 'rsi' ? `RSI (${indicatorConfig.rsiPeriod})` : col.label;
                               return (
                                 <SortableHeaderCell 
                                   key={col.id}
                                   field={col.id}
-                                  label={col.label}
+                                  label={displayLabel}
                                   width={activeColumnWidths[col.id] || 100}
                                   isNumber={col.id !== 'symbol'}
                                   sortField={sortField}
@@ -2118,6 +2143,32 @@ export function PortfolioDashboard() {
                                       return (
                                         <td key="dma200" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-primary truncate" title={tooltip}>
                                           {fmtCurrency(dma, group.liveData?.currency)}
+                                        </td>
+                                      );
+                                    }
+                                    case 'rsi': {
+                                      const rsiVal = livePrices[group.symbol]?.rsi ?? group.liveData?.rsi;
+                                      if (typeof rsiVal !== 'number' || isNaN(rsiVal)) {
+                                        return <td key="rsi" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right text-tertiary truncate">—</td>;
+                                      }
+                                      const isOverbought = rsiVal >= indicatorConfig.rsiOverbought;
+                                      const isOversold = rsiVal <= indicatorConfig.rsiOversold;
+                                      const tooltip = isOverbought
+                                        ? `RSI (${indicatorConfig.rsiPeriod}): ${rsiVal.toFixed(1)} (Overbought > ${indicatorConfig.rsiOverbought} — Strong upside momentum, potential pullback)`
+                                        : isOversold
+                                          ? `RSI (${indicatorConfig.rsiPeriod}): ${rsiVal.toFixed(1)} (Oversold < ${indicatorConfig.rsiOversold} — Extended downside, potential bounce)`
+                                          : `RSI (${indicatorConfig.rsiPeriod}): ${rsiVal.toFixed(1)} (Neutral range ${indicatorConfig.rsiOversold}-${indicatorConfig.rsiOverbought})`;
+                                      return (
+                                        <td key="rsi" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right truncate" title={tooltip}>
+                                          <span className={`px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold ${
+                                            isOverbought
+                                              ? 'bg-danger/15 text-danger border border-danger/30'
+                                              : isOversold
+                                                ? 'bg-success/15 text-success border border-success/30'
+                                                : 'text-primary'
+                                          }`}>
+                                            {rsiVal.toFixed(1)}
+                                          </span>
                                         </td>
                                       );
                                     }
@@ -2534,6 +2585,47 @@ export function PortfolioDashboard() {
         totalCurrentValue={totalCurrentValue}
         onSuccess={() => {
           fetchData();
+        }}
+      />
+
+      <IndicatorsModal
+        isOpen={isIndicatorsModalOpen}
+        onClose={() => setIsIndicatorsModalOpen(false)}
+        symbols={activeSymbols}
+        visibleColumns={visibleColumns}
+        config={indicatorConfig}
+        onApplyIndicators={(selectedColumnIds, newConfig) => {
+          setIndicatorConfig(newConfig);
+          if (activePortfolioId) {
+            setPortfolioVisibleColumns(prev => {
+              const next = { ...prev };
+              const currentSet = new Set(next[activePortfolioId] || ALL_COLUMNS.map(c => c.id));
+              ['dma50', 'dma200', 'rsi'].forEach(colId => {
+                if (selectedColumnIds.includes(colId)) {
+                  currentSet.add(colId);
+                } else {
+                  currentSet.delete(colId);
+                }
+              });
+              next[activePortfolioId] = currentSet;
+              return next;
+            });
+          }
+          api.put('/api/settings', { indicatorConfig: newConfig }).catch(console.error);
+        }}
+        onSyncComplete={(results) => {
+          setLivePrices(prev => {
+            const updated = { ...prev };
+            for (const sym in results) {
+              if (results[sym].rsi !== null) {
+                updated[sym] = {
+                  ...(updated[sym] || { price: 0, name: sym }),
+                  rsi: results[sym].rsi as number
+                };
+              }
+            }
+            return updated;
+          });
         }}
       />
     </>

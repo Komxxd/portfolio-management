@@ -58,6 +58,9 @@ app.use('/api/exchange-rate', exchangeRateRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/calculations', calculationsRoutes);
+import indicatorsRoutes from './modules/indicators/indicators.routes';
+
+app.use('/api/indicators', indicatorsRoutes);
 app.use('/api/settings', settingsRoutes);
 
 // The corporate-actions router internally defines `/`, `/bulk`, and `/cron/sync-corp-actions`

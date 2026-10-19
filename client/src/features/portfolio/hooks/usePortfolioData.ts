@@ -31,6 +31,7 @@ export function usePortfolioData() {
     previousClose?: number;
     dma50?: number;
     dma200?: number;
+    rsi?: number;
   }>>({});
   const [pricesLoading, setPricesLoading] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

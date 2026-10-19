@@ -39,3 +39,5 @@ supabase_setup.sql
 *.njsproj
 *.sln
 *.sw?
+server/data/
+data/

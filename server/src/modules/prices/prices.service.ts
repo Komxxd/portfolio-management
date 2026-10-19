@@ -1,6 +1,7 @@
 import YahooFinance from 'yahoo-finance2';
 import { EventEmitter } from 'events';
 import type { LivePrice } from '../../shared/types';
+import { getRSI } from '../indicators/indicators.service';
 
 const yahooFinance = new YahooFinance();
 
@@ -75,6 +76,7 @@ export async function fetchPrices(symbols: string[]): Promise<Record<string, Liv
             previousClose: q.regularMarketPreviousClose,
             dma50: q.fiftyDayAverage,
             dma200: q.twoHundredDayAverage,
+            rsi: getRSI(q.symbol) ?? undefined,
           };
 
           result[q.symbol] = priceData;
