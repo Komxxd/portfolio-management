@@ -164,7 +164,8 @@ export function evaluateStrategyRule(
   return overallResult;
 }
 
-function getIndicatorValue(ind: string, indicators: any): number | null {
+function getIndicatorValue(ind: string | undefined, indicators: any): number | null {
+  if (!ind) return null;
   if (ind === 'rsi') return indicators.rsi ?? null;
   if (ind === 'dma50') return indicators.dma50 ?? null;
   if (ind === 'dma200') return indicators.dma200 ?? null;
