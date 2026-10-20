@@ -275,6 +275,12 @@ const ALL_COLUMNS = [
   { id: 'dayGainPct', label: 'Day Gain %' }
 ];
 
+export const INDICATOR_COLUMN_IDS = ['rsi', 'dma50', 'dma200'];
+
+export const DEFAULT_VISIBLE_COLUMN_IDS = ALL_COLUMNS
+  .map(c => c.id)
+  .filter(id => !INDICATOR_COLUMN_IDS.includes(id));
+
 
 
 interface Stock {
@@ -622,7 +628,7 @@ export function PortfolioDashboard() {
   const visibleColumns = (() => {
     return (activePortfolioId && portfolioVisibleColumns[activePortfolioId]) 
       ? new Set(portfolioVisibleColumns[activePortfolioId]) 
-      : new Set(ALL_COLUMNS.map(c => c.id));
+      : new Set(DEFAULT_VISIBLE_COLUMN_IDS);
   })();
 
   const activeColumnOrder = (() => {
@@ -665,7 +671,7 @@ export function PortfolioDashboard() {
   const toggleColumn = (colId: string) => {
     if (!activePortfolioId) return;
     setPortfolioVisibleColumns(prev => {
-      const current = prev[activePortfolioId] || new Set(ALL_COLUMNS.map(c => c.id));
+      const current = prev[activePortfolioId] || new Set(DEFAULT_VISIBLE_COLUMN_IDS);
       const next = new Set(current);
       if (next.has(colId)) next.delete(colId);
       else next.add(colId);
@@ -696,7 +702,7 @@ export function PortfolioDashboard() {
     if (!activePortfolioId) return;
     
     const currentOrder = activeColumnOrder;
-    const currentVisible = portfolioVisibleColumns[activePortfolioId] || new Set(ALL_COLUMNS.map(c => c.id));
+    const currentVisible = portfolioVisibleColumns[activePortfolioId] || new Set(DEFAULT_VISIBLE_COLUMN_IDS);
     const currentWidths = portfolioColumnWidths[activePortfolioId] || {};
 
     const newOrderState: Record<string, string[]> = {};
@@ -2599,8 +2605,8 @@ export function PortfolioDashboard() {
           if (activePortfolioId) {
             setPortfolioVisibleColumns(prev => {
               const next = { ...prev };
-              const currentSet = new Set(next[activePortfolioId] || ALL_COLUMNS.map(c => c.id));
-              ['dma50', 'dma200', 'rsi'].forEach(colId => {
+              const currentSet = new Set(next[activePortfolioId] || DEFAULT_VISIBLE_COLUMN_IDS);
+              INDICATOR_COLUMN_IDS.forEach(colId => {
                 if (selectedColumnIds.includes(colId)) {
                   currentSet.add(colId);
                 } else {

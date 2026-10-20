@@ -1,7 +1,7 @@
 import YahooFinance from 'yahoo-finance2';
 import { EventEmitter } from 'events';
 import type { LivePrice } from '../../shared/types';
-import { getRSI, syncSymbolHistorical } from '../indicators/indicators.service';
+import { getRSI } from '../indicators/indicators.service';
 
 const yahooFinance = new YahooFinance();
 
@@ -14,46 +14,10 @@ export const priceEvents = new EventEmitter();
 // Track which symbols are actively being watched by clients
 const activeSymbols = new Map<string, number>();
 
-// In-flight background indicator sync tracker to avoid duplicate calls
-const pendingIndicatorSyncs = new Set<string>();
-
-/**
- * Strategy B: Passive streamer self-healing fallback.
- * Checks if a symbol lacks local RSI data; if so, triggers a background fetch
- * and broadcasts the updated RSI to all active SSE subscribers as soon as ready.
- */
-export function triggerIndicatorSyncIfNeeded(symbol: string) {
-  if (!symbol || pendingIndicatorSyncs.has(symbol)) return;
-
-  // If RSI already exists in memory or local disk cache, no network fetch needed
-  if (getRSI(symbol) !== null) return;
-
-  pendingIndicatorSyncs.add(symbol);
-
-  syncSymbolHistorical(symbol)
-    .then(({ rsi }) => {
-      if (rsi !== null) {
-        const cached = priceCache.get(symbol);
-        if (cached) {
-          cached.data.rsi = rsi;
-          priceEvents.emit('prices_updated', { [symbol]: cached.data });
-        }
-      }
-    })
-    .catch((err) => {
-      console.error(`[Strategy B] Background indicator sync failed for ${symbol}:`, err.message);
-    })
-    .finally(() => {
-      pendingIndicatorSyncs.delete(symbol);
-    });
-}
-
 // Register interest in a symbol (increases reference count)
 export function watchSymbols(symbols: string[]) {
   symbols.forEach(sym => {
     activeSymbols.set(sym, (activeSymbols.get(sym) || 0) + 1);
-    // Strategy B: Proactively trigger background indicator sync for watched symbols missing RSI
-    triggerIndicatorSyncIfNeeded(sym);
   });
 }
 
@@ -82,13 +46,11 @@ export async function fetchPrices(symbols: string[]): Promise<Record<string, Liv
   for (const symbol of symbols) {
     const cached = priceCache.get(symbol);
     if (cached && (now - cached.timestamp) < CACHE_TTL_MS) {
-      // If cached price exists but RSI was missing when cached, check if available or trigger background sync
+      // If cached price exists but RSI was missing when cached, check if available in local cache
       if (cached.data.rsi === undefined) {
         const rsiVal = getRSI(symbol);
         if (rsiVal !== null) {
           cached.data.rsi = rsiVal;
-        } else {
-          triggerIndicatorSyncIfNeeded(symbol);
         }
       }
       result[symbol] = cached.data;
@@ -106,9 +68,6 @@ export async function fetchPrices(symbols: string[]): Promise<Record<string, Liv
       for (const q of quotesArray) {
         if (q && q.symbol && q.regularMarketPrice) {
           const rsiVal = getRSI(q.symbol);
-          if (rsiVal === null) {
-            triggerIndicatorSyncIfNeeded(q.symbol);
-          }
 
           const priceData: LivePrice = {
             price: q.regularMarketPrice,

@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { syncSymbolHistorical, getRSI } from './indicators.service';
+import { syncSymbolHistorical, getRSI, cleanupUnusedHistoricalData } from './indicators.service';
 import { fetchPrices } from '../prices/prices.service';
+import { authMiddleware } from '../../middleware/auth';
 
 const router = Router();
 
@@ -82,6 +83,17 @@ router.get('/values', (req: any, res: any) => {
   });
 
   res.json(results);
+});
+
+// POST /api/indicators/cleanup
+router.post('/cleanup', authMiddleware, async (req: any, res: any) => {
+  try {
+    const stats = await cleanupUnusedHistoricalData();
+    res.json({ success: true, ...stats });
+  } catch (error: any) {
+    console.error('Historical data cleanup error:', error);
+    res.status(500).json({ error: 'Failed to clean up historical data', details: error.message });
+  }
 });
 
 export default router;

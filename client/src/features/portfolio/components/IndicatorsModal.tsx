@@ -123,6 +123,19 @@ export function IndicatorsModal({
     if (config?.rsiOversold) setRsiOversold(config.rsiOversold);
   }, [config]);
 
+  // Sync selected indicators strictly from visibleColumns whenever modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const initial = new Set<string>();
+      AVAILABLE_INDICATORS.forEach(ind => {
+        if (visibleColumns.has(ind.columnId)) {
+          initial.add(ind.id);
+        }
+      });
+      setSelectedIds(initial);
+    }
+  }, [isOpen, visibleColumns]);
+
   // Sync / progress states
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
@@ -477,9 +490,20 @@ export function IndicatorsModal({
           )}
 
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs text-tertiary">
-              {selectedIds.size} indicator{selectedIds.size === 1 ? '' : 's'} selected
-            </span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="text-[10px] sm:text-xs text-tertiary">
+                {selectedIds.size} indicator{selectedIds.size === 1 ? '' : 's'} selected
+              </span>
+              {selectedIds.size > 0 && !isSyncing && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-[10px] sm:text-xs text-secondary hover:text-danger hover:underline transition-colors"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"

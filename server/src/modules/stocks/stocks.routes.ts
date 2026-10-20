@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { authMiddleware } from '../../middleware/auth';
-import { syncSymbolHistorical } from '../indicators/indicators.service';
 
 const router = Router();
 
@@ -29,14 +28,6 @@ router.post('/', authMiddleware, async (req: any, res: any) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-
-  // Strategy A: Automatically trigger non-blocking indicator sync for newly added stock
-  if (data?.symbol) {
-    syncSymbolHistorical(data.symbol).catch((err: any) => {
-      console.error(`[Strategy A] Auto-sync historical candles failed for ${data.symbol}:`, err.message);
-    });
-  }
-
   res.json(data);
 });
 
@@ -54,17 +45,6 @@ router.post('/bulk', authMiddleware, async (req: any, res: any) => {
     .insert(sanitizedInserts);
 
   if (error) return res.status(500).json({ error: error.message });
-
-  // Strategy A: Automatically trigger non-blocking indicator sync for unique newly inserted symbols
-  const uniqueSymbols = Array.from(
-    new Set(sanitizedInserts.map((item: any) => item.symbol).filter(Boolean))
-  ) as string[];
-
-  for (const sym of uniqueSymbols) {
-    syncSymbolHistorical(sym).catch((err: any) => {
-      console.error(`[Strategy A] Bulk auto-sync historical candles failed for ${sym}:`, err.message);
-    });
-  }
 
   res.json({ success: true, count: sanitizedInserts.length });
 });

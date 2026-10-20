@@ -185,8 +185,11 @@ export async function syncSymbolHistorical(symbol: string, period = 14): Promise
     existingCandles.forEach(c => candleMap.set(c.date, c));
     newCandles.forEach(c => candleMap.set(c.date, c));
 
-    // Sort chronologically ascending
-    const mergedCandles = Array.from(candleMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+    // Sort chronologically ascending and keep at most the last 100 trading bars (plenty for RSI calculations)
+    const MAX_STORED_CANDLES = 100;
+    const mergedCandles = Array.from(candleMap.values())
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-MAX_STORED_CANDLES);
 
     // Save to disk
     const filePayload: HistoricalDataFile = {
@@ -220,7 +223,7 @@ export async function syncSymbolHistorical(symbol: string, period = 14): Promise
 }
 
 /**
- * Daily batch sync for all active portfolio symbols.
+ * Daily batch sync for stocks in portfolios that actually have RSI enabled.
  * Used by scheduled cron tasks to keep historical data fresh every morning.
  */
 export async function syncAllActiveStockIndicators(): Promise<{ totalSynced: number }> {
@@ -228,33 +231,48 @@ export async function syncAllActiveStockIndicators(): Promise<{ totalSynced: num
 
   try {
     const supabase = createServiceClient();
-    const { data: stocks, error } = await supabase.from('stocks').select('symbol');
-    if (!error && stocks) {
-      stocks.forEach((s: any) => {
-        if (s.symbol) symbolsToSync.add(s.symbol);
+    // Fetch user_settings to see which portfolios actually have 'rsi' enabled in portfolioVisibleColumns
+    const { data: userSettings, error: settingsError } = await supabase
+      .from('user_settings')
+      .select('settings');
+
+    const portfoliosWithRsi = new Set<string>();
+    if (!settingsError && userSettings) {
+      userSettings.forEach((row: any) => {
+        const cols = row.settings?.portfolioVisibleColumns;
+        if (cols && typeof cols === 'object') {
+          Object.entries(cols).forEach(([portfolioId, colList]: [string, any]) => {
+            if (Array.isArray(colList) && colList.includes('rsi')) {
+              portfoliosWithRsi.add(portfolioId);
+            }
+          });
+        }
       });
+    }
+
+    if (portfoliosWithRsi.size > 0) {
+      const { data: stocks, error: stocksError } = await supabase
+        .from('stocks')
+        .select('symbol')
+        .in('portfolio_id', Array.from(portfoliosWithRsi));
+
+      if (!stocksError && stocks) {
+        stocks.forEach((s: any) => {
+          if (s.symbol) symbolsToSync.add(s.symbol);
+        });
+      }
     }
   } catch (err: any) {
     console.warn('[Indicator Cron] Supabase query notice:', err.message);
   }
 
-  // Also include any local historical files that already exist
-  ensureDirectoryExists();
-  try {
-    const files = fs.readdirSync(HISTORICAL_DIR);
-    files.forEach(f => {
-      if (f.endsWith('.json')) {
-        try {
-          const raw = fs.readFileSync(path.join(HISTORICAL_DIR, f), 'utf8');
-          const parsed = JSON.parse(raw);
-          if (parsed.symbol) symbolsToSync.add(parsed.symbol);
-        } catch {}
-      }
-    });
-  } catch {}
-
   const symbolList = Array.from(symbolsToSync);
-  console.log(`[Indicator Cron] Starting daily sync for ${symbolList.length} unique symbols...`);
+  if (symbolList.length === 0) {
+    console.log('[Indicator Cron] No portfolios currently have RSI enabled. Skipping daily sync.');
+    return { totalSynced: 0 };
+  }
+
+  console.log(`[Indicator Cron] Starting daily sync for ${symbolList.length} symbols with RSI enabled...`);
 
   let totalSynced = 0;
   for (const sym of symbolList) {
@@ -268,5 +286,75 @@ export async function syncAllActiveStockIndicators(): Promise<{ totalSynced: num
 
   console.log(`[Indicator Cron] Completed daily sync. Updated ${totalSynced}/${symbolList.length} symbols.`);
   return { totalSynced };
+}
+
+/**
+ * Clean up historical files for symbols that are not active in any portfolio with RSI enabled.
+ */
+export async function cleanupUnusedHistoricalData(): Promise<{ deletedCount: number; keptCount: number }> {
+  ensureDirectoryExists();
+
+  const activeRsiSymbols = new Set<string>();
+  try {
+    const supabase = createServiceClient();
+    const { data: userSettings } = await supabase.from('user_settings').select('settings');
+    const portfoliosWithRsi = new Set<string>();
+    if (userSettings) {
+      userSettings.forEach((row: any) => {
+        const cols = row.settings?.portfolioVisibleColumns;
+        if (cols && typeof cols === 'object') {
+          Object.entries(cols).forEach(([portfolioId, colList]: [string, any]) => {
+            if (Array.isArray(colList) && colList.includes('rsi')) {
+              portfoliosWithRsi.add(portfolioId);
+            }
+          });
+        }
+      });
+    }
+
+    if (portfoliosWithRsi.size > 0) {
+      const { data: stocks } = await supabase
+        .from('stocks')
+        .select('symbol')
+        .in('portfolio_id', Array.from(portfoliosWithRsi));
+
+      if (stocks) {
+        stocks.forEach((s: any) => {
+          if (s.symbol) {
+            const safeName = s.symbol.replace(/[^a-zA-Z0-9.-]/g, '_');
+            activeRsiSymbols.add(`${safeName}.json`);
+          }
+        });
+      }
+    }
+  } catch (err: any) {
+    console.warn('[Cleanup] Failed to query active RSI symbols:', err.message);
+    return { deletedCount: 0, keptCount: 0 };
+  }
+
+  let deletedCount = 0;
+  let keptCount = 0;
+
+  try {
+    const files = fs.readdirSync(HISTORICAL_DIR);
+    for (const f of files) {
+      if (!f.endsWith('.json')) continue;
+      if (!activeRsiSymbols.has(f)) {
+        try {
+          fs.unlinkSync(path.join(HISTORICAL_DIR, f));
+          deletedCount++;
+        } catch (err: any) {
+          console.warn(`[Cleanup] Failed to delete ${f}:`, err.message);
+        }
+      } else {
+        keptCount++;
+      }
+    }
+  } catch (err: any) {
+    console.error('[Cleanup] Error during historical cleanup:', err.message);
+  }
+
+  console.log(`[Cleanup] Historical data cleanup complete. Deleted ${deletedCount} unused files, kept ${keptCount} files.`);
+  return { deletedCount, keptCount };
 }
 
