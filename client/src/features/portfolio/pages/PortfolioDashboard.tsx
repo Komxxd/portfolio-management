@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import { calculateXIRR } from '../../../utils/xirr'
-import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, Info, User, LogOut, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw, Sun, Moon, GripVertical, MoreVertical, Activity } from 'lucide-react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, Info, User, LogOut, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw, Sun, Moon, GripVertical, MoreVertical, Activity, Sliders } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -38,6 +38,7 @@ import { PortfolioInfoModal } from '../components/PortfolioInfoModal'
 import { RebalanceModal } from '../../stocks/components/RebalanceModal'
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal'
 import { IndicatorsModal, type IndicatorConfig, DEFAULT_INDICATOR_CONFIG } from '../components/IndicatorsModal'
+import { StrategyBuilderModal } from '../components/StrategyBuilderModal'
 
 const ALL_SUMMARY_STATS = [
   { id: 'totalStocks', label: 'Total Stocks' },
@@ -327,6 +328,22 @@ export function PortfolioDashboard() {
   const [isRebalanceModalOpen, setIsRebalanceModalOpen] = useState(false);
   const [isIndicatorsModalOpen, setIsIndicatorsModalOpen] = useState(false);
   const [indicatorConfig, setIndicatorConfig] = useState<IndicatorConfig>(DEFAULT_INDICATOR_CONFIG);
+  const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
+  const [activeStrategiesCount, setActiveStrategiesCount] = useState(0);
+
+  // Sync active strategies count live from database
+  useEffect(() => {
+    let isMounted = true;
+    api.get(`/api/strategies?portfolio_id=${activePortfolioId || ''}`)
+      .then((data: any) => {
+        if (Array.isArray(data) && isMounted) {
+          setActiveStrategiesCount(data.filter((r: any) => r.enabled).length);
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, [activePortfolioId, isStrategyModalOpen]);
+
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [addStockPortfolioId, setAddStockPortfolioId] = useState<string | null>(null);
   const [addStockInitialSymbol, setAddStockInitialSymbol] = useState<string>('');
@@ -1604,11 +1621,25 @@ export function PortfolioDashboard() {
                     
                     <button
                       onClick={() => setIsIndicatorsModalOpen(true)}
-                      className="flex items-center gap-1 px-2 py-1 bg-surface border border-divider rounded-md text-[10px] font-medium text-secondary hover:text-primary transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 bg-surface border border-divider rounded-md text-[10px] font-medium text-secondary hover:text-primary transition-colors cursor-pointer"
                       title="Add Technical Indicators"
                     >
                       <Activity className="w-3 h-3 text-primary" />
                       Add Indicators
+                    </button>
+
+                    <button
+                      onClick={() => setIsStrategyModalOpen(true)}
+                      className="flex items-center gap-1 px-2 py-1 bg-surface border border-divider rounded-md text-[10px] font-medium text-secondary hover:text-primary transition-colors cursor-pointer"
+                      title="Signal-Based Strategy Builder"
+                    >
+                      <Sliders className="w-3 h-3 text-primary" />
+                      <span>Add Strategy</span>
+                      {activeStrategiesCount > 0 && (
+                        <span className="ml-1 px-1.5 py-0.2 rounded-full bg-primary/10 text-primary font-mono text-[9px] font-semibold">
+                          {activeStrategiesCount}
+                        </span>
+                      )}
                     </button>
 
                     <div className="relative">
@@ -2633,6 +2664,14 @@ export function PortfolioDashboard() {
             return updated;
           });
         }}
+      />
+
+      <StrategyBuilderModal
+        isOpen={isStrategyModalOpen}
+        onClose={() => setIsStrategyModalOpen(false)}
+        portfolioId={activePortfolioId || ''}
+        stocks={stocks}
+        currencySymbol={currencySymbol}
       />
     </>
   )

@@ -62,6 +62,8 @@ import indicatorsRoutes from './modules/indicators/indicators.routes';
 
 app.use('/api/indicators', indicatorsRoutes);
 app.use('/api/settings', settingsRoutes);
+import strategiesRoutes from './modules/strategies/strategies.routes';
+app.use('/api/strategies', strategiesRoutes);
 
 // The corporate-actions router internally defines `/`, `/bulk`, and `/cron/sync-corp-actions`
 // but the client expects `/api/corporate-actions`, `/api/bulk-corporate-actions`, and `/api/cron/sync-corp-actions`.
