@@ -1069,12 +1069,12 @@ export function PortfolioDashboard() {
       };
     }
 
-    const lp = livePrices[symbol] || {};
-    const currentPrice = lp.price ?? liveData?.price ?? null;
-    const changePct = lp.changePercent ?? liveData?.changePercent ?? null;
-    const rsi = lp.rsi ?? liveData?.rsi ?? null;
-    const dma50 = lp.dma50 ?? liveData?.dma50 ?? null;
-    const dma200 = lp.dma200 ?? liveData?.dma200 ?? null;
+    const lp = livePrices[symbol];
+    const currentPrice = lp?.price ?? liveData?.price ?? null;
+    const changePct = lp?.changePercent ?? liveData?.changePercent ?? null;
+    const rsi = lp?.rsi ?? liveData?.rsi ?? null;
+    const dma50 = lp?.dma50 ?? liveData?.dma50 ?? null;
+    const dma200 = lp?.dma200 ?? liveData?.dma200 ?? null;
 
     const indicators = {
       price: typeof currentPrice === 'number' && !isNaN(currentPrice) ? currentPrice : null,
