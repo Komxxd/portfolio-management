@@ -10,6 +10,7 @@ interface AddStockModalProps {
   portfolioId: string | null;
   initialSymbol?: string;
   initialPrice?: number;
+  initialQuantity?: number | string;
   existingSymbols?: string[];
 }
 
@@ -19,7 +20,7 @@ interface SearchResult {
   exchange: string;
 }
 
-export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSymbol, initialPrice, existingSymbols = [] }: AddStockModalProps) {
+export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSymbol, initialPrice, initialQuantity, existingSymbols = [] }: AddStockModalProps) {
   const { currencySymbol, formatCurrency: fmtCurrency } = useCurrency();
   const [ticker, setTicker] = useState(initialSymbol || '');
   const [searchQuery, setSearchQuery] = useState(initialSymbol || '');
@@ -46,8 +47,14 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
       setSearchQuery(initialSymbol || '');
       setTicker(initialSymbol || '');
       setSearchResults([]);
-      setQuantity('');
-      setValue('');
+      const qtyStr = initialQuantity !== undefined && initialQuantity !== '' ? String(initialQuantity) : '';
+      setQuantity(qtyStr);
+      if (qtyStr && initialPrice) {
+        const val = Number(qtyStr) * initialPrice;
+        setValue(!isNaN(val) ? val.toFixed(2) : '');
+      } else {
+        setValue('');
+      }
       setEntryPrice(initialPrice ? initialPrice.toString() : '');
       setBrokerage('0');
       setGovtTax('0');
@@ -55,7 +62,7 @@ export function AddStockModal({ isOpen, onClose, onAdded, portfolioId, initialSy
       setError('');
       setLoading(false);
     }
-  }, [isOpen, initialSymbol, initialPrice]);
+  }, [isOpen, initialSymbol, initialPrice, initialQuantity]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import { calculateXIRR } from '../../../utils/xirr'
-import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, Info, User, LogOut, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw, Sun, Moon, GripVertical, MoreVertical, Activity, Sliders } from 'lucide-react'
+import { Plus, Briefcase, Trash2, Pencil, ChevronDown, ChevronRight, ChevronUp, ArrowUpCircle, ArrowDownCircle, PanelLeftClose, PanelLeftOpen, Copy, FilterX, ArrowUpDown, Columns, Check, RotateCcw, CheckCircle2, AlertCircle, Info, User, LogOut, Folder, Download, Upload, Home, LayoutDashboard, RefreshCw, Sun, Moon, GripVertical, MoreVertical, Activity, Sliders } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -375,12 +375,142 @@ export function PortfolioDashboard() {
   const [addStockPortfolioId, setAddStockPortfolioId] = useState<string | null>(null);
   const [addStockInitialSymbol, setAddStockInitialSymbol] = useState<string>('');
   const [addStockInitialPrice, setAddStockInitialPrice] = useState<number | undefined>(undefined);
+  const [addStockInitialQuantity, setAddStockInitialQuantity] = useState<number | string | undefined>(undefined);
   const [sellStockPortfolioId, setSellStockPortfolioId] = useState<string | null>(null);
   const [sellStockInitialSymbol, setSellStockInitialSymbol] = useState<string>('');
   const [sellStockInitialPrice, setSellStockInitialPrice] = useState<number | undefined>(undefined);
+  const [sellStockInitialQuantity, setSellStockInitialQuantity] = useState<number | string | undefined>(undefined);
   const [editStockId, setEditStockId] = useState<string | null>(null);
   const [editSoldStockId, setEditSoldStockId] = useState<string | null>(null);
   const [renamePortfolioId, setRenamePortfolioId] = useState<string | null>(null);
+
+  interface DailyExecutedRecord {
+    date: string;
+    action: ActionType;
+    time: string;
+    price?: number;
+    qty?: number;
+  }
+
+  const getTodayDateStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const [dailyExecutedActions, setDailyExecutedActions] = useState<Record<string, DailyExecutedRecord>>(() => {
+    try {
+      const saved = localStorage.getItem('portfolio_strategy_daily_executed');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const isExecutedToday = React.useCallback((symbol: string, portfolioId?: string) => {
+    const pId = portfolioId || activePortfolioId || 'all';
+    const key = `${pId}::${symbol}`;
+    const today = getTodayDateStr();
+    const record = dailyExecutedActions[key] || dailyExecutedActions[`all::${symbol}`];
+    if (record && record.date === today) {
+      return record;
+    }
+    // Also check if any portfolio recorded an execution for this symbol today
+    const foundAny = Object.entries(dailyExecutedActions).find(([k, r]) => k.endsWith(`::${symbol}`) && r.date === today);
+    if (foundAny) {
+      return foundAny[1];
+    }
+    return null;
+  }, [activePortfolioId, dailyExecutedActions]);
+
+  const markActionAsExecutedToday = React.useCallback((symbol: string, action: ActionType, price?: number, qty?: number, portfolioId?: string) => {
+    const pId = portfolioId || activePortfolioId || 'all';
+    const key = `${pId}::${symbol}`;
+    const today = getTodayDateStr();
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const newRecord: DailyExecutedRecord = {
+      date: today,
+      action,
+      time,
+      price,
+      qty
+    };
+    setDailyExecutedActions(prev => {
+      const next = { ...prev, [key]: newRecord, [`all::${symbol}`]: newRecord };
+      try {
+        localStorage.setItem('portfolio_strategy_daily_executed', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, [activePortfolioId]);
+
+  const resetExecutedToday = React.useCallback((symbol: string, portfolioId?: string) => {
+    const pId = portfolioId || activePortfolioId || 'all';
+    const key = `${pId}::${symbol}`;
+    setDailyExecutedActions(prev => {
+      const next = { ...prev };
+      delete next[key];
+      delete next[`all::${symbol}`];
+      Object.keys(next).forEach(k => {
+        if (k.endsWith(`::${symbol}`)) {
+          delete next[k];
+        }
+      });
+      try {
+        localStorage.setItem('portfolio_strategy_daily_executed', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, [activePortfolioId]);
+
+
+  const [takenActionKeys, setTakenActionKeys] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('portfolio_strategy_actions_taken');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const markActionAsTaken = React.useCallback((key: string) => {
+    setTakenActionKeys(prev => {
+      const next = new Set(prev);
+      next.add(key);
+      try {
+        localStorage.setItem('portfolio_strategy_actions_taken', JSON.stringify(Array.from(next)));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const resetActionTaken = React.useCallback((key: string) => {
+    setTakenActionKeys(prev => {
+      const next = new Set(prev);
+      next.delete(key);
+      try {
+        localStorage.setItem('portfolio_strategy_actions_taken', JSON.stringify(Array.from(next)));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const [pendingStrategyAction, setPendingStrategyAction] = useState<{
+    key: string;
+    symbol: string;
+    ruleId?: string;
+    action: ActionType;
+  } | null>(null);
+
+  const [strategyAlertInfo, setStrategyAlertInfo] = useState<{
+    isOpen: boolean;
+    symbol: string;
+    ruleName: string;
+    message: string;
+    actionKey: string;
+  } | null>(null);
+
+  const [executingSignalKey, setExecutingSignalKey] = useState<string | null>(null);
+  const [actionToast, setActionToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
 
   useEffect(() => {
@@ -1114,6 +1244,160 @@ export function PortfolioDashboard() {
     };
   }, [strategies, livePrices]);
 
+  const handleExecuteSignalAction = React.useCallback(async (e: React.MouseEvent, group: any, strat: any) => {
+    e.stopPropagation();
+    if (!strat.signal) return;
+
+    // Check if an action was already executed for this stock today
+    const alreadyExecuted = isExecutedToday(group.symbol);
+    if (alreadyExecuted) {
+      setActionToast({
+        message: `${group.symbol} has already executed a strategy action today (${alreadyExecuted.action} at ${alreadyExecuted.time}). Daily limit is 1 action per stock.`,
+        type: 'info'
+      });
+      return;
+    }
+
+    const actionKey = `${activePortfolioId || 'all'}_${group.symbol}_${strat.signalRule?.id || strat.signal}`;
+    if (executingSignalKey === actionKey) return;
+
+    const targetPortfolioId = activePortfolioId || stocks.find(s => s.symbol === group.symbol)?.portfolio_id || portfolios[0]?.id;
+    if (!targetPortfolioId) {
+      setActionToast({ message: 'No portfolio available to execute trade.', type: 'error' });
+      return;
+    }
+
+    const currentPrice = livePrices[group.symbol]?.price ?? group.livePrice ?? group.liveData?.price ?? group.avgBuyPrice ?? 0;
+    if (!currentPrice || currentPrice <= 0) {
+      setActionToast({ message: `Cannot trade ${group.symbol}: market price unavailable.`, type: 'error' });
+      return;
+    }
+
+    const isFractionalAllowed = !(group.symbol.toUpperCase().endsWith('.NS') || group.symbol.toUpperCase().endsWith('.BO'));
+
+    // Calculate sizing quantity if configured on the rule
+    let calculatedQty = 1;
+    if (strat.signalRule?.sizingType && strat.signalRule?.sizingValue) {
+      const val = Number(strat.signalRule.sizingValue);
+      if (!isNaN(val) && val > 0) {
+        if (strat.signalRule.sizingType === 'QTY') {
+          calculatedQty = val;
+        } else if (strat.signalRule.sizingType === 'VALUE' && currentPrice > 0) {
+          calculatedQty = Math.round((val / currentPrice) * 10000) / 10000;
+        } else if (strat.signalRule.sizingType === 'INCREASE_PCT' && group.netQty > 0) {
+          calculatedQty = Math.round(group.netQty * (val / 100) * 10000) / 10000;
+        } else if (strat.signalRule.sizingType === 'DECREASE_PCT' && group.netQty > 0) {
+          calculatedQty = Math.round(group.netQty * (val / 100) * 10000) / 10000;
+        }
+      }
+    }
+
+    if (!isFractionalAllowed) {
+      calculatedQty = Math.max(1, Math.round(calculatedQty));
+    }
+
+    if (strat.signal === 'SELL' && group.netQty > 0) {
+      calculatedQty = Math.min(calculatedQty, group.netQty);
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    try {
+      setExecutingSignalKey(actionKey);
+
+      if (strat.signal === 'BUY') {
+        await api.post('/api/stocks', {
+          portfolio_id: targetPortfolioId,
+          symbol: group.symbol.toUpperCase().trim(),
+          quantity: calculatedQty,
+          entry_price: currentPrice,
+          brokerage: 0,
+          govt_tax: 0,
+          entry_date: todayStr
+        });
+
+        markActionAsTaken(actionKey);
+        markActionAsExecutedToday(group.symbol, 'BUY', currentPrice, calculatedQty, targetPortfolioId);
+        await fetchData();
+        setActionToast({
+          message: `Successfully bought ${calculatedQty} ${group.symbol} at ${fmtCurrency(currentPrice, group.liveData?.currency)}! Signal executed for today.`,
+          type: 'success'
+        });
+      } else if (strat.signal === 'SELL') {
+        if (group.netQty <= 0) {
+          setActionToast({ message: `Cannot sell ${group.symbol}: No open shares held in portfolio.`, type: 'error' });
+          return;
+        }
+
+        await api.post('/api/sold-stocks', {
+          portfolio_id: targetPortfolioId,
+          symbol: group.symbol.toUpperCase().trim(),
+          quantity: calculatedQty,
+          exit_price: currentPrice,
+          brokerage: 0,
+          govt_tax: 0,
+          exit_date: todayStr
+        });
+
+        markActionAsTaken(actionKey);
+        markActionAsExecutedToday(group.symbol, 'SELL', currentPrice, calculatedQty, targetPortfolioId);
+        await fetchData();
+        setActionToast({
+          message: `Successfully sold ${calculatedQty} ${group.symbol} at ${fmtCurrency(currentPrice, group.liveData?.currency)}! Signal executed for today.`,
+          type: 'success'
+        });
+      } else if (strat.signal === 'ALERT') {
+        setStrategyAlertInfo({
+          isOpen: true,
+          symbol: group.symbol,
+          ruleName: strat.signalRule?.name || 'Alert Rule',
+          message: `Condition met for ${group.symbol} by strategy "${strat.signalRule?.name || 'Alert'}". Current price is ${fmtCurrency(currentPrice, group.liveData?.currency)}.`,
+          actionKey
+        });
+      }
+    } catch (err: any) {
+      setActionToast({
+        message: `Failed to execute ${strat.signal} for ${group.symbol}: ${err?.message || 'Error occurred'}`,
+        type: 'error'
+      });
+    } finally {
+      setExecutingSignalKey(null);
+      setTimeout(() => setActionToast(null), 4500);
+    }
+  }, [activePortfolioId, livePrices, fmtCurrency, stocks, portfolios, markActionAsTaken, markActionAsExecutedToday, isExecutedToday, fetchData, executingSignalKey]);
+
+  const handleStockAdded = React.useCallback(() => {
+    fetchData();
+    if (pendingStrategyAction) {
+      markActionAsTaken(pendingStrategyAction.key);
+      markActionAsExecutedToday(pendingStrategyAction.symbol, 'BUY');
+      setPendingStrategyAction(null);
+    } else if (addStockInitialSymbol) {
+      const strat = getSymbolStrategyInfo(addStockInitialSymbol, livePrices[addStockInitialSymbol]);
+      if (strat.signal === 'BUY') {
+        const key = `${activePortfolioId || 'all'}_${addStockInitialSymbol}_${strat.signalRule?.id || 'BUY'}`;
+        markActionAsTaken(key);
+        markActionAsExecutedToday(addStockInitialSymbol, 'BUY');
+      }
+    }
+  }, [fetchData, pendingStrategyAction, addStockInitialSymbol, getSymbolStrategyInfo, livePrices, activePortfolioId, markActionAsTaken, markActionAsExecutedToday]);
+
+  const handleStockSold = React.useCallback(() => {
+    fetchData();
+    if (pendingStrategyAction) {
+      markActionAsTaken(pendingStrategyAction.key);
+      markActionAsExecutedToday(pendingStrategyAction.symbol, 'SELL');
+      setPendingStrategyAction(null);
+    } else if (sellStockInitialSymbol) {
+      const strat = getSymbolStrategyInfo(sellStockInitialSymbol, livePrices[sellStockInitialSymbol]);
+      if (strat.signal === 'SELL') {
+        const key = `${activePortfolioId || 'all'}_${sellStockInitialSymbol}_${strat.signalRule?.id || 'SELL'}`;
+        markActionAsTaken(key);
+        markActionAsExecutedToday(sellStockInitialSymbol, 'SELL');
+      }
+    }
+  }, [fetchData, pendingStrategyAction, sellStockInitialSymbol, getSymbolStrategyInfo, livePrices, activePortfolioId, markActionAsTaken, markActionAsExecutedToday]);
+
   let filteredSymbolGroups = symbolGroups;
   if (filterType === 'open') {
     filteredSymbolGroups = symbolGroups.filter((g: any) => g.netQty > 0);
@@ -1208,15 +1492,16 @@ export function PortfolioDashboard() {
       } else if (sortField === 'strategy') {
         const stratA = getSymbolStrategyInfo(a.symbol, a.liveData);
         const stratB = getSymbolStrategyInfo(b.symbol, b.liveData);
-        const getScore = (s: any) => {
+        const getScore = (symbol: string, s: any) => {
           if (!s.hasActive) return 0;
+          if (isExecutedToday(symbol)) return 2;
           if (s.signal === 'BUY') return 5;
           if (s.signal === 'SELL') return 4;
           if (s.signal === 'ALERT') return 3;
           return 1;
         };
-        valA = getScore(stratA);
-        valB = getScore(stratB);
+        valA = getScore(a.symbol, stratA);
+        valB = getScore(b.symbol, stratB);
       } else if (sortField === 'dma50') {
         valA = livePrices[a.symbol]?.dma50 ?? a.liveData?.dma50 ?? 0;
         valB = livePrices[b.symbol]?.dma50 ?? b.liveData?.dma50 ?? 0;
@@ -2184,6 +2469,7 @@ export function PortfolioDashboard() {
                                               e.stopPropagation();
                                               setAddStockInitialSymbol(group.symbol);
                                               setAddStockInitialPrice(group.livePrice);
+                                              setAddStockInitialQuantity(undefined);
                                               setAddStockPortfolioId(activePortfolioId);
                                             }}
                                             className="text-success hover:text-success hover:underline transition-colors focus:outline-none"
@@ -2197,6 +2483,7 @@ export function PortfolioDashboard() {
                                               e.stopPropagation();
                                               setSellStockInitialSymbol(group.symbol);
                                               setSellStockInitialPrice(group.livePrice);
+                                              setSellStockInitialQuantity(undefined);
                                               setSellStockPortfolioId(activePortfolioId);
                                             }}
                                             className="text-danger hover:text-danger hover:underline transition-colors focus:outline-none"
@@ -2227,15 +2514,36 @@ export function PortfolioDashboard() {
 
                                     case 'strategy': {
                                       const strat = getSymbolStrategyInfo(group.symbol, group.liveData);
+                                      const actionKey = `${activePortfolioId || 'all'}_${group.symbol}_${strat.signalRule?.id || strat.signal}`;
+                                      const executedRecord = isExecutedToday(group.symbol);
+                                      const isActionTaken = strat.signal ? (takenActionKeys.has(actionKey) || !!executedRecord) : false;
+                                      const isSignalActive = !!strat.signal && !executedRecord;
+                                      const shouldBlink = isSignalActive && !isActionTaken;
+                                      const isExecuting = executingSignalKey === actionKey;
+
                                       return (
                                         <td 
                                           key="strategy" 
-                                          onClick={() => setIsStrategyModalOpen(true)}
-                                          className="px-1 py-1 text-[9px] sm:text-[10px] cursor-pointer hover:bg-surface-hover/80 transition-colors"
-                                          title={strat.signalRule ? `Triggered: ${strat.signalRule.name} (${strat.signal})` : strat.hasActive ? `${strat.activeRulesCount} active strategy(ies)` : 'No active strategy. Click to configure.'}
+                                          className="px-1 py-1 text-[9px] sm:text-[10px] transition-colors"
+                                          title={
+                                            executedRecord
+                                              ? `Executed today: ${executedRecord.action} (${executedRecord.time}). Daily limit is 1 action per stock.`
+                                              : strat.signalRule 
+                                                ? `Triggered: ${strat.signalRule.name} (${strat.signal})` 
+                                                : strat.hasActive 
+                                                  ? `${strat.activeRulesCount} active strategy(ies)` 
+                                                  : 'No active strategy. Click to configure.'
+                                          }
                                         >
                                           <div className="grid grid-cols-2 text-center items-center h-full divide-x divide-divider/40">
-                                            <div className="px-1 flex items-center justify-center">
+                                            <div 
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsStrategyModalOpen(true);
+                                              }}
+                                              className="px-1 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                                              title={strat.hasActive ? `${strat.activeRulesCount} active strategy(ies). Click to configure.` : 'No active strategy. Click to configure.'}
+                                            >
                                               {strat.hasActive ? (
                                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/25">
                                                   Active
@@ -2245,24 +2553,209 @@ export function PortfolioDashboard() {
                                               )}
                                             </div>
                                             <div className="px-1 flex items-center justify-center">
-                                              {strat.signal === 'BUY' ? (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-emerald-600 text-white shadow-xs">
-                                                  BUY
-                                                </span>
+                                              {executedRecord ? (
+                                                <div className="inline-flex items-center gap-1 group/exec">
+                                                  <span 
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 select-none shadow-xs"
+                                                    title={`Strategy action executed today (${executedRecord.action}${executedRecord.qty ? ` · ${executedRecord.qty} qty` : ''}${executedRecord.time ? ` at ${executedRecord.time}` : ''}). In our setup daily indicators don't change during the day, so only 1 action per stock per day is allowed.`}
+                                                  >
+                                                    <Check className="w-2.5 h-2.5 shrink-0 text-emerald-500 stroke-[2.5]" />
+                                                    <span>Executed</span>
+                                                  </span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      resetExecutedToday(group.symbol);
+                                                      resetActionTaken(actionKey);
+                                                    }}
+                                                    className="opacity-0 group-hover/exec:opacity-100 hover:!opacity-100 p-0.5 text-secondary hover:text-amber-500 transition-opacity rounded"
+                                                    title="Reset daily execution (allow signal again today)"
+                                                  >
+                                                    <RotateCcw className="w-2.5 h-2.5" />
+                                                  </button>
+                                                </div>
+                                              ) : strat.signal === 'BUY' ? (
+                                                <div className="inline-flex items-center gap-0.5">
+                                                  <button
+                                                    type="button"
+                                                    disabled={isExecuting}
+                                                    onClick={(e) => handleExecuteSignalAction(e, group, strat)}
+                                                    className={`relative inline-flex items-center justify-center px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold cursor-pointer transition-all ${
+                                                      isExecuting
+                                                        ? 'bg-emerald-700 text-white cursor-wait opacity-90'
+                                                        : shouldBlink 
+                                                          ? 'animate-signal-blink bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm ring-1 ring-emerald-400/60' 
+                                                          : 'bg-emerald-600/90 hover:bg-emerald-500 text-white shadow-xs'
+                                                    }`}
+                                                    title={
+                                                      isExecuting
+                                                        ? `Automatically buying ${group.symbol}...`
+                                                        : shouldBlink
+                                                          ? `Click to automatically BUY ${group.symbol} (${strat.signalRule?.name || 'Strategy'})`
+                                                          : `BUY action taken.`
+                                                    }
+                                                  >
+                                                    {isExecuting ? (
+                                                      <div className="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin mr-1 shrink-0" />
+                                                    ) : shouldBlink ? (
+                                                      <span className="relative flex h-1.5 w-1.5 mr-1 shrink-0">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+                                                      </span>
+                                                    ) : (
+                                                      <Check className="w-2.5 h-2.5 mr-0.5 shrink-0 text-white/90" />
+                                                    )}
+                                                    <span>{isExecuting ? 'BUYING...' : 'BUY'}</span>
+                                                  </button>
+                                                  {shouldBlink ? (
+                                                    <button
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        markActionAsTaken(actionKey);
+                                                        markActionAsExecutedToday(group.symbol, 'BUY');
+                                                      }}
+                                                      className="p-0.5 text-secondary hover:text-emerald-500 transition-colors rounded"
+                                                      title="Mark action as executed today (stop blinking)"
+                                                    >
+                                                      <Check className="w-2.5 h-2.5" />
+                                                    </button>
+                                                  ) : (
+                                                    <button
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        resetActionTaken(actionKey);
+                                                        resetExecutedToday(group.symbol);
+                                                      }}
+                                                      className="p-0.5 text-secondary hover:text-amber-500 transition-colors rounded"
+                                                      title="Reset (mark as pending to blink again)"
+                                                    >
+                                                      <RotateCcw className="w-2.5 h-2.5" />
+                                                    </button>
+                                                  )}
+                                                </div>
                                               ) : strat.signal === 'SELL' ? (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-rose-600 text-white shadow-xs">
-                                                  SELL
-                                                </span>
+                                                <div className="inline-flex items-center gap-0.5">
+                                                  <button
+                                                    type="button"
+                                                    disabled={isExecuting}
+                                                    onClick={(e) => handleExecuteSignalAction(e, group, strat)}
+                                                    className={`relative inline-flex items-center justify-center px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold cursor-pointer transition-all ${
+                                                      isExecuting
+                                                        ? 'bg-rose-700 text-white cursor-wait opacity-90'
+                                                        : shouldBlink 
+                                                          ? 'animate-signal-blink bg-rose-600 hover:bg-rose-500 text-white shadow-sm ring-1 ring-rose-400/60' 
+                                                          : 'bg-rose-600/90 hover:bg-rose-500 text-white shadow-xs'
+                                                    }`}
+                                                    title={
+                                                      isExecuting
+                                                        ? `Automatically selling ${group.symbol}...`
+                                                        : shouldBlink
+                                                          ? `Click to automatically SELL ${group.symbol} (${strat.signalRule?.name || 'Strategy'})`
+                                                          : `SELL action taken.`
+                                                    }
+                                                  >
+                                                    {isExecuting ? (
+                                                      <div className="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin mr-1 shrink-0" />
+                                                    ) : shouldBlink ? (
+                                                      <span className="relative flex h-1.5 w-1.5 mr-1 shrink-0">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+                                                      </span>
+                                                    ) : (
+                                                      <Check className="w-2.5 h-2.5 mr-0.5 shrink-0 text-white/90" />
+                                                    )}
+                                                    <span>{isExecuting ? 'SELLING...' : 'SELL'}</span>
+                                                  </button>
+                                                  {shouldBlink ? (
+                                                    <button
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        markActionAsTaken(actionKey);
+                                                        markActionAsExecutedToday(group.symbol, 'SELL');
+                                                      }}
+                                                      className="p-0.5 text-secondary hover:text-rose-500 transition-colors rounded"
+                                                      title="Mark action as executed today (stop blinking)"
+                                                    >
+                                                      <Check className="w-2.5 h-2.5" />
+                                                    </button>
+                                                  ) : (
+                                                    <button
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        resetActionTaken(actionKey);
+                                                        resetExecutedToday(group.symbol);
+                                                      }}
+                                                      className="p-0.5 text-secondary hover:text-amber-500 transition-colors rounded"
+                                                      title="Reset (mark as pending to blink again)"
+                                                    >
+                                                      <RotateCcw className="w-2.5 h-2.5" />
+                                                    </button>
+                                                  )}
+                                                </div>
                                               ) : strat.signal === 'ALERT' ? (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-amber-500 text-white shadow-xs">
-                                                  ALERT
-                                                </span>
+                                                <div className="inline-flex items-center gap-0.5">
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => handleExecuteSignalAction(e, group, strat)}
+                                                    className={`relative inline-flex items-center justify-center px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold cursor-pointer transition-all ${
+                                                      shouldBlink 
+                                                        ? 'animate-signal-blink bg-amber-500 hover:bg-amber-400 text-white shadow-sm ring-1 ring-amber-400/60' 
+                                                        : 'bg-amber-500/90 hover:bg-amber-400 text-white shadow-xs'
+                                                    }`}
+                                                    title={shouldBlink ? `ALERT signal! Click to view alert details.` : `ALERT acknowledged.`}
+                                                  >
+                                                    {shouldBlink ? (
+                                                      <span className="relative flex h-1.5 w-1.5 mr-1 shrink-0">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                                                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
+                                                      </span>
+                                                    ) : (
+                                                      <Check className="w-2.5 h-2.5 mr-0.5 shrink-0 text-white/90" />
+                                                    )}
+                                                    <span>ALERT</span>
+                                                  </button>
+                                                  {shouldBlink && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        markActionAsTaken(actionKey);
+                                                        markActionAsExecutedToday(group.symbol, 'ALERT');
+                                                      }}
+                                                      className="p-0.5 text-secondary hover:text-amber-500 transition-colors rounded"
+                                                      title="Acknowledge alert (mark as executed today)"
+                                                    >
+                                                      <Check className="w-2.5 h-2.5" />
+                                                    </button>
+                                                  )}
+                                                </div>
                                               ) : strat.hasActive ? (
-                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-medium text-secondary bg-surface-hover border border-divider/60">
+                                                <span 
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsStrategyModalOpen(true);
+                                                  }}
+                                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-medium text-secondary bg-surface-hover border border-divider/60 cursor-pointer hover:bg-surface-hover/80"
+                                                  title="No active signal right now (HOLD). Click to manage strategies."
+                                                >
                                                   HOLD
                                                 </span>
                                               ) : (
-                                                <span className="text-tertiary font-mono">—</span>
+                                                <span 
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIsStrategyModalOpen(true);
+                                                  }}
+                                                  className="text-tertiary font-mono cursor-pointer hover:text-secondary"
+                                                  title="No strategy configured. Click to create one."
+                                                >
+                                                  —
+                                                </span>
                                               )}
                                             </div>
                                           </div>
@@ -2770,9 +3263,16 @@ export function PortfolioDashboard() {
         portfolioId={addStockPortfolioId}
         initialSymbol={addStockInitialSymbol}
         initialPrice={addStockInitialPrice}
+        initialQuantity={addStockInitialQuantity}
         existingSymbols={!addStockInitialSymbol ? [...new Set(stocks.filter(s => s.portfolio_id === addStockPortfolioId).map(s => s.symbol))] : []}
-        onClose={() => { setAddStockPortfolioId(null); setAddStockInitialSymbol(''); setAddStockInitialPrice(undefined); }}
-        onAdded={fetchData}
+        onClose={() => { 
+          setAddStockPortfolioId(null); 
+          setAddStockInitialSymbol(''); 
+          setAddStockInitialPrice(undefined); 
+          setAddStockInitialQuantity(undefined);
+          setPendingStrategyAction(null);
+        }}
+        onAdded={handleStockAdded}
       />
 
       <SellStockModal
@@ -2780,9 +3280,32 @@ export function PortfolioDashboard() {
         portfolioId={sellStockPortfolioId}
         initialSymbol={sellStockInitialSymbol}
         initialPrice={sellStockInitialPrice}
-        onClose={() => { setSellStockPortfolioId(null); setSellStockInitialSymbol(''); setSellStockInitialPrice(undefined); }}
-        onAdded={fetchData}
+        initialQuantity={sellStockInitialQuantity}
+        onClose={() => { 
+          setSellStockPortfolioId(null); 
+          setSellStockInitialSymbol(''); 
+          setSellStockInitialPrice(undefined); 
+          setSellStockInitialQuantity(undefined);
+          setPendingStrategyAction(null);
+        }}
+        onAdded={handleStockSold}
       />
+
+      {strategyAlertInfo && (
+        <ConfirmationModal
+          isOpen={strategyAlertInfo.isOpen}
+          onClose={() => setStrategyAlertInfo(null)}
+          onConfirm={() => {
+            markActionAsTaken(strategyAlertInfo.actionKey);
+            markActionAsExecutedToday(strategyAlertInfo.symbol, 'ALERT');
+            setStrategyAlertInfo(null);
+          }}
+          title={`Strategy Alert: ${strategyAlertInfo.symbol}`}
+          message={strategyAlertInfo.message}
+          confirmText="Acknowledge (Mark as Executed)"
+          cancelText="Close"
+        />
+      )}
 
       <EditStockModal
         isOpen={!!editStockId}
@@ -2912,6 +3435,19 @@ export function PortfolioDashboard() {
         stocks={openStocks}
         currencySymbol={currencySymbol}
       />
+
+      {actionToast && (
+        <div className="fixed bottom-6 right-6 z-[100] flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-2xl border bg-surface text-primary border-divider animate-in fade-in slide-in-from-bottom-3 duration-200">
+          {actionToast.type === 'success' ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+          ) : actionToast.type === 'info' ? (
+            <Info className="w-4 h-4 text-sky-500 shrink-0" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+          )}
+          <span className="text-xs font-medium">{actionToast.message}</span>
+        </div>
+      )}
     </>
   )
 }
