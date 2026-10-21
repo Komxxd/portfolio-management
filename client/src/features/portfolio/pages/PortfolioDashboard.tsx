@@ -39,6 +39,7 @@ import { RebalanceModal } from '../../stocks/components/RebalanceModal'
 import { ConfirmationModal } from '../../../components/ui/ConfirmationModal'
 import { IndicatorsModal, type IndicatorConfig, DEFAULT_INDICATOR_CONFIG } from '../components/IndicatorsModal'
 import { StrategyBuilderModal } from '../components/StrategyBuilderModal'
+import { type StrategyRule, type ActionType, evaluateStrategyRule } from '../components/strategyTypes'
 
 const ALL_SUMMARY_STATS = [
   { id: 'totalStocks', label: 'Total Stocks' },
@@ -170,7 +171,8 @@ function SortableHeaderCell({
   resizingColId,
   onSort, 
   onResizeStart,
-  className
+  className,
+  customHeader
 }: { 
   field: string, 
   label: string, 
@@ -181,7 +183,8 @@ function SortableHeaderCell({
   resizingColId: string | undefined,
   onSort: (field: string) => void, 
   onResizeStart: (e: React.MouseEvent, id: string, w: number) => void,
-  className?: string
+  className?: string,
+  customHeader?: React.ReactNode
 }) {
   const {
     attributes,
@@ -214,14 +217,18 @@ function SortableHeaderCell({
         onSort(field);
       }}
     >
-      <div className={`flex items-center gap-1 overflow-hidden ${isNumber ? 'justify-end' : 'justify-start'}`}>
-        <span className="truncate">{label}</span>
-        {sortField === field ? (
-          sortDirection === 'asc' ? <ChevronUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" /> : <ChevronDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" />
-        ) : (
-          <ArrowUpDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-tertiary group-hover:text-secondary transition-colors shrink-0" />
-        )}
-      </div>
+      {customHeader ? (
+        customHeader
+      ) : (
+        <div className={`flex items-center gap-1 overflow-hidden ${isNumber ? 'justify-end' : 'justify-start'}`}>
+          <span className="truncate">{label}</span>
+          {sortField === field ? (
+            sortDirection === 'asc' ? <ChevronUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" /> : <ChevronDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" />
+          ) : (
+            <ArrowUpDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-tertiary group-hover:text-secondary transition-colors shrink-0" />
+          )}
+        </div>
+      )}
       
       <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block z-50 whitespace-nowrap bg-surface text-primary text-[8px] sm:text-[10px] font-medium px-2 py-1 rounded border border-divider pointer-events-none normal-case tracking-normal">
         {label}
@@ -242,6 +249,7 @@ function SortableHeaderCell({
 
 const ALL_COLUMNS = [
   { id: 'symbol', label: 'Symbol' },
+  { id: 'strategy', label: 'Strategy' },
   { id: 'netQty', label: 'Net Qty' },
   { id: 'avgBuyPrice', label: 'Avg Buy' },
   { id: 'netCostBasis', label: 'Invested' },
@@ -330,17 +338,36 @@ export function PortfolioDashboard() {
   const [indicatorConfig, setIndicatorConfig] = useState<IndicatorConfig>(DEFAULT_INDICATOR_CONFIG);
   const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
   const [activeStrategiesCount, setActiveStrategiesCount] = useState(0);
+  const [strategies, setStrategies] = useState<StrategyRule[]>([]);
 
-  // Sync active strategies count live from database
+  // Sync active strategies live from database and local cache
   useEffect(() => {
     let isMounted = true;
+    const storageKey = `portfolio_strategies_${activePortfolioId || 'global'}`;
+
     api.get(`/api/strategies?portfolio_id=${activePortfolioId || ''}`)
       .then((data: any) => {
         if (Array.isArray(data) && isMounted) {
-          setActiveStrategiesCount(data.filter((r: any) => r.enabled).length);
+          const cleaned = data.filter((r: any) => r.id !== 'rule-default');
+          setStrategies(cleaned);
+          setActiveStrategiesCount(cleaned.filter((r: any) => r.enabled).length);
+          try { localStorage.setItem(storageKey, JSON.stringify(cleaned)); } catch {}
+          return;
         }
       })
       .catch(() => {});
+
+    try {
+      const cached = localStorage.getItem(storageKey);
+      if (cached && isMounted) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          setStrategies(parsed);
+          setActiveStrategiesCount(parsed.filter((r: any) => r.enabled).length);
+        }
+      }
+    } catch {}
+
     return () => { isMounted = false; };
   }, [activePortfolioId, isStrategyModalOpen]);
 
@@ -556,6 +583,9 @@ export function PortfolioDashboard() {
             colSet.add('dma50');
             colSet.add('dma200');
           }
+          if (!arr.includes('strategy')) {
+            colSet.add('strategy');
+          }
           result[key] = colSet;
         }
         setPortfolioVisibleColumns(result);
@@ -665,6 +695,9 @@ export function PortfolioDashboard() {
           if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
         } else if (missingCol === 'totalPnLPct') {
           const idx = order.indexOf('totalPnL');
+          if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
+        } else if (missingCol === 'strategy') {
+          const idx = order.indexOf('symbol');
           if (idx !== -1) { order.splice(idx + 1, 0, missingCol); inserted = true; }
         } else if (missingCol === 'dma50') {
           const idx = order.indexOf('52wkLow');
@@ -1020,6 +1053,67 @@ export function PortfolioDashboard() {
     return activeStocks.filter(s => openSymbols.has(s.symbol));
   }, [activePortfolioId, activeStocks, activeSoldStocks, serverStats, stocks, soldStocks]);
 
+  const getSymbolStrategyInfo = React.useCallback((symbol: string, liveData?: any) => {
+    const activeRules = strategies.filter(r => 
+      r.enabled && (r.scope === 'global' || r.targetSymbol === 'ALL' || r.targetSymbol === symbol)
+    );
+
+    const hasActive = activeRules.length > 0;
+    if (!hasActive) {
+      return {
+        hasActive: false,
+        statusText: '—',
+        signal: null as ActionType | null,
+        signalRule: null as StrategyRule | null,
+        activeRulesCount: 0
+      };
+    }
+
+    const lp = livePrices[symbol] || {};
+    const currentPrice = lp.price ?? liveData?.price ?? null;
+    const changePct = lp.changePercent ?? liveData?.changePercent ?? null;
+    const rsi = lp.rsi ?? liveData?.rsi ?? null;
+    const dma50 = lp.dma50 ?? liveData?.dma50 ?? null;
+    const dma200 = lp.dma200 ?? liveData?.dma200 ?? null;
+
+    const indicators = {
+      price: typeof currentPrice === 'number' && !isNaN(currentPrice) ? currentPrice : null,
+      changePct: typeof changePct === 'number' && !isNaN(changePct) ? changePct : null,
+      rsi: typeof rsi === 'number' && !isNaN(rsi) ? rsi : null,
+      dma50: typeof dma50 === 'number' && !isNaN(dma50) ? dma50 : null,
+      dma200: typeof dma200 === 'number' && !isNaN(dma200) ? dma200 : null
+    };
+
+    let triggeredRule: StrategyRule | null = null;
+    for (const rule of activeRules) {
+      if (rule.targetSymbol === symbol && rule.targetSymbol !== 'ALL') {
+        if (evaluateStrategyRule(rule, symbol, indicators)) {
+          triggeredRule = rule;
+          break;
+        }
+      }
+    }
+
+    if (!triggeredRule) {
+      for (const rule of activeRules) {
+        if (rule.scope === 'global' || rule.targetSymbol === 'ALL') {
+          if (evaluateStrategyRule(rule, symbol, indicators)) {
+            triggeredRule = rule;
+            break;
+          }
+        }
+      }
+    }
+
+    return {
+      hasActive: true,
+      statusText: 'Active',
+      signal: triggeredRule ? (triggeredRule.action as ActionType) : null,
+      signalRule: triggeredRule,
+      activeRulesCount: activeRules.length
+    };
+  }, [strategies, livePrices]);
+
   let filteredSymbolGroups = symbolGroups;
   if (filterType === 'open') {
     filteredSymbolGroups = symbolGroups.filter((g: any) => g.netQty > 0);
@@ -1111,6 +1205,18 @@ export function PortfolioDashboard() {
       } else if (sortField === '52wkLow') {
         valA = a.liveData?.fiftyTwoWeekLow || 0;
         valB = b.liveData?.fiftyTwoWeekLow || 0;
+      } else if (sortField === 'strategy') {
+        const stratA = getSymbolStrategyInfo(a.symbol, a.liveData);
+        const stratB = getSymbolStrategyInfo(b.symbol, b.liveData);
+        const getScore = (s: any) => {
+          if (!s.hasActive) return 0;
+          if (s.signal === 'BUY') return 5;
+          if (s.signal === 'SELL') return 4;
+          if (s.signal === 'ALERT') return 3;
+          return 1;
+        };
+        valA = getScore(stratA);
+        valB = getScore(stratB);
       } else if (sortField === 'dma50') {
         valA = livePrices[a.symbol]?.dma50 ?? a.liveData?.dma50 ?? 0;
         valB = livePrices[b.symbol]?.dma50 ?? b.liveData?.dma50 ?? 0;
@@ -1192,9 +1298,12 @@ export function PortfolioDashboard() {
       const currentValue = group.netQty * currentPrice;
       const pnl = currentValue - group.netCostBasis;
       const pnlPct = group.netCostBasis > 0 ? (pnl / group.netCostBasis) * 100 : 0;
+      const strat = getSymbolStrategyInfo(group.symbol, group.liveData);
       
       return {
         Ticker: group.symbol,
+        'Strategy Status': strat.hasActive ? 'Active' : '—',
+        'Strategy Signal': strat.signal || (strat.hasActive ? 'HOLD' : '—'),
         'Total Quantity': group.netQty,
         'Avg Buy Price': group.avgBuyPrice,
         'Current Price': currentPrice,
@@ -1849,6 +1958,40 @@ export function PortfolioDashboard() {
                               if (!visibleColumns.has(colId)) return null;
                               const col = ALL_COLUMNS.find(c => c.id === colId)!;
                               const displayLabel = col.id === 'rsi' ? `RSI (${indicatorConfig.rsiPeriod})` : col.label;
+
+                              if (col.id === 'strategy') {
+                                return (
+                                  <SortableHeaderCell 
+                                    key="strategy"
+                                    field="strategy"
+                                    label="Strategy"
+                                    width={activeColumnWidths['strategy'] || 140}
+                                    isNumber={false}
+                                    sortField={sortField}
+                                    sortDirection={sortDirection}
+                                    resizingColId={resizingCol?.id}
+                                    onSort={handleSort}
+                                    onResizeStart={handleResizeStart}
+                                    customHeader={
+                                      <div className="w-full flex flex-col select-none py-0.5">
+                                        <div className="flex items-center justify-between gap-1 pb-1 border-b border-divider/60">
+                                          <span className="truncate font-semibold text-primary uppercase tracking-wider text-[9px] sm:text-[10px]">Strategy</span>
+                                          {sortField === 'strategy' ? (
+                                            sortDirection === 'asc' ? <ChevronUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" /> : <ChevronDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" />
+                                          ) : (
+                                            <ArrowUpDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-tertiary group-hover:text-secondary transition-colors shrink-0" />
+                                          )}
+                                        </div>
+                                        <div className="grid grid-cols-2 text-center text-[8px] sm:text-[9px] font-semibold text-secondary pt-0.5 divide-x divide-divider/60 normal-case tracking-normal">
+                                          <span className="truncate px-0.5" title="Strategy Status (Active / Inactive)">Status</span>
+                                          <span className="truncate px-0.5" title="Trading Signal">Signal</span>
+                                        </div>
+                                      </div>
+                                    }
+                                  />
+                                );
+                              }
+
                               return (
                                 <SortableHeaderCell 
                                   key={col.id}
@@ -1884,6 +2027,12 @@ export function PortfolioDashboard() {
                               {activeColumnOrder.filter(id => id !== 'symbol').map(colId => {
                                 if (!visibleColumns.has(colId)) return null;
                                 switch (colId) {
+                                  case 'strategy':
+                                    return (
+                                      <td key="strategy" className="px-1 py-1.5 text-[9px] sm:text-[10px] text-center font-mono text-tertiary">
+                                        —
+                                      </td>
+                                    );
                                   case 'netCostBasis':
                                     return <td key="netCostBasis" className="px-2 py-1.5 text-[9px] sm:text-[10px] text-right font-mono text-primary">{currencySymbol}{fmt(totalInvestment)}</td>;
                                   case 'currentValue':
@@ -2075,6 +2224,51 @@ export function PortfolioDashboard() {
                                 {activeColumnOrder.filter(id => id !== 'symbol').map(colId => {
                                   if (!visibleColumns.has(colId)) return null;
                                   switch (colId) {
+
+                                    case 'strategy': {
+                                      const strat = getSymbolStrategyInfo(group.symbol, group.liveData);
+                                      return (
+                                        <td 
+                                          key="strategy" 
+                                          onClick={() => setIsStrategyModalOpen(true)}
+                                          className="px-1 py-1 text-[9px] sm:text-[10px] cursor-pointer hover:bg-surface-hover/80 transition-colors"
+                                          title={strat.signalRule ? `Triggered: ${strat.signalRule.name} (${strat.signal})` : strat.hasActive ? `${strat.activeRulesCount} active strategy(ies)` : 'No active strategy. Click to configure.'}
+                                        >
+                                          <div className="grid grid-cols-2 text-center items-center h-full divide-x divide-divider/40">
+                                            <div className="px-1 flex items-center justify-center">
+                                              {strat.hasActive ? (
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/25">
+                                                  Active
+                                                </span>
+                                              ) : (
+                                                <span className="text-tertiary font-mono">—</span>
+                                              )}
+                                            </div>
+                                            <div className="px-1 flex items-center justify-center">
+                                              {strat.signal === 'BUY' ? (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-emerald-600 text-white shadow-xs">
+                                                  BUY
+                                                </span>
+                                              ) : strat.signal === 'SELL' ? (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-rose-600 text-white shadow-xs">
+                                                  SELL
+                                                </span>
+                                              ) : strat.signal === 'ALERT' ? (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-amber-500 text-white shadow-xs">
+                                                  ALERT
+                                                </span>
+                                              ) : strat.hasActive ? (
+                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-medium text-secondary bg-surface-hover border border-divider/60">
+                                                  HOLD
+                                                </span>
+                                              ) : (
+                                                <span className="text-tertiary font-mono">—</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </td>
+                                      );
+                                    }
 
                                     case 'netQty':
                                       return <td key="netQty" className="px-2 py-1.5 text-[9px] sm:text-[10px] font-mono text-right font-semibold text-primary truncate">{group.netQty.toLocaleString()}</td>;
