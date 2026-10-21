@@ -13,14 +13,13 @@ interface StrategyBuilderModalProps {
   isOpen: boolean;
   onClose: () => void;
   portfolioId: string;
-  stocks?: Array<{ id: string; symbol: string; quantity: number; entry_price: number }>;
+  stocks?: Array<{ id: string; symbol: string; quantity: number; entry_price: number; portfolio_id?: string }>;
   currencySymbol?: string;
 }
 
 const CATEGORIES = [
   { id: 'builder', name: 'Global Strategy' },
-  { id: 'active', name: 'Saved Strategies' },
-  { id: 'stock_specific', name: 'Stock Specific' }
+  { id: 'active', name: 'Saved Strategies' }
 ];
 
 export function StrategyBuilderModal({
@@ -30,7 +29,7 @@ export function StrategyBuilderModal({
   stocks = [],
   currencySymbol = '₹'
 }: StrategyBuilderModalProps) {
-  const [activeTab, setActiveTab] = useState<'builder' | 'active' | 'stock_specific'>('builder');
+  const [activeTab, setActiveTab] = useState<'builder' | 'active'>('builder');
   const [currentRule, setCurrentRule] = useState<StrategyRule>(BLANK_RULE);
   const [savedRules, setSavedRules] = useState<StrategyRule[]>([]);
   const [copied, setCopied] = useState(false);
@@ -77,7 +76,12 @@ export function StrategyBuilderModal({
     return () => { isMounted = false; };
   }, [isOpen, portfolioId, storageKey]);
 
-  const uniqueSymbols = useMemo(() => Array.from(new Set(stocks.map(s => s.symbol))), [stocks]);
+  const uniqueSymbols = useMemo(() => {
+    const list = portfolioId
+      ? stocks.filter(s => !s.portfolio_id || s.portfolio_id === portfolioId)
+      : stocks;
+    return Array.from(new Set(list.map(s => s.symbol))).sort();
+  }, [stocks, portfolioId]);
 
   // Handlers
   const handleCopyFormula = () => {
@@ -208,7 +212,7 @@ export function StrategyBuilderModal({
   // Render modal via React Portal
   if (!isOpen) return null;
 
-  const isBuilderActive = activeTab === 'builder' || activeTab === 'stock_specific';
+  const isBuilderActive = activeTab === 'builder';
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -242,21 +246,14 @@ export function StrategyBuilderModal({
               {CATEGORIES.map(cat => {
                 const count = cat.id === 'active'
                   ? savedRules.length
-                  : cat.id === 'stock_specific'
-                    ? savedRules.filter(r => r.scope === 'stock').length
-                    : savedRules.filter(r => r.scope === 'global').length;
+                  : savedRules.filter(r => r.scope === 'global').length;
 
                 return (
                   <button
                     key={cat.id}
                     onClick={() => {
-                      const catId = cat.id as 'builder' | 'active' | 'stock_specific';
+                      const catId = cat.id as 'builder' | 'active';
                       setActiveTab(catId);
-                      if (catId === 'stock_specific' && currentRule.scope === 'global') {
-                        setCurrentRule(prev => ({ ...prev, scope: 'stock', targetSymbol: uniqueSymbols[0] || 'ALL' }));
-                      } else if (catId === 'builder' && currentRule.scope === 'stock') {
-                        setCurrentRule(prev => ({ ...prev, scope: 'global', targetSymbol: 'ALL' }));
-                      }
                     }}
                     className={`text-left px-3 py-2 rounded-lg text-xs sm:text-sm transition-colors flex items-center justify-between ${
                       activeTab === cat.id
@@ -284,12 +281,10 @@ export function StrategyBuilderModal({
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <h3 className="text-xs sm:text-sm font-medium text-primary">
-                      {activeTab === 'stock_specific' ? 'Stock Specific Strategy' : 'Global Strategy'}
+                      Global Strategy
                     </h3>
                     <p className="text-[10px] sm:text-xs text-secondary">
-                      {activeTab === 'stock_specific'
-                        ? 'Configure rules targeting a specific asset.'
-                        : 'Configure signal-based portfolio conditions.'}
+                      Configure signal-based portfolio conditions.
                     </p>
                   </div>
                   {(currentRule.name || currentRule.action || currentRule.sizingType || currentRule.conditions.length > 0) && (
@@ -334,6 +329,12 @@ export function StrategyBuilderModal({
                       {uniqueSymbols.map(sym => (
                         <option key={sym} value={sym}>{sym}</option>
                       ))}
+                      {currentRule.targetSymbol && currentRule.targetSymbol !== 'ALL' && !uniqueSymbols.includes(currentRule.targetSymbol) && (
+                        <option value={currentRule.targetSymbol}>{currentRule.targetSymbol}</option>
+                      )}
+                      {uniqueSymbols.length === 0 && (
+                        <option value="" disabled>No open stocks in this portfolio</option>
+                      )}
                     </select>
                   </div>
                 </div>
@@ -600,7 +601,7 @@ export function StrategyBuilderModal({
                             type="button"
                             onClick={() => {
                               setCurrentRule(rule);
-                              setActiveTab(rule.scope === 'stock' ? 'stock_specific' : 'builder');
+                              setActiveTab('builder');
                             }}
                             className="px-2 py-1 text-xs text-secondary hover:text-primary cursor-pointer"
                           >

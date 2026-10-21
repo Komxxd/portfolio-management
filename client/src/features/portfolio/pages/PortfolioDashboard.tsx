@@ -975,6 +975,51 @@ export function PortfolioDashboard() {
 
   const symbolGroups = serverStats?.symbolGroups || [];
 
+  const openStocks = useMemo(() => {
+    if (!activePortfolioId) {
+      const boughtMap = new Map<string, number>();
+      for (const s of stocks) {
+        if (Number(s.entry_price) !== -2) {
+          boughtMap.set(s.symbol, (boughtMap.get(s.symbol) || 0) + Number(s.quantity));
+        }
+      }
+      const soldMap = new Map<string, number>();
+      for (const s of soldStocks) {
+        soldMap.set(s.symbol, (soldMap.get(s.symbol) || 0) + Number(s.quantity));
+      }
+      const openSymbols = new Set<string>();
+      boughtMap.forEach((qty, sym) => {
+        if (qty - (soldMap.get(sym) || 0) > 0.000001) openSymbols.add(sym);
+      });
+      return stocks.filter(s => openSymbols.has(s.symbol));
+    }
+
+    if (serverStats?.symbolGroups && serverStats.symbolGroups.length > 0) {
+      const openSymbols = new Set(
+        serverStats.symbolGroups
+          .filter((g: any) => g.netQty > 0)
+          .map((g: any) => g.symbol)
+      );
+      return activeStocks.filter(s => openSymbols.has(s.symbol));
+    }
+
+    const boughtMap = new Map<string, number>();
+    for (const s of activeStocks) {
+      if (Number(s.entry_price) !== -2) {
+        boughtMap.set(s.symbol, (boughtMap.get(s.symbol) || 0) + Number(s.quantity));
+      }
+    }
+    const soldMap = new Map<string, number>();
+    for (const s of activeSoldStocks) {
+      soldMap.set(s.symbol, (soldMap.get(s.symbol) || 0) + Number(s.quantity));
+    }
+    const openSymbols = new Set<string>();
+    boughtMap.forEach((qty, sym) => {
+      if (qty - (soldMap.get(sym) || 0) > 0.000001) openSymbols.add(sym);
+    });
+    return activeStocks.filter(s => openSymbols.has(s.symbol));
+  }, [activePortfolioId, activeStocks, activeSoldStocks, serverStats, stocks, soldStocks]);
+
   let filteredSymbolGroups = symbolGroups;
   if (filterType === 'open') {
     filteredSymbolGroups = symbolGroups.filter((g: any) => g.netQty > 0);
@@ -2670,7 +2715,7 @@ export function PortfolioDashboard() {
         isOpen={isStrategyModalOpen}
         onClose={() => setIsStrategyModalOpen(false)}
         portfolioId={activePortfolioId || ''}
-        stocks={stocks}
+        stocks={openStocks}
         currencySymbol={currencySymbol}
       />
     </>
